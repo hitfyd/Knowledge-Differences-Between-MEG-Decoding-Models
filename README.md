@@ -7,26 +7,19 @@
 In the conde environment, do the following:
 
 ```
-conda create -n <environment name> python=3.11
+conda create -n <environment name> python=3.10
 conda activate <environment name>
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117
-pip install mne
-pip install yacs
-pip install wandb
-pip install scikit-learn
-pip install -U https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-3.0.0.dev0-cp311-cp311-manylinux2014_x86_64.whl
+pip install aix360
+pip install torch torchvision torchaudio
 ```
 
 Major dependency packages:
 
 ```
-python==3.11.3
-torch==2.0.1+cu117
-mne==1.3.1
+python==3.10.12
+torch==2.0.1
 yacs==0.1.8
-wandb==0.15.2
-scikit-learn==1.2.2
-ray==3.0.0.dev0
+scikit-learn==1.3.0
 ```
 
 ### Dataset Preprocessing
