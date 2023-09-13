@@ -1,0 +1,14 @@
+EXPERIMENT:
+  NAME: ""
+  TAG: "varcnn,hgrn"
+  PROJECT: "CamCAN_baselines"
+DATASET:
+  TYPE: "CamCAN"
+  CHANNELS: 204
+  POINTS: 100
+  NUM_CLASSES: 2
+MODELS:
+  A: "CamCAN_varcnn"
+  B: "CamCAN_hgrn"
+GLOBAL:
+LOCAL:

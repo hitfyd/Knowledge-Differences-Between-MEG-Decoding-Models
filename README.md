@@ -11,6 +11,7 @@ conda create -n <environment name> python=3.10
 conda activate <environment name>
 pip install aix360
 pip install torch torchvision torchaudio
+pip install tqdm
 ```
 
 Major dependency packages:

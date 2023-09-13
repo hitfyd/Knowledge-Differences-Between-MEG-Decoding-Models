@@ -1,0 +1,14 @@
+EXPERIMENT:
+  NAME: ""
+  TAG: "sdt_varcnn_kd, sdt"
+  PROJECT: "CamCAN_baselines"
+DATASET:
+  TYPE: "CamCAN"
+  CHANNELS: 204
+  POINTS: 100
+  NUM_CLASSES: 2
+MODELS:
+  A: "CamCAN_sdt_varcnn_kd"
+  B: "CamCAN_sdt"
+GLOBAL:
+LOCAL:
