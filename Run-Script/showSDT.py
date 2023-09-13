@@ -25,9 +25,9 @@ if __name__ == "__main__":
     setup_seed(cfg.EXPERIMENT.SEED)
 
     # init dataloader & models
-    train_loader = get_data_loader_from_dataset('../dataset/{}_train.npz'.format(cfg.DATASET.TYPE),
-                                                cfg.SOLVER.BATCH_SIZE)
-    val_loader = get_data_loader_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE),
+    # train_loader = get_data_loader_from_dataset('../dataset/{}_train.npz'.format(cfg.DATASET.TYPE),
+    #                                             cfg.SOLVER.BATCH_SIZE)
+    # val_loader = get_data_loader_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE),
                                               cfg.DATASET.TEST.BATCH_SIZE)
 
     print(log_msg("Loading teacher model", "INFO"))
@@ -44,5 +44,5 @@ if __name__ == "__main__":
     model_B.load_state_dict(load_checkpoint(model_B_pretrain_path))
 
     # validate
-    test_acc, test_loss = validate(val_loader, model_A)
-    print(log_msg("test_acc\t{:.2f}\ttest_loss{:.2f}".format(test_acc, test_loss), "INFO"))
+    # test_acc, test_loss = validate(val_loader, model_A)
+    # print(log_msg("test_acc\t{:.2f}\ttest_loss{:.2f}".format(test_acc, test_loss), "INFO"))
