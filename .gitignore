@@ -268,3 +268,4 @@ dataset/*.npz
 
 /Run-Script/wandb/
 /Run-Script/output/
+/Run-Script/temp/
