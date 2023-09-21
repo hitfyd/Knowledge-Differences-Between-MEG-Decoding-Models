@@ -9,12 +9,14 @@ from PIL import Image
 from matplotlib import pyplot as plt
 from graphviz import Digraph
 from matplotlib.collections import LineCollection
+from sklearn.metrics import accuracy_score, confusion_matrix
 
 # import torchsummary
 # from torchviz import make_dot
 
 from differlib.engine.cfg import CFG as cfg
-from differlib.engine.utils import log_msg, setup_seed, get_data_loader_from_dataset, load_checkpoint, accuracy
+from differlib.engine.utils import log_msg, setup_seed, get_data_loader_from_dataset, load_checkpoint, accuracy, \
+    get_data_labels_from_dataset
 from differlib.models import model_dict
 
 if __name__ == "__main__":
@@ -36,6 +38,7 @@ if __name__ == "__main__":
     #                                             cfg.SOLVER.BATCH_SIZE)
     val_loader = get_data_loader_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE),
                                               cfg.DATASET.TEST.BATCH_SIZE)
+    val_data, val_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
 
     print(log_msg("Loading teacher model", "INFO"))
     model_A_type, model_A_pretrain_path = model_dict[cfg.MODELS.A]
@@ -68,21 +71,43 @@ if __name__ == "__main__":
     # torch.onnx.export(model_A, torch.randn(cfg.SOLVER.BATCH_SIZE, cfg.DATASET.CHANNELS, cfg.DATASET.POINTS).cuda(), "model.onnx", input_names=input_names, output_names=output_names)
 
     # validate
+    targets, pred_A, pred_B = [], [], []
     criterion = nn.CrossEntropyLoss()
     for idx, (data, target) in enumerate(val_loader):
+        targets.extend(target.numpy())
         data = data.float()
         data = data.cuda(non_blocking=True)
         target = target.cuda(non_blocking=True)
 
         output_A = model_A(data)
-        loss_A = criterion(output_A, target)
-        acc_A, _ = accuracy(output_A, target, topk=(1, 2))
-        print(acc_A, loss_A)
+        _, pred_target = output_A.topk(1, 1, True, True)
+        pred_target = pred_target.squeeze().cpu().detach().numpy()
+        pred_A.extend(pred_target)
+        acc_A = accuracy_score(y_true=target.cpu().detach().numpy(), y_pred=pred_target)
+        print(f"{idx}: model_A test accuracy: {(acc_A * 100):.2f}%")
+        # loss_A = criterion(output_A, target)
+        # acc_A, _ = accuracy(output_A, target, topk=(1, 2))
+        # print(acc_A, loss_A)
 
         output_B = model_B(data)
-        loss_B = criterion(output_B, target)
-        acc_B, _ = accuracy(output_B, target, topk=(1, 2))
-        print(acc_B, loss_B)
+        _, pred_target = output_B.topk(1, 1, True, True)
+        pred_target = pred_target.squeeze().cpu().detach().numpy()
+        pred_B.extend(pred_target)
+        acc_B = accuracy_score(y_true=target.cpu().detach().numpy(), y_pred=pred_target)
+        print(f"{idx}: model_B test accuracy: {(acc_B * 100):.2f}%")
+        # loss_B = criterion(output_B, target)
+        # acc_B, _ = accuracy(output_B, target, topk=(1, 2))
+        # print(acc_B, loss_B)
+
+    acc_A = accuracy_score(y_true=targets, y_pred=pred_A)
+    print(f"sum_model_A test accuracy: {(acc_A * 100):.2f}%")
+    cm_A = confusion_matrix(y_true=targets, y_pred=pred_A)
+    print('cm_A is:\n', cm_A)
+
+    acc_B = accuracy_score(y_true=targets, y_pred=pred_B)
+    print(f"sum_model_B test accuracy: {(acc_B * 100):.2f}%")
+    cm_B = confusion_matrix(y_true=targets, y_pred=pred_B)
+    print('cm_B is:\n', cm_B)
 
 
     def plot_SDT(model, name='model'):
@@ -128,10 +153,10 @@ if __name__ == "__main__":
             plt.axis('off')
             plt.gcf().set_size_inches(cfg.DATASET.POINTS / 100.0, cfg.DATASET.CHANNELS / 100.0)
             plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
-            plt.savefig("temp/{}_{}.png".format(name, inner_i))
+            plt.savefig("temp/{}_{}.svg".format(name, inner_i))
 
             # 绘制内部节点
-            dot.node(name="inner_{}".format(inner_i), label="", image="temp/{}_{}.png".format(name, inner_i),
+            dot.node(name="inner_{}".format(inner_i), label="", image="temp/{}_{}.svg".format(name, inner_i),
                      shape="square", color="white", style="filled")
         leaf_weights = ((leaf_weights - np.nanmin(leaf_weights)) /
                         (np.nanmax(leaf_weights) - np.nanmin(leaf_weights)))  # 归一化
@@ -158,3 +183,5 @@ if __name__ == "__main__":
 
     plot_SDT(model_A, cfg.MODELS.A)
     plot_SDT(model_B, cfg.MODELS.B)
+
+    # 举例绘制一个样本

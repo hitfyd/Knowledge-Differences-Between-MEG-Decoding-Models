@@ -76,12 +76,14 @@ class SDT(nn.Module):
             nn.Sigmoid(),
         )
 
+        # 加权投票法确定最终输出的标签概率分布
         self.leaf_nodes = nn.Linear(self.leaf_node_num_,
                                     self.output_dim,
                                     bias=False)
 
     def forward(self, X, is_training_data=False):
         _mu, _penalty = self._forward(X)
+        # print(_mu[0], _mu[0].sum())   # 获取到达各叶子节点的路径概率，按照重要性排序从高到低提取该路径上的决策规则
         y_pred = self.leaf_nodes(_mu)
 
         # When `X` is the training data, the model also returns the penalty
@@ -97,9 +99,9 @@ class SDT(nn.Module):
         batch_size = X.size()[0]
         X = self._data_augment(X)
 
-        path_prob = self.inner_nodes(X)
+        path_prob = self.inner_nodes(X)     # 内部节点向左子树的概率
         path_prob = torch.unsqueeze(path_prob, dim=2)
-        path_prob = torch.cat((path_prob, 1 - path_prob), dim=2)
+        path_prob = torch.cat((path_prob, 1 - path_prob), dim=2)    # 补全右子树的概率
 
         _mu = X.data.new(batch_size, 1, 1).fill_(1.0)
         _penalty = torch.tensor(0.0).to(self.device)
@@ -172,6 +174,6 @@ class SDT(nn.Module):
             raise ValueError(msg.format(self.lamda))
 
 
-def sdt(channels=204, points=100, num_classes=2, depth=5, lamda=1e-3, **kwargs):
+def sdt(channels=204, points=100, num_classes=2, depth=3, lamda=1e-3, **kwargs):
     return SDT(channels=channels, points=points, num_classes=num_classes, depth=depth, lamda=lamda, **kwargs)
 

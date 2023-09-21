@@ -15,8 +15,12 @@ model_dict = {
     "CamCAN_varcnn": (varcnn, model_checkpoint_prefix + "CamCAN_VARCNN_20220616160458_checkpoint.pt"),
     "CamCAN_hgrn": (hgrn, model_checkpoint_prefix + "CamCAN_HGRN_20220616160458_checkpoint.pt"),
     "CamCAN_sdt": (sdt, model_checkpoint_prefix + "CamCAN_SDT_Vanilla"),
+    "CamCAN_sdt3": (sdt, model_checkpoint_prefix + "CamCAN_SDT3_Vanilla"),
+    "CamCAN_sdt4": (sdt, model_checkpoint_prefix + "CamCAN_SDT4_Vanilla"),
     "CamCAN_sdt_varcnn_kd": (sdt, model_checkpoint_prefix + "CamCAN_SDT_VARCNN_KD"),
     "CamCAN_sdt_varcnn_fakd": (sdt, model_checkpoint_prefix + "CamCAN_SDT_VARCNN_FAKD"),
+    "CamCAN_sdt3_varcnn_fakd": (sdt, model_checkpoint_prefix + "CamCAN_SDT3_VARCNN_FAKD"),
+    "CamCAN_sdt4_varcnn_fakd": (sdt, model_checkpoint_prefix + "CamCAN_SDT4_VARCNN_FAKD"),
 
     "DecMeg2014_lfcnn": (lfcnn, model_checkpoint_prefix + "DecMeg2014_LFCNN_20230601182643_checkpoint.pt"),     # "DecMeg2014_LFCNN_20220616192753_checkpoint.pt" "DecMeg2014_LFCNN_20230601182643_checkpoint.pt"
     "DecMeg2014_varcnn": (varcnn, model_checkpoint_prefix + "DecMeg2014_VARCNN_20230601184341_checkpoint.pt"),  # "DecMeg2014_VARCNN_20220616192753_checkpoint.pt" "DecMeg2014_VARCNN_20230601184341_checkpoint.pt"
