@@ -119,10 +119,10 @@ if __name__ == "__main__":
         # 绘制软决策树
         dot = Digraph()
 
+        # inner_weights = (255 * (inner_weights - np.nanmin(inner_weights)) /
+        #                  (np.nanmax(inner_weights) - np.nanmin(inner_weights)))  # 归一化
         for inner_i in range(len(inner_weights)):
             inner_weight = inner_weights[inner_i][1:]
-            inner_weight = (255 * (inner_weight - np.nanmin(inner_weight)) /
-                            (np.nanmax(inner_weight) - np.nanmin(inner_weight)))  # 归一化
             inner_weight = inner_weight.reshape(cfg.DATASET.CHANNELS, cfg.DATASET.POINTS)
             # 使用Image保存图片
             # inner_weight = inner_weight.astype(np.uint8)
@@ -149,7 +149,7 @@ if __name__ == "__main__":
             #     lc.set_array(dydx)
             #     axs.add_collection(lc)
 
-            plt.imshow(inner_weight, cmap="plasma")
+            plt.imshow(inner_weight, cmap="plasma")     # gray, plasma
             plt.axis('off')
             plt.gcf().set_size_inches(cfg.DATASET.POINTS / 100.0, cfg.DATASET.CHANNELS / 100.0)
             plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
@@ -170,7 +170,7 @@ if __name__ == "__main__":
             # dot.node(name="leaf_{}".format(leaf_j), label="{}\n{}".format(np.around(leaf_weight, 2), leaf_max_label),
             #          color='blue')
         # 绘制连接线
-        for inner_i in range(len(inner_weights)//2):
+        for inner_i in range(len(inner_weights) // 2):
             dot.edge("inner_{}".format(inner_i), "inner_{}".format(inner_i * 2 + 1))
             dot.edge("inner_{}".format(inner_i), "inner_{}".format(inner_i * 2 + 2))
         first_leaf_father = len(inner_weights) // 2
