@@ -2,6 +2,7 @@ import os
 import argparse
 
 import numpy as np
+import torch
 # import graphviz
 # import torch
 import torch.nn as nn
@@ -10,6 +11,7 @@ from matplotlib import pyplot as plt
 from graphviz import Digraph
 from matplotlib.collections import LineCollection
 from sklearn.metrics import accuracy_score, confusion_matrix
+from torch.distributed.pipeline.sync.copy import Copy
 
 # import torchsummary
 # from torchviz import make_dot
@@ -54,6 +56,24 @@ if __name__ == "__main__":
         channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
     model_B.load_state_dict(load_checkpoint(model_B_pretrain_path))
     model_B = model_B.cuda()
+
+
+    def retain_model(model, lower_len=50, upper_len=10):
+        inner_weights = model.inner_nodes[0].weight[:, 1:]
+        for i in range(len(inner_weights)):
+            inner_weight = inner_weights[i]
+            inner_weight_sort, _ = inner_weight.sort()
+            lower_bound = inner_weight_sort[lower_len - 1]
+            upper_bound = inner_weight_sort[-upper_len]
+            mask = inner_weight >= upper_bound
+            mask += inner_weight <= lower_bound
+            result = torch.mul(mask, inner_weight)
+            with torch.no_grad():
+                model.inner_nodes[0].weight[i, 1:] = result
+
+
+    retain_model(model_A)
+    retain_model(model_B)
 
     # torchsummary.summary(model_A, (cfg.DATASET.CHANNELS, cfg.DATASET.POINTS))
     #
@@ -149,7 +169,7 @@ if __name__ == "__main__":
             #     lc.set_array(dydx)
             #     axs.add_collection(lc)
 
-            plt.imshow(inner_weight, cmap="plasma")     # gray, plasma
+            plt.imshow(inner_weight, cmap="plasma")  # gray, plasma
             plt.axis('off')
             plt.gcf().set_size_inches(cfg.DATASET.POINTS / 100.0, cfg.DATASET.CHANNELS / 100.0)
             plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
