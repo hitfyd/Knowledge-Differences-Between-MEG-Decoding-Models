@@ -58,7 +58,7 @@ if __name__ == "__main__":
     model_B = model_B.cuda()
 
 
-    def retain_model(model, lower_len=50, upper_len=10):
+    def retain_model(model, lower_len=1020, upper_len=1020):
         inner_weights = model.inner_nodes[0].weight[:, 1:]
         for i in range(len(inner_weights)):
             inner_weight = inner_weights[i]
@@ -68,6 +68,7 @@ if __name__ == "__main__":
             mask = inner_weight >= upper_bound
             mask += inner_weight <= lower_bound
             result = torch.mul(mask, inner_weight)
+            print(i, lower_bound, upper_bound)
             with torch.no_grad():
                 model.inner_nodes[0].weight[i, 1:] = result
 
@@ -201,7 +202,7 @@ if __name__ == "__main__":
         dot.render(filename=name, format="pdf")
 
 
-    plot_SDT(model_A, cfg.MODELS.A)
-    plot_SDT(model_B, cfg.MODELS.B)
+    # plot_SDT(model_A, cfg.MODELS.A)
+    # plot_SDT(model_B, cfg.MODELS.B)
 
     # 举例绘制一个样本
