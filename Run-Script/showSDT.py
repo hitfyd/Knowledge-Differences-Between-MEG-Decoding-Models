@@ -2,6 +2,7 @@ import os
 import argparse
 
 import numpy as np
+import sympy
 import torch
 # import graphviz
 # import torch
@@ -58,10 +59,16 @@ if __name__ == "__main__":
     model_B = model_B.cuda()
 
 
-    def retain_model(model, lower_len=1020, upper_len=1020):
+    def retain_model(model, lower_len_first=100, upper_len_first=100):
         inner_weights = model.inner_nodes[0].weight[:, 1:]
         for i in range(len(inner_weights)):
             inner_weight = inner_weights[i]
+            lower_len = lower_len_first
+            upper_len = upper_len_first
+            # lower_len = lower_len_first * (2 ** int(sympy.log(i+1, 2)))
+            # upper_len = upper_len_first * (2 ** int(sympy.log(i+1, 2)))
+            # lower_len = int(lower_len_first / (10 ** int(sympy.log(i + 1, 2))))
+            # upper_len = int(upper_len_first / (10 ** int(sympy.log(i + 1, 2))))
             inner_weight_sort, _ = inner_weight.sort()
             lower_bound = inner_weight_sort[lower_len - 1]
             upper_bound = inner_weight_sort[-upper_len]

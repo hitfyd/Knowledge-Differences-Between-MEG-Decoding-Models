@@ -83,8 +83,25 @@ class SDT(nn.Module):
 
     def forward(self, X, is_training_data=False):
         _mu, _penalty = self._forward(X)
-        # print(_mu[0], _mu[0].sum())   # 获取到达各叶子节点的路径概率，按照重要性排序从高到低提取该路径上的决策规则
         y_pred = self.leaf_nodes(_mu)
+
+        # print(_mu[0], _mu[0].sum())   # 获取到达各叶子节点的路径概率，按照重要性排序从高到低提取该路径上的决策规则
+        # values, indices = _mu.max(dim=1)
+        # print(values, indices)
+        leaf_weights = self.leaf_nodes.weight
+        num = 0
+        for idx in range(len(_mu)):
+            i = _mu[idx]
+            pred = torch.matmul(leaf_weights, i)
+            values, indices = torch.topk(i, k=1)
+            max_pred = torch.matmul(leaf_weights[:, indices], values)
+            # y_pred[idx] = max_pred
+            if pred.cpu().detach().numpy().argmax() != max_pred.cpu().detach().numpy().argmax():
+                # print(i, pred)
+                # print(values, indices, max_pred)
+                # print(pred.cpu().detach().numpy().argmax(), max_pred.cpu().detach().numpy().argmax())
+                num += 1
+        print("differencing:", num)
 
         # When `X` is the training data, the model also returns the penalty
         # to compute the training loss.
