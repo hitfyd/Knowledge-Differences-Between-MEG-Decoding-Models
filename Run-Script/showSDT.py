@@ -59,7 +59,7 @@ if __name__ == "__main__":
     model_B = model_B.cuda()
 
 
-    def retain_model(model, lower_len_first=100, upper_len_first=100):
+    def retain_model(model, lower_len_first=5000, upper_len_first=5000):
         inner_weights = model.inner_nodes[0].weight[:, 1:]
         for i in range(len(inner_weights)):
             inner_weight = inner_weights[i]
@@ -80,8 +80,8 @@ if __name__ == "__main__":
                 model.inner_nodes[0].weight[i, 1:] = result
 
 
-    retain_model(model_A)
-    retain_model(model_B)
+    # retain_model(model_A)
+    # retain_model(model_B)
 
     # torchsummary.summary(model_A, (cfg.DATASET.CHANNELS, cfg.DATASET.POINTS))
     #
@@ -209,7 +209,7 @@ if __name__ == "__main__":
         dot.render(filename=name, format="pdf")
 
 
-    # plot_SDT(model_A, cfg.MODELS.A)
-    # plot_SDT(model_B, cfg.MODELS.B)
+    plot_SDT(model_A, cfg.MODELS.A)
+    plot_SDT(model_B, cfg.MODELS.B)
 
     # 举例绘制一个样本
