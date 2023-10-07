@@ -8,7 +8,7 @@ DATASET:
   POINTS: 250
   NUM_CLASSES: 2
 MODELS:
-  A: "DecMeg2014_sdt_hgrn_fakd"
-  B: "DecMeg2014_sdt"
+  A: "DecMeg2014_sdt2_hgrn_fakd"
+  B: "DecMeg2014_sdt2"
 #GLOBAL:
 #LOCAL:

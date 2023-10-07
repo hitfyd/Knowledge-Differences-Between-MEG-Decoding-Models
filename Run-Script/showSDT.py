@@ -59,7 +59,7 @@ if __name__ == "__main__":
     model_B = model_B.cuda()
 
 
-    def retain_model(model, lower_len_first=5000, upper_len_first=5000):
+    def retain_model(model, lower_len_first=100, upper_len_first=100):
         inner_weights = model.inner_nodes[0].weight[:, 1:]
         for i in range(len(inner_weights)):
             inner_weight = inner_weights[i]
@@ -74,14 +74,17 @@ if __name__ == "__main__":
             upper_bound = inner_weight_sort[-upper_len]
             mask = inner_weight >= upper_bound
             mask += inner_weight <= lower_bound
+
+            mask_threshold = 0.005
+            mask = inner_weight.abs() >= mask_threshold
             result = torch.mul(mask, inner_weight)
-            print(i, lower_bound, upper_bound)
+            print(i, lower_bound, upper_bound, mask.sum())
             with torch.no_grad():
                 model.inner_nodes[0].weight[i, 1:] = result
 
 
-    # retain_model(model_A)
-    # retain_model(model_B)
+    retain_model(model_A)
+    retain_model(model_B)
 
     # torchsummary.summary(model_A, (cfg.DATASET.CHANNELS, cfg.DATASET.POINTS))
     #
@@ -177,7 +180,7 @@ if __name__ == "__main__":
             #     lc.set_array(dydx)
             #     axs.add_collection(lc)
 
-            plt.imshow(inner_weight, cmap="plasma")  # gray, plasma
+            plt.imshow(inner_weight, cmap="bwr")  # gray, plasma, bwr
             plt.axis('off')
             plt.gcf().set_size_inches(cfg.DATASET.POINTS / 100.0, cfg.DATASET.CHANNELS / 100.0)
             plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
