@@ -104,7 +104,7 @@ if __name__ == "__main__":
     from modeldiff import ModelDiff
 
     # init ModelDiff
-    md = ModelDiff(model_A, model_B, load_checkpoint(model_A_pretrain_path), load_checkpoint(model_B_pretrain_path), train_loader)
+    md = ModelDiff(model_A, model_B, {0: load_checkpoint(model_A_pretrain_path)}, {0: load_checkpoint(model_B_pretrain_path)}, train_loader)
 
     # Top-k distinguishing directions that are "important" for algorithm A but not algorithm B
     diff_ab = md.get_A_minus_B(val_loader, num_pca_comps=2)
