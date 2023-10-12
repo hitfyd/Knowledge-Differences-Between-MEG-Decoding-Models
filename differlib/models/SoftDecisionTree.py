@@ -101,7 +101,7 @@ class SDT(nn.Module):
                 # print(values, indices, max_pred)
                 # print(pred.cpu().detach().numpy().argmax(), max_pred.cpu().detach().numpy().argmax())
                 num += 1
-        print("differencing:", num)
+        # print("differencing:", num)
 
         # When `X` is the training data, the model also returns the penalty
         # to compute the training loss.

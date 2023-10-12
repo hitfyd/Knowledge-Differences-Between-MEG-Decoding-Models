@@ -8,9 +8,10 @@ import torch
 import torch.nn as nn
 from matplotlib import pyplot as plt
 from sklearn import metrics, tree
+from torch import optim
 
 from differlib.engine.cfg import CFG as cfg
-from differlib.engine.utils import get_data_labels_from_dataset, log_msg, load_checkpoint, setup_seed
+from differlib.engine.utils import get_data_labels_from_dataset, log_msg, load_checkpoint, setup_seed, get_data_loader
 from differlib.models import model_dict
 
 
@@ -38,24 +39,33 @@ def predict(model, data, batch_size=1024):
     return pred_target, output
 
 
-# def predict(model, val_loader):
-#     model.cuda()
-#     model.eval()
-#     pred_target, output = [], []
-#     with torch.no_grad():
-#         for idx, (data, target) in enumerate(val_loader):
-#             data = data.float()
-#             data = data.cuda(non_blocking=True)
-#
-#             output_i = model(data)
-#             _, pred_target_i = output_i.topk(1, 1, True, True)
-#             output_i = output_i.cpu().detach().numpy()
-#             pred_target_i = pred_target_i.squeeze().cpu().detach().numpy()
-#             pred_target.extend(pred_target_i)
-#             output.extend(output_i)
-#
-#     pred_target, output = np.array(pred_target), np.array(output)
-#     return pred_target, output
+criterion = nn.CrossEntropyLoss()
+# criterion = nn.MSELoss()
+
+
+def train(model, train_loader, epoch, lr=1e-5):
+    model.cuda()
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    model.train()
+    train_loss = 0
+    correct = 0
+    for batch_idx, (data, target) in enumerate(train_loader):
+        data, target = data.cuda(), target.cuda()
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        train_loss += loss.item()
+        optimizer.step()
+        pred = output.max(1, keepdim=True)[1]  # 找到概率最大的下标
+        correct += pred.eq(target.view_as(pred)).sum().item()
+        # correct += pred.eq(target.max(1, keepdim=True)[1].view_as(pred)).sum().item()
+
+    train_accuracy = 100. * correct / len(train_loader.dataset)
+    train_loss /= len(train_loader.dataset)
+    print('Training Dataset\tEpoch：{}\tAccuracy: [{}/{} ({:.6f}%)]\tAverage Loss: {:.6f}'.format(
+        epoch, correct, len(train_loader.dataset), train_accuracy, train_loss))
+    return train_accuracy, train_loss
 
 
 def evaluate(target, pred_target):
@@ -103,30 +113,23 @@ if __name__ == "__main__":
     model_B.load_state_dict(load_checkpoint(model_B_pretrain_path))
     model_B = model_B.cuda()
 
-    pred_target_A, _ = predict(model_A, val_data)
-    pred_target_B, _ = predict(model_B, val_data)
+    pred_target_A, output_A = predict(model_A, val_data)
+    pred_target_B, output_B = predict(model_B, val_data)
 
     data_len = len(val_data)
-    val_data_clf = val_data.reshape(data_len, -1)
     delta_target = pred_target_A ^ pred_target_B
+    delta_output = output_A - output_B
     print("0: {}\t 1: {}".format(data_len - delta_target.sum(), delta_target.sum()))
 
-    joblib_file = "joblib_model.sav"
+    delta_model = model_A_type(
+        channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
+    delta_model = delta_model.cuda()
 
-    clf = tree.DecisionTreeClassifier(min_samples_leaf=2)
-    clf = clf.fit(val_data_clf, delta_target)
+    train_loader = get_data_loader(val_data, delta_target, cfg.SOLVER.BATCH_SIZE)
+    # train_loader = get_data_loader(val_data, delta_output, cfg.SOLVER.BATCH_SIZE)
 
-    # 保存到当前工作目录中的文件
-    joblib.dump(clf, joblib_file)
+    for epoch in range(300):
+        train_accuracy, train_loss = train(delta_model, train_loader, epoch)
+        pred, _ = predict(delta_model, val_data)
+        print(evaluate(delta_target, pred))
 
-    pred = clf.predict(val_data_clf)
-    print(evaluate(delta_target, pred))
-    tree.plot_tree(clf)
-
-    # 从文件中加载
-    joblib_model = joblib.load(joblib_file)
-
-    pred = joblib_model.predict(val_data_clf)
-    print(evaluate(delta_target, pred))
-    tree.plot_tree(joblib_model)
-    plt.show()
