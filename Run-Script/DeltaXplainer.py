@@ -7,7 +7,9 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from matplotlib import pyplot as plt
-from sklearn import metrics, tree
+from sklearn import metrics, tree, clone
+from sklearn.model_selection import cross_val_score, StratifiedKFold
+from sklearn.utils.parallel import Parallel, delayed
 
 from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import get_data_labels_from_dataset, log_msg, load_checkpoint, setup_seed
@@ -111,22 +113,53 @@ if __name__ == "__main__":
     delta_target = pred_target_A ^ pred_target_B
     print("0: {}\t 1: {}".format(data_len - delta_target.sum(), delta_target.sum()))
 
-    joblib_file = "joblib_model.sav"
 
-    clf = tree.DecisionTreeClassifier(min_samples_leaf=2)
-    clf = clf.fit(val_data_clf, delta_target)
+    def clf2parallel(clf, X, y, train_index, test_index, save_path=None):
+        clf_clone = clone(clf)
+        clf_clone = clf_clone.fit(X[train_index], y[train_index])
 
-    # 保存到当前工作目录中的文件
-    joblib.dump(clf, joblib_file)
+        # 保存到当前工作目录中的文件
+        if save_path is not None:
+            joblib.dump(clf_clone, save_path)
 
-    pred = clf.predict(val_data_clf)
-    print(evaluate(delta_target, pred))
-    tree.plot_tree(clf)
+        pred_y = clf.predict(X[test_index])
+        scores = evaluate(y[test_index], pred_y)
+        return scores
 
-    # 从文件中加载
-    joblib_model = joblib.load(joblib_file)
 
-    pred = joblib_model.predict(val_data_clf)
-    print(evaluate(delta_target, pred))
-    tree.plot_tree(joblib_model)
-    plt.show()
+    skf = StratifiedKFold(n_splits=5)
+    clf = tree.DecisionTreeClassifier(min_samples_leaf=min_samples_leaf)
+    parallel = Parallel()
+    all_results = parallel(delayed(clf2parallel)(clf, val_data_clf, delta_target, train_index, test_index)
+                           for train_index, test_index in skf.split(val_data_clf, delta_target))
+    zipped_results = list(zip(*all_results))
+    for result in zipped_results:
+        print(result)
+
+
+    # 交叉验证
+    skf = StratifiedKFold(n_splits=5)
+    k_id = 0
+    min_samples_leaf = 5
+    for train, test in skf.split(val_data_clf, delta_target):
+        joblib_file = "{}_DT_{}_{}.sav".format(cfg.DATASET.TYPE, min_samples_leaf, k_id)
+        k_id += 1
+
+        clf = tree.DecisionTreeClassifier(min_samples_leaf=min_samples_leaf)
+        clf = clf.fit(val_data_clf[train], delta_target[train])
+
+        # 保存到当前工作目录中的文件
+        joblib.dump(clf, joblib_file)
+
+        pred = clf.predict(val_data_clf[test])
+        print(evaluate(delta_target[test], pred))
+        tree.plot_tree(clf)
+
+        # # 从文件中加载
+        # joblib_model = joblib.load(joblib_file)
+        #
+        # pred = clf.predict(val_data_clf[test])
+        # print(evaluate(delta_target[test], pred))
+        # tree.plot_tree(joblib_model)
+
+        plt.show()
