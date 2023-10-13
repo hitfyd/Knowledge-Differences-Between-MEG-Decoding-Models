@@ -63,9 +63,9 @@ def predict(model, data, batch_size=1024):
 def evaluate(target, pred_target):
     confusion_matrix = metrics.confusion_matrix(target, pred_target)
     accuracy = metrics.accuracy_score(target, pred_target)
-    precision = metrics.precision_score(target, pred_target)
-    recall = metrics.recall_score(target, pred_target)
-    f1 = metrics.f1_score(target, pred_target)
+    precision = metrics.precision_score(target, pred_target, average=None)
+    recall = metrics.recall_score(target, pred_target, average=None)
+    f1 = metrics.f1_score(target, pred_target, average=None)
     return confusion_matrix, accuracy, precision, recall, f1
 
 
@@ -111,6 +111,17 @@ if __name__ == "__main__":
     data_len = len(val_data)
     val_data_clf = val_data.reshape(data_len, -1)
     delta_target = pred_target_A ^ pred_target_B
+    for i in range(data_len):
+        if pred_target_A[i] == 0:
+            if pred_target_B[i] == 0:
+                delta_target[i] = 0
+            else:
+                delta_target[i] = 1
+        else:
+            if pred_target_B[i] == 0:
+                delta_target[i] = 2
+            else:
+                delta_target[i] = 3
     print("0: {}\t 1: {}".format(data_len - delta_target.sum(), delta_target.sum()))
 
 
