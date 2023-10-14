@@ -144,7 +144,7 @@ if __name__ == "__main__":
     parallel = Parallel(n_jobs=-1)
     all_results = parallel(delayed(clf2parallel)
                            (clf, val_data_clf, delta_target, train_index, test_index,
-                            "{}_DT_{}_{}.sav".format(cfg.DATASET.TYPE, min_samples_leaf, test_index[0]))
+                            "{}_DT4_{}_{}.sav".format(cfg.DATASET.TYPE, min_samples_leaf, test_index[0]))
                            for train_index, test_index in skf.split(val_data_clf, delta_target))
     for result in all_results:
         print(result)
