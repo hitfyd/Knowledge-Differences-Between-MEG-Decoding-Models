@@ -139,12 +139,17 @@ if __name__ == "__main__":
         if save_path is not None:
             joblib.dump(clf_clone, save_path)
 
+        pred_y = clf_clone.predict(X[train_index])
+        scores = evaluate(y[train_index], pred_y)
+        print(scores)
+
         pred_y = clf_clone.predict(X[test_index])
         scores = evaluate(y[test_index], pred_y)
+        print(scores)
         return scores
 
 
-    skf = StratifiedKFold(n_splits=5)
+    skf = StratifiedKFold(n_splits=3)
     min_samples_leaf = 1
     clf = tree.DecisionTreeRegressor(min_samples_leaf=min_samples_leaf)
     # # 单线程验证

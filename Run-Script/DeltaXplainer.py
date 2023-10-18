@@ -127,7 +127,7 @@ if __name__ == "__main__":
         return scores
 
 
-    skf = StratifiedKFold(n_splits=5)
+    skf = StratifiedKFold(n_splits=3)
     min_samples_leaf = 1
     clf = tree.DecisionTreeClassifier(min_samples_leaf=min_samples_leaf)
     parallel = Parallel(n_jobs=-1)
