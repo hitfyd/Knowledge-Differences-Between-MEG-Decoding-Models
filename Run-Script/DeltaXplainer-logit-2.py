@@ -8,11 +8,12 @@ import torch
 import torch.nn as nn
 from matplotlib import pyplot as plt
 from sklearn import metrics, tree, clone
-from sklearn.model_selection import cross_val_score, StratifiedKFold
+from sklearn.model_selection import StratifiedKFold
 from sklearn.utils.parallel import Parallel, delayed
+from torch import optim
 
 from differlib.engine.cfg import CFG as cfg
-from differlib.engine.utils import get_data_labels_from_dataset, log_msg, load_checkpoint, setup_seed
+from differlib.engine.utils import get_data_labels_from_dataset, log_msg, load_checkpoint, setup_seed, get_data_loader
 from differlib.models import model_dict
 
 
@@ -40,32 +41,44 @@ def predict(model, data, batch_size=1024):
     return pred_target, output
 
 
-# def predict(model, val_loader):
-#     model.cuda()
-#     model.eval()
-#     pred_target, output = [], []
-#     with torch.no_grad():
-#         for idx, (data, target) in enumerate(val_loader):
-#             data = data.float()
-#             data = data.cuda(non_blocking=True)
-#
-#             output_i = model(data)
-#             _, pred_target_i = output_i.topk(1, 1, True, True)
-#             output_i = output_i.cpu().detach().numpy()
-#             pred_target_i = pred_target_i.squeeze().cpu().detach().numpy()
-#             pred_target.extend(pred_target_i)
-#             output.extend(output_i)
-#
-#     pred_target, output = np.array(pred_target), np.array(output)
-#     return pred_target, output
+criterion = nn.MSELoss()
+
+def train(model, train_loader, epoch, lr=3e-4):
+    model.cuda()
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    model.train()
+    train_loss = 0
+    correct = 0
+    for batch_idx, (data, target) in enumerate(train_loader):
+        data, target = data.cuda(), target.cuda()
+        optimizer.zero_grad()
+        output, penalty = model(data, is_training_data=True)
+        loss = criterion(output, target) + penalty
+        loss.backward()
+        train_loss += loss.item()
+        optimizer.step()
+        pred = output.max(1, keepdim=True)[1]  # 找到概率最大的下标
+        # correct += pred.eq(target.view_as(pred)).sum().item()
+        correct += pred.eq(target.max(1, keepdim=True)[1].view_as(pred)).sum().item()
+
+    train_accuracy = 100. * correct / len(train_loader.dataset)
+    train_loss /= len(train_loader.dataset)
+    print('Training Dataset\tEpoch：{}\tAccuracy: [{}/{} ({:.6f}%)]\tAverage Loss: {:.6f}'.format(
+        epoch, correct, len(train_loader.dataset), train_accuracy, train_loss))
+    return train_accuracy, train_loss
 
 
-def evaluate(target, pred_target):
+def evaluate(data, target, output):
+    _, output_A = predict(model_A, data)
+    output_B = output_A - output
+    pred_target_A = output_A.argmax(axis=1)
+    pred_target_B = output_B.argmax(axis=1)
+    pred_target = pred_target_A ^ pred_target_B
     confusion_matrix = metrics.confusion_matrix(target, pred_target)
     accuracy = metrics.accuracy_score(target, pred_target)
-    precision = metrics.precision_score(target, pred_target, average=None)
-    recall = metrics.recall_score(target, pred_target, average=None)
-    f1 = metrics.f1_score(target, pred_target, average=None)
+    precision = metrics.precision_score(target, pred_target)
+    recall = metrics.recall_score(target, pred_target)
+    f1 = metrics.f1_score(target, pred_target)
     return confusion_matrix, accuracy, precision, recall, f1
 
 
@@ -105,79 +118,51 @@ if __name__ == "__main__":
     model_B.load_state_dict(load_checkpoint(model_B_pretrain_path))
     model_B = model_B.cuda()
 
-    pred_target_A, _ = predict(model_A, val_data)
-    pred_target_B, _ = predict(model_B, val_data)
+    pred_target_A, output_A = predict(model_A, val_data)
+    pred_target_B, output_B = predict(model_B, val_data)
 
     data_len = len(val_data)
     val_data_clf = val_data.reshape(data_len, -1)
     delta_target = pred_target_A ^ pred_target_B
-    for i in range(data_len):
-        if pred_target_A[i] == 0:
-            if pred_target_B[i] == 0:
-                delta_target[i] = 0
-            else:
-                delta_target[i] = 1
-        else:
-            if pred_target_B[i] == 0:
-                delta_target[i] = 2
-            else:
-                delta_target[i] = 3
+    delta_output = output_A - output_B
     print("0: {}\t 1: {}".format(data_len - delta_target.sum(), delta_target.sum()))
 
 
-    def clf2parallel(clf, X, y, train_index, test_index, save_path=None):
-        clf_clone = clone(clf)
-        clf_clone = clf_clone.fit(X[train_index], y[train_index])
+    def clf2parallel(clf, X, y, y_logits, train_index, test_index, save_path=None, retrain=False):
+        if os.path.exists(save_path) and not retrain:
+            # 从文件中加载
+            clf_clone = joblib.load(save_path)
+        else:
+            clf_clone = clone(clf)
+            clf_clone = clf_clone.fit(X[train_index], y_logits[train_index])
 
-        # 保存到当前工作目录中的文件
-        if save_path is not None:
-            joblib.dump(clf_clone, save_path)
+            # 保存到当前工作目录中的文件
+            if save_path is not None:
+                joblib.dump(clf_clone, save_path)
 
         pred_y = clf_clone.predict(X[train_index])
-        scores = evaluate(y[train_index], pred_y)
+        scores = evaluate(X[train_index], y[train_index], pred_y)
         print(save_path, "train: ", scores)
 
         pred_y = clf_clone.predict(X[test_index])
-        scores = evaluate(y[test_index], pred_y)
+        scores = evaluate(X[test_index], y[test_index], pred_y)
         print(save_path, "test: ", scores)
         return scores
 
 
     skf = StratifiedKFold(n_splits=3)
     min_samples_leaf = 1
-    clf = tree.DecisionTreeClassifier(min_samples_leaf=min_samples_leaf)
+    clf = tree.DecisionTreeRegressor(min_samples_leaf=min_samples_leaf)
+    # # 单线程验证
+    # clf = clf.fit(val_data_clf, delta_output)
+    # pred = clf.predict(val_data_clf)
+    # print(evaluate(delta_target, pred))
+
     parallel = Parallel(n_jobs=-1)
     all_results = parallel(delayed(clf2parallel)
-                           (clf, val_data_clf, delta_target, train_index, test_index,
-                            "{}_DT4_{}_{}.sav".format(cfg.DATASET.TYPE, min_samples_leaf, test_index[0]))
+                           (clf, val_data_clf, delta_target, delta_output, train_index, test_index,
+                            "{}_DTR2_{}_{}.sav".format(cfg.DATASET.TYPE, min_samples_leaf, test_index[0]))
                            for train_index, test_index in skf.split(val_data_clf, delta_target))
     for result in all_results:
         print(result)
 
-
-    # # 交叉验证
-    # skf = StratifiedKFold(n_splits=5)
-    # k_id = 0
-    # min_samples_leaf = 5
-    # for train, test in skf.split(val_data_clf, delta_target):
-    #     joblib_file = "{}_DT_{}_{}.sav".format(cfg.DATASET.TYPE, min_samples_leaf, k_id)
-    #     k_id += 1
-    #
-    #     clf = tree.DecisionTreeClassifier(min_samples_leaf=min_samples_leaf)
-    #     clf = clf.fit(val_data_clf[train], delta_target[train])
-    #
-    #     # 保存到当前工作目录中的文件
-    #     joblib.dump(clf, joblib_file)
-    #
-    #     pred = clf.predict(val_data_clf[test])
-    #     print(evaluate(delta_target[test], pred))
-    #     tree.plot_tree(clf)
-    #
-    #     # # 从文件中加载
-    #     # joblib_model = joblib.load(joblib_file)
-    #     #
-    #     # pred = clf.predict(val_data_clf[test])
-    #     # print(evaluate(delta_target[test], pred))
-    #     # tree.plot_tree(joblib_model)
-    #
-    #     plt.show()

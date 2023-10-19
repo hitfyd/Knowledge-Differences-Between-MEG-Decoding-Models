@@ -114,16 +114,25 @@ if __name__ == "__main__":
     print("0: {}\t 1: {}".format(data_len - delta_target.sum(), delta_target.sum()))
 
 
-    def clf2parallel(clf, X, y, train_index, test_index, save_path=None):
-        clf_clone = clone(clf)
-        clf_clone = clf_clone.fit(X[train_index], y[train_index])
+    def clf2parallel(clf, X, y, train_index, test_index, save_path=None, retrain=False):
+        if os.path.exists(save_path) and not retrain:
+            # 从文件中加载
+            clf_clone = joblib.load(save_path)
+        else:
+            clf_clone = clone(clf)
+            clf_clone = clf_clone.fit(X[train_index], y[train_index])
 
-        # 保存到当前工作目录中的文件
-        if save_path is not None:
-            joblib.dump(clf_clone, save_path)
+            # 保存到当前工作目录中的文件
+            if save_path is not None:
+                joblib.dump(clf_clone, save_path)
+
+        pred_y = clf_clone.predict(X[train_index])
+        scores = evaluate(y[train_index], pred_y)
+        print(save_path, "train: ", scores)
 
         pred_y = clf_clone.predict(X[test_index])
         scores = evaluate(y[test_index], pred_y)
+        print(save_path, "test: ", scores)
         return scores
 
 

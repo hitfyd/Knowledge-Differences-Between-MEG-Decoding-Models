@@ -68,11 +68,12 @@ def train(model, train_loader, epoch, lr=3e-4):
     return train_accuracy, train_loss
 
 
-def evaluate(target, output):
-    output_A = output[:, :2]
-    output_B = np.copy(output_A)
-    output_B[:, 0] = output_A[:, 0] - output[:, 2]
-    output_B[:, 1] = output_A[:, 1] + output[:, 2]
+def evaluate(data, target, output):
+    _, output_A = predict(model_A, data)
+    output_B = output_A - np.stack((output, -output), axis=1)
+    # output_B = np.copy(output_A)
+    # output_B[:, 0] = output_A[:, 0] - output
+    # output_B[:, 1] = output_A[:, 1] + output
     pred_target_A = output_A.argmax(axis=1)
     pred_target_B = output_B.argmax(axis=1)
     pred_target = pred_target_A ^ pred_target_B
@@ -103,7 +104,7 @@ if __name__ == "__main__":
     #                                             cfg.SOLVER.BATCH_SIZE)
     # val_loader = get_data_loader_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE),
     #                                           cfg.DATASET.TEST.BATCH_SIZE)
-    val_data, val_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
+    val_data, val_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(cfg.DATASET.TYPE))
 
     print(log_msg("Loading teacher model", "INFO"))
     model_A_type, model_A_pretrain_path = model_dict[cfg.MODELS.A]
@@ -126,26 +127,29 @@ if __name__ == "__main__":
     data_len = len(val_data)
     val_data_clf = val_data.reshape(data_len, -1)
     delta_target = pred_target_A ^ pred_target_B
-    delta_output = output_A - output_B
-    delta_output = np.append(output_A, delta_output, axis=1)[:, :3]
+    delta_output = output_A[:, 0] - output_B[:, 0]
     print("0: {}\t 1: {}".format(data_len - delta_target.sum(), delta_target.sum()))
 
 
-    def clf2parallel(clf, X, y, y_logits, train_index, test_index, save_path=None):
-        clf_clone = clone(clf)
-        clf_clone = clf_clone.fit(X[train_index], y_logits[train_index])
+    def clf2parallel(clf, X, y, y_logits, train_index, test_index, save_path=None, retrain=True):
+        if os.path.exists(save_path) and not retrain:
+            # 从文件中加载
+            clf_clone = joblib.load(save_path)
+        else:
+            clf_clone = clone(clf)
+            clf_clone = clf_clone.fit(X[train_index], y_logits[train_index])
 
-        # 保存到当前工作目录中的文件
-        if save_path is not None:
-            joblib.dump(clf_clone, save_path)
+            # 保存到当前工作目录中的文件
+            if save_path is not None:
+                joblib.dump(clf_clone, save_path)
 
         pred_y = clf_clone.predict(X[train_index])
-        scores = evaluate(y[train_index], pred_y)
-        print(scores)
+        scores = evaluate(X[train_index], y[train_index], pred_y)
+        print(save_path, "train: ", scores)
 
         pred_y = clf_clone.predict(X[test_index])
-        scores = evaluate(y[test_index], pred_y)
-        print(scores)
+        scores = evaluate(X[test_index], y[test_index], pred_y)
+        print(save_path, "test: ", scores)
         return scores
 
 
@@ -160,7 +164,7 @@ if __name__ == "__main__":
     parallel = Parallel(n_jobs=-1)
     all_results = parallel(delayed(clf2parallel)
                            (clf, val_data_clf, delta_target, delta_output, train_index, test_index,
-                            "{}_DTR_{}_{}.sav".format(cfg.DATASET.TYPE, min_samples_leaf, test_index[0]))
+                            "{}_DTR1_{}_{}.sav".format(cfg.DATASET.TYPE, min_samples_leaf, test_index[0]))
                            for train_index, test_index in skf.split(val_data_clf, delta_target))
     for result in all_results:
         print(result)
