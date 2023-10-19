@@ -10,5 +10,5 @@ DATASET:
 MODELS:
   A: "CamCAN_varcnn"
   B: "CamCAN_sdt_varcnn_fakd"
-GLOBAL:
-LOCAL:
+#GLOBAL:
+#LOCAL:

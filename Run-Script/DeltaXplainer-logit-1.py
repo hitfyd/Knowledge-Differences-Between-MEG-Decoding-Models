@@ -68,8 +68,7 @@ def train(model, train_loader, epoch, lr=3e-4):
     return train_accuracy, train_loss
 
 
-def evaluate(data, target, output):
-    _, output_A = predict(model_A, data)
+def evaluate(output_A, target, output):
     output_B = output_A - np.stack((output, -output), axis=1)
     # output_B = np.copy(output_A)
     # output_B[:, 0] = output_A[:, 0] - output
@@ -104,7 +103,7 @@ if __name__ == "__main__":
     #                                             cfg.SOLVER.BATCH_SIZE)
     # val_loader = get_data_loader_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE),
     #                                           cfg.DATASET.TEST.BATCH_SIZE)
-    val_data, val_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(cfg.DATASET.TYPE))
+    val_data, val_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
 
     print(log_msg("Loading teacher model", "INFO"))
     model_A_type, model_A_pretrain_path = model_dict[cfg.MODELS.A]
@@ -125,6 +124,7 @@ if __name__ == "__main__":
     pred_target_B, output_B = predict(model_B, val_data)
 
     data_len = len(val_data)
+    val_data = val_data[:, 51:153, 40:60]
     val_data_clf = val_data.reshape(data_len, -1)
     delta_target = pred_target_A ^ pred_target_B
     delta_output = output_A[:, 0] - output_B[:, 0]
@@ -144,11 +144,11 @@ if __name__ == "__main__":
                 joblib.dump(clf_clone, save_path)
 
         pred_y = clf_clone.predict(X[train_index])
-        scores = evaluate(X[train_index], y[train_index], pred_y)
+        scores = evaluate(output_A[train_index], y[train_index], pred_y)
         print(save_path, "train: ", scores)
 
         pred_y = clf_clone.predict(X[test_index])
-        scores = evaluate(X[test_index], y[test_index], pred_y)
+        scores = evaluate(output_A[test_index], y[test_index], pred_y)
         print(save_path, "test: ", scores)
         return scores
 

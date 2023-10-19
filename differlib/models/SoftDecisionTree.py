@@ -194,6 +194,6 @@ class SDT(nn.Module):
             raise ValueError(msg.format(self.lamda))
 
 
-def sdt(channels=204, points=100, num_classes=2, depth=3, lamda=1e-3, **kwargs):
+def sdt(channels=204, points=100, num_classes=2, depth=5, lamda=1e-3, **kwargs):
     return SDT(channels=channels, points=points, num_classes=num_classes, depth=depth, lamda=lamda, **kwargs)
 
