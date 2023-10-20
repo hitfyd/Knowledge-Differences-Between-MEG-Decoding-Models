@@ -104,7 +104,7 @@ class SDT(nn.Module):
         # print("differencing:", num)
 
         # 返回softmax
-        # y_pred = nn.functional.softmax(y_pred, dim=1)
+        y_pred = nn.functional.softmax(y_pred, dim=1)
 
         # When `X` is the training data, the model also returns the penalty
         # to compute the training loss.

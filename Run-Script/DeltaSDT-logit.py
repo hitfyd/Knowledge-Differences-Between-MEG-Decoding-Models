@@ -42,7 +42,7 @@ def predict(model, data, batch_size=1024):
 
 criterion = nn.MSELoss()
 
-def train(model, train_loader, lr=3e-3):
+def train(model, train_loader, lr=1e-3):
     model.cuda()
     optimizer = optim.Adam(model.parameters(), lr=lr)
     model.train()
@@ -69,6 +69,18 @@ def evaluate(output_A, target, output):
     recall = metrics.recall_score(target, pred_target)
     f1 = metrics.f1_score(target, pred_target)
     return confusion_matrix, accuracy, precision, recall, f1
+
+
+def softmax(x):
+    max = np.max(
+        x, axis=1, keepdims=True
+    )  # returns max of each row and keeps same dims
+    e_x = np.exp(x - max)  # subtracts each row with its max value
+    sum = np.sum(
+        e_x, axis=1, keepdims=True
+    )  # returns sum of each row and keeps same dims
+    f_x = e_x / sum
+    return f_x
 
 
 if __name__ == "__main__":
@@ -109,6 +121,8 @@ if __name__ == "__main__":
 
     pred_target_A, output_A = predict(model_A, val_data)
     pred_target_B, output_B = predict(model_B, val_data)
+    output_A = softmax(output_A)
+    output_B = softmax(output_B)
 
     data_len = len(val_data)
     delta_target = pred_target_A ^ pred_target_B
@@ -119,10 +133,10 @@ if __name__ == "__main__":
     for train_index, test_index in skf.split(val_data, delta_target):
         # delta_model = model_A_type(
         #     channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
-        # delta_model = sdt(channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS,
-        #                   num_classes=cfg.DATASET.NUM_CLASSES, depth=1)
         delta_model = sdt(channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS,
-                          num_classes=cfg.DATASET.NUM_CLASSES, depth=2)
+                          num_classes=cfg.DATASET.NUM_CLASSES, depth=1)
+        # delta_model = sdt(channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS,
+        #                   num_classes=cfg.DATASET.NUM_CLASSES, depth=2)
         delta_model = delta_model.cuda()
 
         # train_loader = get_data_loader(val_data[train_index], delta_target[train_index], cfg.SOLVER.BATCH_SIZE)

@@ -84,6 +84,18 @@ def evaluate(output_A, target, output):
     return confusion_matrix, accuracy, precision, recall, f1
 
 
+def softmax(x):
+    max = np.max(
+        x, axis=1, keepdims=True
+    )  # returns max of each row and keeps same dims
+    e_x = np.exp(x - max)  # subtracts each row with its max value
+    sum = np.sum(
+        e_x, axis=1, keepdims=True
+    )  # returns sum of each row and keeps same dims
+    f_x = e_x / sum
+    return f_x
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("training for knowledge distillation.")
     parser.add_argument("--cfg", type=str, default="")
@@ -122,9 +134,11 @@ if __name__ == "__main__":
 
     pred_target_A, output_A = predict(model_A, val_data)
     pred_target_B, output_B = predict(model_B, val_data)
+    # output_A = softmax(output_A)
+    # output_B = softmax(output_B)
 
     data_len = len(val_data)
-    val_data = val_data[:, 51:153, 40:60]
+    val_data = val_data[:, 51:102, 40:60]
     val_data_clf = val_data.reshape(data_len, -1)
     delta_target = pred_target_A ^ pred_target_B
     delta_output = output_A[:, 0] - output_B[:, 0]
