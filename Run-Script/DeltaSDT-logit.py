@@ -13,7 +13,7 @@ from torch import optim
 
 from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import get_data_labels_from_dataset, log_msg, load_checkpoint, setup_seed, get_data_loader
-from differlib.models import model_dict
+from differlib.models import model_dict, sdt
 
 
 def predict(model, data, batch_size=1024):
@@ -42,12 +42,11 @@ def predict(model, data, batch_size=1024):
 
 criterion = nn.MSELoss()
 
-def train(model, train_loader, epoch, lr=3e-4):
+def train(model, train_loader, lr=3e-3):
     model.cuda()
     optimizer = optim.Adam(model.parameters(), lr=lr)
     model.train()
     train_loss = 0
-    correct = 0
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.cuda(), target.cuda()
         optimizer.zero_grad()
@@ -56,22 +55,11 @@ def train(model, train_loader, epoch, lr=3e-4):
         loss.backward()
         train_loss += loss.item()
         optimizer.step()
-        pred = output.max(1, keepdim=True)[1]  # 找到概率最大的下标
-        # correct += pred.eq(target.view_as(pred)).sum().item()
-        correct += pred.eq(target.max(1, keepdim=True)[1].view_as(pred)).sum().item()
-
-    train_accuracy = 100. * correct / len(train_loader.dataset)
-    train_loss /= len(train_loader.dataset)
-    print('Training Dataset\tEpoch：{}\tAccuracy: [{}/{} ({:.6f}%)]\tAverage Loss: {:.6f}'.format(
-        epoch, correct, len(train_loader.dataset), train_accuracy, train_loss))
-    return train_accuracy, train_loss
+    return train_loss
 
 
-def evaluate(target, output):
-    output_A = output[:, :2]
-    output_B = np.copy(output_A)
-    output_B[:, 0] = output_A[:, 0] - output[:, 2]
-    output_B[:, 1] = output_A[:, 1] + output[:, 2]
+def evaluate(output_A, target, output):
+    output_B = output_A - output
     pred_target_A = output_A.argmax(axis=1)
     pred_target_B = output_B.argmax(axis=1)
     pred_target = pred_target_A ^ pred_target_B
@@ -125,26 +113,30 @@ if __name__ == "__main__":
     data_len = len(val_data)
     delta_target = pred_target_A ^ pred_target_B
     delta_output = output_A - output_B
-    delta_output = np.append(output_A, delta_output, axis=1)[:, :3]
     print("0: {}\t 1: {}".format(data_len - delta_target.sum(), delta_target.sum()))
 
-    skf = StratifiedKFold(n_splits=5)
+    skf = StratifiedKFold(n_splits=3)
     for train_index, test_index in skf.split(val_data, delta_target):
-        delta_model = model_A_type(
-            channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES+1)
+        # delta_model = model_A_type(
+        #     channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
+        # delta_model = sdt(channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS,
+        #                   num_classes=cfg.DATASET.NUM_CLASSES, depth=1)
+        delta_model = sdt(channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS,
+                          num_classes=cfg.DATASET.NUM_CLASSES, depth=2)
         delta_model = delta_model.cuda()
 
         # train_loader = get_data_loader(val_data[train_index], delta_target[train_index], cfg.SOLVER.BATCH_SIZE)
         train_loader = get_data_loader(val_data, delta_output, cfg.SOLVER.BATCH_SIZE)
 
         for epoch in range(100):
-            train_accuracy, train_loss = train(delta_model, train_loader, epoch)
+            train_loss = train(delta_model, train_loader)
+            print(epoch, train_loss)
             pred, output = predict(delta_model, val_data[test_index])
-            print(evaluate(delta_target[test_index], output))
+            print(evaluate(output_A[test_index], delta_target[test_index], output))
         print("Train:")
         pred, output = predict(delta_model, val_data[train_index])
-        print(evaluate(delta_target[train_index], output))
+        print(evaluate(output_A[train_index], delta_target[train_index], output))
         print("Test:")
         pred, output = predict(delta_model, val_data[test_index])
-        print(evaluate(delta_target[test_index], output))
+        print(evaluate(output_A[test_index], delta_target[test_index], output))
 

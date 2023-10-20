@@ -68,8 +68,7 @@ def train(model, train_loader, epoch, lr=3e-4):
     return train_accuracy, train_loss
 
 
-def evaluate(data, target, output):
-    _, output_A = predict(model_A, data)
+def evaluate(output_A, target, output):
     output_B = output_A - output
     pred_target_A = output_A.argmax(axis=1)
     pred_target_B = output_B.argmax(axis=1)
@@ -122,13 +121,14 @@ if __name__ == "__main__":
     pred_target_B, output_B = predict(model_B, val_data)
 
     data_len = len(val_data)
+    val_data = val_data[:, 51:102, 40:60]
     val_data_clf = val_data.reshape(data_len, -1)
     delta_target = pred_target_A ^ pred_target_B
     delta_output = output_A - output_B
     print("0: {}\t 1: {}".format(data_len - delta_target.sum(), delta_target.sum()))
 
 
-    def clf2parallel(clf, X, y, y_logits, train_index, test_index, save_path=None, retrain=False):
+    def clf2parallel(clf, X, y, y_logits, train_index, test_index, save_path=None, retrain=True):
         if os.path.exists(save_path) and not retrain:
             # 从文件中加载
             clf_clone = joblib.load(save_path)
@@ -141,11 +141,11 @@ if __name__ == "__main__":
                 joblib.dump(clf_clone, save_path)
 
         pred_y = clf_clone.predict(X[train_index])
-        scores = evaluate(X[train_index], y[train_index], pred_y)
+        scores = evaluate(output_A[train_index], y[train_index], pred_y)
         print(save_path, "train: ", scores)
 
         pred_y = clf_clone.predict(X[test_index])
-        scores = evaluate(X[test_index], y[test_index], pred_y)
+        scores = evaluate(output_A[test_index], y[test_index], pred_y)
         print(save_path, "test: ", scores)
         return scores
 
