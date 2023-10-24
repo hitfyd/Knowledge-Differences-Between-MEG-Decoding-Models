@@ -129,6 +129,8 @@ if __name__ == "__main__":
     delta_output = output_A - output_B
     print("0: {}\t 1: {}".format(data_len - delta_target.sum(), delta_target.sum()))
 
+    retrain = False
+
     skf = StratifiedKFold(n_splits=3)
     for train_index, test_index in skf.split(val_data, delta_target):
         # delta_model = model_A_type(
@@ -142,15 +144,33 @@ if __name__ == "__main__":
         # train_loader = get_data_loader(val_data[train_index], delta_target[train_index], cfg.SOLVER.BATCH_SIZE)
         train_loader = get_data_loader(val_data, delta_output, cfg.SOLVER.BATCH_SIZE)
 
-        for epoch in range(100):
-            train_loss = train(delta_model, train_loader)
-            print(epoch, train_loss)
-            pred, output = predict(delta_model, val_data[test_index])
-            print(evaluate(output_A[test_index], delta_target[test_index], output))
+        save_path = "{}_SDT_Depth{}_{}.sav".format(cfg.DATASET.TYPE, 1, test_index[0])
+        if os.path.exists(save_path) and not retrain:
+            # 从文件中加载
+            delta_model = joblib.load(save_path)
+        else:
+            for epoch in range(100):
+                train_loss = train(delta_model, train_loader)
+                print(epoch, train_loss)
+                pred, output = predict(delta_model, val_data[test_index])
+                print(evaluate(output_A[test_index], delta_target[test_index], output))
+            joblib.dump(delta_model, save_path)
+
         print("Train:")
         pred, output = predict(delta_model, val_data[train_index])
         print(evaluate(output_A[train_index], delta_target[train_index], output))
         print("Test:")
         pred, output = predict(delta_model, val_data[test_index])
         print(evaluate(output_A[test_index], delta_target[test_index], output))
+
+        inner_weights = delta_model.inner_nodes[0].weight[:, 1:].cpu().detach().numpy()
+        inner_weight = inner_weights[0]
+        inner_weight = np.abs(inner_weight)
+        inner_weight_sort = np.sort(inner_weight)[::-1]
+        mask_threshold = inner_weight_sort[int(len(inner_weight) * 0.1)]
+        mask = inner_weight >= mask_threshold
+        # mask = mask.reshape(cfg.DATASET.CHANNELS, cfg.DATASET.POINTS)
+        print("mask_num", mask.sum())
+        mask_path = "{}_SDT_mask_{}.mask".format(cfg.DATASET.TYPE, test_index[0])
+        joblib.dump(mask, mask_path)
 

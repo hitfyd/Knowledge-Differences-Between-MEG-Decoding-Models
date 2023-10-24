@@ -69,10 +69,7 @@ def train(model, train_loader, epoch, lr=3e-4):
 
 
 def evaluate(output_A, target, output):
-    output_B = output_A - np.stack((output, -output), axis=1)
-    # output_B = np.copy(output_A)
-    # output_B[:, 0] = output_A[:, 0] - output
-    # output_B[:, 1] = output_A[:, 1] + output
+    output_B = output_A - output
     pred_target_A = output_A.argmax(axis=1)
     pred_target_B = output_B.argmax(axis=1)
     pred_target = pred_target_A ^ pred_target_B
@@ -82,18 +79,6 @@ def evaluate(output_A, target, output):
     recall = metrics.recall_score(target, pred_target)
     f1 = metrics.f1_score(target, pred_target)
     return confusion_matrix, accuracy, precision, recall, f1
-
-
-def softmax(x):
-    max = np.max(
-        x, axis=1, keepdims=True
-    )  # returns max of each row and keeps same dims
-    e_x = np.exp(x - max)  # subtracts each row with its max value
-    sum = np.sum(
-        e_x, axis=1, keepdims=True
-    )  # returns sum of each row and keeps same dims
-    f_x = e_x / sum
-    return f_x
 
 
 if __name__ == "__main__":
@@ -134,15 +119,18 @@ if __name__ == "__main__":
 
     pred_target_A, output_A = predict(model_A, val_data)
     pred_target_B, output_B = predict(model_B, val_data)
-    # output_A = softmax(output_A)
-    # output_B = softmax(output_B)
+
+    # mask_path = "{}_SDT_mask_{}.mask".format(cfg.DATASET.TYPE, 0)
+    # mask_path = "{}_SDT_mask_{}.mask".format(cfg.DATASET.TYPE, 1657)
+    mask_path = "{}_SDT_mask_{}.mask".format(cfg.DATASET.TYPE, 1724)
+    mask = joblib.load(mask_path)
 
     data_len = len(val_data)
     # val_data = val_data[:, 51:102, 40:60]
-    # val_data = val_data[:, :, 40:60]
     val_data_clf = val_data.reshape(data_len, -1)
+    val_data_clf = val_data_clf[:, mask]
     delta_target = pred_target_A ^ pred_target_B
-    delta_output = output_A[:, 0] - output_B[:, 0]
+    delta_output = output_A - output_B
     print("0: {}\t 1: {}".format(data_len - delta_target.sum(), delta_target.sum()))
 
 
@@ -179,7 +167,7 @@ if __name__ == "__main__":
     parallel = Parallel(n_jobs=-1)
     all_results = parallel(delayed(clf2parallel)
                            (clf, val_data_clf, delta_target, delta_output, train_index, test_index,
-                            "{}_DTR1_{}_{}.sav".format(cfg.DATASET.TYPE, min_samples_leaf, test_index[0]))
+                            "{}_DTR2_{}_{}.sav".format(cfg.DATASET.TYPE, min_samples_leaf, test_index[0]))
                            for train_index, test_index in skf.split(val_data_clf, delta_target))
     for result in all_results:
         print(result)
