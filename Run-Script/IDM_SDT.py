@@ -8,7 +8,7 @@ import pandas as pd
 import torch.nn as nn
 from PIL import Image
 from matplotlib import pyplot as plt
-from graphviz import Digraph
+# from graphviz import Digraph
 from matplotlib.collections import LineCollection
 from sklearn.metrics import accuracy_score, confusion_matrix
 

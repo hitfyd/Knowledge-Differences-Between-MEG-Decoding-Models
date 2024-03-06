@@ -7,11 +7,12 @@
 In the conde environment, do the following:
 
 ```
-conda create -n <environment name> python=3.10
+conda create -n <environment name> python=3.11
 conda activate <environment name>
 pip install aix360
 pip install torch torchvision torchaudio
 pip install tqdm yacs
+pip install pygraphviz
 ```
 
 Major dependency packages:
