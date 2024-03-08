@@ -1,4 +1,5 @@
 import warnings
+
 warnings.filterwarnings('ignore')
 
 from sklearn.model_selection import train_test_split
@@ -11,11 +12,11 @@ from sklearn.metrics import accuracy_score
 from aix360.algorithms.imd.utils import load_bc_dataset
 
 # Data preparation
-random_state=1234
+random_state = 1234
 datadf, target = load_bc_dataset()
 x_train, x_test, y_train, y_test = train_test_split(datadf, target, train_size=0.7,
                                                     random_state=random_state)
-x_train.shape, x_test.shape
+print(x_train.shape, x_test.shape)
 
 # Training models
 ## model1
@@ -39,15 +40,15 @@ x1 = x2 = x_train.to_numpy()
 y1 = model1.predict(x1)
 y2 = model2.predict(x2)
 ydiff = (y1 != y2).astype(int)
-print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum()/len(ydiff)):.2f}")
+print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff)):.2f}")
 
 ydifftest = (model1.predict(x_test) != model2.predict(x_test)).astype(int)
-print(f"diffs in X_test = {ydifftest.sum()} / {len(ydifftest)} = {(ydifftest.sum()/len(ydifftest)):.2f}")
+print(f"diffs in X_test = {ydifftest.sum()} / {len(ydifftest)} = {(ydifftest.sum() / len(ydifftest)):.2f}")
 
 # Interpretable model differencing
 from aix360.algorithms.imd.imd import IMDExplainer
 
-max_depth=6
+max_depth = 6
 
 imd = IMDExplainer()
 imd.fit(x_train, y1, y2, max_depth=max_depth)
@@ -72,6 +73,7 @@ imd.metrics(x_test, model1.predict(x_test), model2.predict(x_test), name="test")
 
 # Generate the jst visualization
 from aix360.algorithms.imd.utils import visualize_jst
+
 visualize_jst(imd.jst, path="idm_example_joint.jpg")
 
 # Separate surrogate approach
