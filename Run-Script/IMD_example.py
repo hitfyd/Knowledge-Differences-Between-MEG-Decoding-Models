@@ -74,7 +74,7 @@ imd.metrics(x_test, model1.predict(x_test), model2.predict(x_test), name="test")
 # Generate the jst visualization
 from differlib.imd.utils import visualize_jst
 
-visualize_jst(imd.jst, path="idm_example_joint.jpg")
+visualize_jst(imd.jst, path="imd_example_joint.jpg")
 
 # Separate surrogate approach
 sepsur = IMDExplainer()
@@ -87,4 +87,4 @@ sepsur.metrics(x_train, y1, y2, name="train")
 sepsur.metrics(x_test, model1.predict(x_test), model2.predict(x_test), name="test")
 
 # Visualizing separate surrogates
-visualize_jst(sepsur.jst, path="idm_example_separate.jpg")
+visualize_jst(sepsur.jst, path="imd_example_separate.jpg")
