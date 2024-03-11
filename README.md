@@ -9,17 +9,17 @@ In the conde environment, do the following:
 ```
 conda create -n <environment name> python=3.11
 conda activate <environment name>
-pip install aix360
-pip install torch torchvision torchaudio
-pip install tqdm yacs
-pip install pygraphviz
+conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
+conda install tqdm yacs
+conda install numpy pandas scikit-learn matplotlib networkx graphviz pygraphviz
+# The graphviz library needs to be installed on your operating system as well, see https://pygraphviz.github.io/documentation/stable/install.html
 ```
 
 Major dependency packages:
 
 ```
-python==3.10.12
-torch==2.0.1
+python==3.11.8
+torch==2.2.1
 yacs==0.1.8
 scikit-learn==1.3.0
 ```

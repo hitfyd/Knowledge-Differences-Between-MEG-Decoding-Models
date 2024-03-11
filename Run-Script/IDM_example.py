@@ -9,7 +9,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score
 
-from aix360.algorithms.imd.utils import load_bc_dataset
+from differlib.imd.utils import load_bc_dataset
 
 # Data preparation
 random_state = 1234
@@ -46,7 +46,7 @@ ydifftest = (model1.predict(x_test) != model2.predict(x_test)).astype(int)
 print(f"diffs in X_test = {ydifftest.sum()} / {len(ydifftest)} = {(ydifftest.sum() / len(ydifftest)):.2f}")
 
 # Interpretable model differencing
-from aix360.algorithms.imd.imd import IMDExplainer
+from differlib.imd.imd import IMDExplainer
 
 max_depth = 6
 
@@ -72,7 +72,7 @@ imd.metrics(x_train, y1, y2, name="train")
 imd.metrics(x_test, model1.predict(x_test), model2.predict(x_test), name="test")
 
 # Generate the jst visualization
-from aix360.algorithms.imd.utils import visualize_jst
+from differlib.imd.utils import visualize_jst
 
 visualize_jst(imd.jst, path="idm_example_joint.jpg")
 
