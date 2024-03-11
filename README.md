@@ -19,9 +19,16 @@ Major dependency packages:
 
 ```
 python==3.11.8
-torch==2.2.1
-yacs==0.1.8
+pytorch==2.2.1
+tqdm==4.65.0
+yacs==0.1.6
+numpy==1.24.3
+pandas==2.2.1
 scikit-learn==1.3.0
+matplotlib==3.8.0
+networkx==3.1
+graphviz==2.50.0
+pygraphviz==1.9
 ```
 
 ### Dataset Preprocessing
