@@ -9,14 +9,16 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score
 
-from differlib.imd.utils import load_bc_dataset
+from differlib.imd.utils import load_bc_dataset, load_iris_dataset
 
 # Data preparation
 random_state = 1234
 datadf, target = load_bc_dataset()
+# datadf, target = load_iris_dataset()
 x_train, x_test, y_train, y_test = train_test_split(datadf, target, train_size=0.7,
                                                     random_state=random_state)
 print(x_train.shape, x_test.shape)
+print(x_test)
 
 # Training models
 ## model1
@@ -58,7 +60,7 @@ diffrules = imd.explain()
 print(diffrules)
 
 # Using the diff-rules
-rule_idx = 4
+rule_idx = -1
 
 rule = diffrules[rule_idx]
 filtered_data = x_train[rule.apply(x_train)]
@@ -66,10 +68,12 @@ print(filtered_data)
 
 # Computation of metrics
 # on train set
-imd.metrics(x_train, y1, y2, name="train")
+metrics = imd.metrics(x_train, y1, y2, name="train")
+print(metrics)
 
 # on test set
-imd.metrics(x_test, model1.predict(x_test), model2.predict(x_test), name="test")
+metrics = imd.metrics(x_test, model1.predict(x_test), model2.predict(x_test), name="test")
+print(metrics)
 
 # Generate the jst visualization
 from differlib.imd.utils import visualize_jst
@@ -81,10 +85,12 @@ sepsur = IMDExplainer()
 sepsur.fit(x_train, y1, y2, max_depth=max_depth, split_criterion=2, alpha=1.0)
 
 # on train set
-sepsur.metrics(x_train, y1, y2, name="train")
+metrics = sepsur.metrics(x_train, y1, y2, name="train")
+print(metrics)
 
 # on test set
-sepsur.metrics(x_test, model1.predict(x_test), model2.predict(x_test), name="test")
+metrics = sepsur.metrics(x_test, model1.predict(x_test), model2.predict(x_test), name="test")
+print(metrics)
 
 # Visualizing separate surrogates
 visualize_jst(sepsur.jst, path="imd_example_separate.jpg")

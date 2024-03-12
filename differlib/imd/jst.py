@@ -1,5 +1,8 @@
+import concurrent
+
 import numpy as np
 import pandas as pd
+import time
 
 from .rule import Rule
 
@@ -22,6 +25,7 @@ def get_leaves(root: dict):
     :return:
     """
     nodes = []
+
     def _recurse(root):
         is_split_node = 'cutoff' in root
         if is_split_node:
@@ -147,22 +151,22 @@ class JointSurrogateTree:
 
         # all same check
         if self.all_same(y1) and self.all_same(y2):
-            return {'val': y1[0], 'depth': depth, 'ispure': True, 'dist': np.bincount(y1), 'path': path},\
-                   {'val': y2[0], 'depth': depth, 'ispure': True, 'dist': np.bincount(y2), 'path': path}
+            return {'val': y1[0], 'depth': depth, 'ispure': True, 'dist': np.bincount(y1), 'path': path}, \
+                {'val': y2[0], 'depth': depth, 'ispure': True, 'dist': np.bincount(y2), 'path': path}
 
         if self.all_same(y1):
-            return {'val': y1[0], 'depth': depth, 'ispure': True, 'dist': np.bincount(y1), 'path': path},\
-                   self.fit1(x2, y2, path, depth)
+            return {'val': y1[0], 'depth': depth, 'ispure': True, 'dist': np.bincount(y1), 'path': path}, \
+                self.fit1(x2, y2, path, depth)
         if self.all_same(y2):
-            return self.fit1(x1, y1, path, depth),\
-                   {'val': y2[0], 'depth': depth, 'ispure': True, 'dist': np.bincount(y2), 'path': path}
+            return self.fit1(x1, y1, path, depth), \
+                {'val': y2[0], 'depth': depth, 'ispure': True, 'dist': np.bincount(y2), 'path': path}
 
         if depth >= self.max_depth:
             # find majority class labels
             label1 = np.argmax(np.bincount(y1))
             label2 = np.argmax(np.bincount(y2))
-            return {'val': label1, 'depth': depth, 'ispure': self.all_same(y1), 'dist': np.bincount(y1), 'path': path},\
-                   {'val': label2, 'depth': depth, 'ispure': self.all_same(y2), 'dist': np.bincount(y2), 'path': path}
+            return {'val': label1, 'depth': depth, 'ispure': self.all_same(y1), 'dist': np.bincount(y1), 'path': path}, \
+                {'val': label2, 'depth': depth, 'ispure': self.all_same(y2), 'dist': np.bincount(y2), 'path': path}
 
         col1, cutoff1, entropy1 = self.find_best_split_of_all(x1, y1)
         col2, cutoff2, entropy2 = self.find_best_split_of_all(x2, y2)
@@ -242,6 +246,28 @@ class JointSurrogateTree:
             y = y.to_numpy()
         return (y[0] == y).all()
 
+    def _find_best_split_of_all(self, idx, c, y, min_entropy):
+        col = None
+        cutoff = None
+
+        values = np.unique(c)
+        split_points = (values[:-1] + values[1:]) / 2
+        # print(idx, values[0:5], split_points[0:5])
+        for value in split_points:
+            y_predict = c < value
+            # print(f"y_predict len = {y_predict.shape}, y shape={y.shape}")
+            cur_entropy = self.get_entropy_split(y_predict, y)
+
+            if cur_entropy == 0:
+                return idx, value, cur_entropy
+
+            elif cur_entropy <= min_entropy:
+                min_entropy = cur_entropy
+                col = idx
+                cutoff = value
+
+        return col, cutoff, min_entropy
+
     def find_best_split_of_all(self, x: np.ndarray, y: np.ndarray):
         if isinstance(x, pd.DataFrame):
             x = x.to_numpy()
@@ -251,15 +277,30 @@ class JointSurrogateTree:
         min_entropy = 10
         cutoff = None
 
-        for idx, c in enumerate(x.T):
-            values = np.unique(c)
-            split_points = (values[:-1] + values[1:]) / 2
-            # print(idx, values[0:5], split_points[0:5])
-            for value in split_points:
-                y_predict = c < value
-                # print(f"y_predict len = {y_predict.shape}, y shape={y.shape}")
-                cur_entropy = self.get_entropy_split(y_predict, y)
+        start_time = time.time()  # 获取当前时间戳
 
+        # for idx, c in enumerate(x.T):
+        #     values = np.unique(c)
+        #     split_points = (values[:-1] + values[1:]) / 2
+        #     # print(idx, values[0:5], split_points[0:5])
+        #     for value in split_points:
+        #         y_predict = c < value
+        #         # print(f"y_predict len = {y_predict.shape}, y shape={y.shape}")
+        #         cur_entropy = self.get_entropy_split(y_predict, y)
+        #
+        #         if cur_entropy == 0:
+        #             return idx, value, cur_entropy
+        #
+        #         elif cur_entropy <= min_entropy:
+        #             min_entropy = cur_entropy
+        #             col = idx
+        #             cutoff = value
+
+        # 使用线程池执行并行计算
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = [executor.submit(self._find_best_split_of_all, idx, c, y, min_entropy) for idx, c in enumerate(x.T)]
+            for future in concurrent.futures.as_completed(futures):
+                idx, value, cur_entropy = future.result()
                 if cur_entropy == 0:
                     return idx, value, cur_entropy
 
@@ -267,6 +308,33 @@ class JointSurrogateTree:
                     min_entropy = cur_entropy
                     col = idx
                     cutoff = value
+
+        end_time = time.time()  # 获取当前时间戳
+        elapsed_time = end_time - start_time  # 计算时间差
+        print("find_best_split_of_all time：{:.6f}s".format(elapsed_time))
+
+        return col, cutoff, min_entropy
+
+    def _find_best_split_of_all_double(self, idx, c, y1, y2, min_entropy):
+        col = None
+        cutoff = None
+
+        values = np.unique(c)
+        split_points = (values[:-1] + values[1:]) / 2
+
+        for value in split_points:
+            y_predict = c < value
+            cur_entropy1 = self.get_entropy_split(y_predict, y1)
+            cur_entropy2 = self.get_entropy_split(y_predict, y2)
+            cur_entropy = (cur_entropy1 + cur_entropy2) / 2
+
+            if cur_entropy == 0:
+                return idx, value, cur_entropy
+
+            elif cur_entropy <= min_entropy:
+                min_entropy = cur_entropy
+                col = idx
+                cutoff = value
 
         return col, cutoff, min_entropy
 
@@ -285,17 +353,32 @@ class JointSurrogateTree:
         min_entropy = 10
         cutoff = None
 
-        for idx, c in enumerate(x1.T):
-            values = np.unique(c)
-            split_points = (values[:-1] + values[1:]) / 2
+        start_time = time.time()  # 获取当前时间戳
 
-            for value in split_points:
-                y_predict = c < value
-                cur_entropy1 = self.get_entropy_split(y_predict, y1)
-                cur_entropy2 = self.get_entropy_split(y_predict, y2)
-                cur_entropy = (cur_entropy1 + cur_entropy2) / 2
+        # for idx, c in enumerate(x1.T):
+        #     values = np.unique(c)
+        #     split_points = (values[:-1] + values[1:]) / 2
+        #
+        #     for value in split_points:
+        #         y_predict = c < value
+        #         cur_entropy1 = self.get_entropy_split(y_predict, y1)
+        #         cur_entropy2 = self.get_entropy_split(y_predict, y2)
+        #         cur_entropy = (cur_entropy1 + cur_entropy2) / 2
+        #
+        #         # choose a split that minimizes entropy of sum of the two
+        #         if cur_entropy == 0:
+        #             return idx, value, cur_entropy
+        #
+        #         elif cur_entropy <= min_entropy:
+        #             min_entropy = cur_entropy
+        #             col = idx
+        #             cutoff = value
 
-                # choose a split that minimizes entropy of sum of the two
+        # 使用线程池执行并行计算
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = [executor.submit(self._find_best_split_of_all_double, idx, c, y1, y2, min_entropy) for idx, c in enumerate(x1.T)]
+            for future in concurrent.futures.as_completed(futures):
+                idx, value, cur_entropy = future.result()
                 if cur_entropy == 0:
                     return idx, value, cur_entropy
 
@@ -303,6 +386,10 @@ class JointSurrogateTree:
                     min_entropy = cur_entropy
                     col = idx
                     cutoff = value
+
+        end_time = time.time()  # 获取当前时间戳
+        elapsed_time = end_time - start_time  # 计算时间差
+        print("find_best_split_of_all_double time：{:.6f}s".format(elapsed_time))
 
         return col, cutoff, min_entropy
 
@@ -453,4 +540,3 @@ class JointSurrogateTree:
                         diffrules.append(intsec)
 
         return diffrules
-

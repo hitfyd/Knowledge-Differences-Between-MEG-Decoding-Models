@@ -101,7 +101,7 @@ if __name__ == "__main__":
     ydiff = (pred_A != pred_B).astype(int)
     print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff)):.2f}")
 
-    from aix360.algorithms.imd.imd import IMDExplainer
+    from differlib.imd.imd import IMDExplainer
 
     max_depth = 2
 
@@ -117,6 +117,6 @@ if __name__ == "__main__":
     # filtered_data = data_[rule.apply(data_)]
     # print(filtered_data)
 
-    from aix360.algorithms.imd.utils import visualize_jst
+    from differlib.imd.utils import visualize_jst
 
     visualize_jst(imd.jst, path="joint.jpg")
