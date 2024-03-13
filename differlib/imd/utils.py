@@ -84,11 +84,12 @@ def _parse_feature_names(feature_names, sep="="):
     feature_names_dum_d = defaultdict(list)
     feature_names_nodum = list()
     for fname in feature_names:
-        if sep in fname:
-            fname_dum, v = fname.split(sep, 1)
-            feature_names_dum_d[fname_dum].append(v)
-        else:
-            feature_names_nodum.append(fname)
+        feature_names_nodum.append(fname)
+        # if sep in fname:
+        #     fname_dum, v = fname.split(sep, 1)
+        #     feature_names_dum_d[fname_dum].append(v)
+        # else:
+        #     feature_names_nodum.append(fname)
 
     return feature_names_dum_d, feature_names_nodum
 

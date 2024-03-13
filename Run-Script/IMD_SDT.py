@@ -103,19 +103,30 @@ if __name__ == "__main__":
 
     from differlib.imd.imd import IMDExplainer
 
-    max_depth = 2
+    max_depth = 6
 
     imd = IMDExplainer()
     imd.fit(pd.DataFrame(data.cpu().detach().numpy().reshape((-1, 204*100))), pred_target_A, pred_target_B, max_depth=max_depth)
+    # imd.fit(pd.DataFrame(data.cpu().detach().numpy()[:, :, 0]), pred_target_A, pred_target_B,
+    #         max_depth=max_depth)
 
     diffrules = imd.explain()
     print(diffrules)
 
-    rule_idx = 4
+    rule_idx = -1
 
-    # rule = diffrules[rule_idx]
-    # filtered_data = data_[rule.apply(data_)]
-    # print(filtered_data)
+    rule = diffrules[rule_idx]
+    filtered_data = data_[rule.apply(data_)]
+    print(filtered_data)
+
+    # Computation of metrics
+    # on train set
+    metrics = imd.metrics(x_train, y1, y2, name="train")
+    print(metrics)
+
+    # on test set
+    metrics = imd.metrics(x_test, model1.predict(x_test), model2.predict(x_test), name="test")
+    print(metrics)
 
     from differlib.imd.utils import visualize_jst
 

@@ -13,6 +13,7 @@ conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvi
 conda install tqdm yacs
 conda install numpy pandas scikit-learn matplotlib networkx graphviz pygraphviz
 # The graphviz library needs to be installed on your operating system as well, see https://pygraphviz.github.io/documentation/stable/install.html
+pip install -U "ray"
 ```
 
 Major dependency packages:
@@ -29,6 +30,7 @@ matplotlib==3.8.0
 networkx==3.1
 graphviz==2.50.0
 pygraphviz==1.9
+ray==2.9.3
 ```
 
 ### Dataset Preprocessing

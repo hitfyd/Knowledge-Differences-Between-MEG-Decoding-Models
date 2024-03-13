@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import time
 
+import ray
+
 from .rule import Rule
 
 
@@ -70,6 +72,15 @@ class JointSurrogateTree:
         self.refine = refine  # unused
         self.generated_data = {}
         self.diffrules = []
+
+        if not ray.is_initialized():
+            ray.init(num_gpus=0, num_cpus=None,  # 计算资源
+                     local_mode=False,  # 是否启动串行模型，用于调试
+                     ignore_reinit_error=True,  # 重复启动不视为错误
+                     include_dashboard=False,  # 是否启动仪表盘
+                     configure_logging=False,  # 不配置日志
+                     log_to_driver=False,  # 日志记录不配置到driver
+                     )
 
     def H(self, y, mode='entropy'):
         if isinstance(y, pd.Series):
@@ -246,28 +257,6 @@ class JointSurrogateTree:
             y = y.to_numpy()
         return (y[0] == y).all()
 
-    def _find_best_split_of_all(self, idx, c, y, min_entropy):
-        col = None
-        cutoff = None
-
-        values = np.unique(c)
-        split_points = (values[:-1] + values[1:]) / 2
-        # print(idx, values[0:5], split_points[0:5])
-        for value in split_points:
-            y_predict = c < value
-            # print(f"y_predict len = {y_predict.shape}, y shape={y.shape}")
-            cur_entropy = self.get_entropy_split(y_predict, y)
-
-            if cur_entropy == 0:
-                return idx, value, cur_entropy
-
-            elif cur_entropy <= min_entropy:
-                min_entropy = cur_entropy
-                col = idx
-                cutoff = value
-
-        return col, cutoff, min_entropy
-
     def find_best_split_of_all(self, x: np.ndarray, y: np.ndarray):
         if isinstance(x, pd.DataFrame):
             x = x.to_numpy()
@@ -296,11 +285,19 @@ class JointSurrogateTree:
         #             col = idx
         #             cutoff = value
 
-        # 使用线程池执行并行计算
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self._find_best_split_of_all, idx, c, y, min_entropy) for idx, c in enumerate(x.T)]
-            for future in concurrent.futures.as_completed(futures):
-                idx, value, cur_entropy = future.result()
+        @ray.remote
+        def _find_best_split_of_all(idx, c, y, min_entropy):
+            col = None
+            cutoff = None
+
+            values = np.unique(c)
+            split_points = (values[:-1] + values[1:]) / 2
+            # print(idx, values[0:5], split_points[0:5])
+            for value in split_points:
+                y_predict = c < value
+                # print(f"y_predict len = {y_predict.shape}, y shape={y.shape}")
+                cur_entropy = self.get_entropy_split(y_predict, y)
+
                 if cur_entropy == 0:
                     return idx, value, cur_entropy
 
@@ -309,25 +306,11 @@ class JointSurrogateTree:
                     col = idx
                     cutoff = value
 
-        end_time = time.time()  # 获取当前时间戳
-        elapsed_time = end_time - start_time  # 计算时间差
-        print("find_best_split_of_all time：{:.6f}s".format(elapsed_time))
+            return col, cutoff, min_entropy
 
-        return col, cutoff, min_entropy
-
-    def _find_best_split_of_all_double(self, idx, c, y1, y2, min_entropy):
-        col = None
-        cutoff = None
-
-        values = np.unique(c)
-        split_points = (values[:-1] + values[1:]) / 2
-
-        for value in split_points:
-            y_predict = c < value
-            cur_entropy1 = self.get_entropy_split(y_predict, y1)
-            cur_entropy2 = self.get_entropy_split(y_predict, y2)
-            cur_entropy = (cur_entropy1 + cur_entropy2) / 2
-
+        rs = [_find_best_split_of_all.remote(idx, c, y, min_entropy) for idx, c in enumerate(x.T)]
+        rs_list = ray.get(rs)
+        for idx, value, cur_entropy in rs_list:
             if cur_entropy == 0:
                 return idx, value, cur_entropy
 
@@ -335,6 +318,10 @@ class JointSurrogateTree:
                 min_entropy = cur_entropy
                 col = idx
                 cutoff = value
+
+        end_time = time.time()  # 获取当前时间戳
+        elapsed_time = end_time - start_time  # 计算时间差
+        print("find_best_split_of_all time：{:.6f}s".format(elapsed_time))
 
         return col, cutoff, min_entropy
 
@@ -374,11 +361,33 @@ class JointSurrogateTree:
         #             col = idx
         #             cutoff = value
 
-        # 使用线程池执行并行计算
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self._find_best_split_of_all_double, idx, c, y1, y2, min_entropy) for idx, c in enumerate(x1.T)]
-            for future in concurrent.futures.as_completed(futures):
-                idx, value, cur_entropy = future.result()
+        # # 使用线程池执行并行计算
+        # with concurrent.futures.ThreadPoolExecutor() as executor:
+        #     futures = [executor.submit(self._find_best_split_of_all_double, idx, c, y1, y2, min_entropy) for idx, c in enumerate(x1.T)]
+        #     for future in concurrent.futures.as_completed(futures):
+        #         idx, value, cur_entropy = future.result()
+        #         if cur_entropy == 0:
+        #             return idx, value, cur_entropy
+        #
+        #         elif cur_entropy <= min_entropy:
+        #             min_entropy = cur_entropy
+        #             col = idx
+        #             cutoff = value
+
+        @ray.remote
+        def _find_best_split_of_all_double(idx, c, y1, y2, min_entropy):
+            col = None
+            cutoff = None
+
+            values = np.unique(c)
+            split_points = (values[:-1] + values[1:]) / 2
+
+            for value in split_points:
+                y_predict = c < value
+                cur_entropy1 = self.get_entropy_split(y_predict, y1)
+                cur_entropy2 = self.get_entropy_split(y_predict, y2)
+                cur_entropy = (cur_entropy1 + cur_entropy2) / 2
+
                 if cur_entropy == 0:
                     return idx, value, cur_entropy
 
@@ -386,6 +395,19 @@ class JointSurrogateTree:
                     min_entropy = cur_entropy
                     col = idx
                     cutoff = value
+
+            return col, cutoff, min_entropy
+
+        rs = [_find_best_split_of_all_double.remote(idx, c, y1, y2, min_entropy) for idx, c in enumerate(x1.T)]
+        rs_list = ray.get(rs)
+        for idx, value, cur_entropy in rs_list:
+            if cur_entropy == 0:
+                return idx, value, cur_entropy
+
+            elif cur_entropy <= min_entropy:
+                min_entropy = cur_entropy
+                col = idx
+                cutoff = value
 
         end_time = time.time()  # 获取当前时间戳
         elapsed_time = end_time - start_time  # 计算时间差
