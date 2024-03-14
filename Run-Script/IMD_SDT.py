@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
     from differlib.imd.imd import IMDExplainer
 
-    max_depth = 8
+    max_depth = 7
 
     x = pd.DataFrame(data.cpu().detach().numpy().reshape((-1, 204*100)))
     imd = IMDExplainer()

@@ -308,7 +308,9 @@ class JointSurrogateTree:
 
             return col, cutoff, min_entropy
 
-        rs = [_find_best_split_of_all.remote(idx, c, y, min_entropy) for idx, c in enumerate(x.T)]
+        y_ = ray.put(y)
+        min_entropy_ = ray.put(min_entropy)
+        rs = [_find_best_split_of_all.remote(idx, c, y_, min_entropy_) for idx, c in enumerate(x.T)]
         rs_list = ray.get(rs)
         for idx, value, cur_entropy in rs_list:
             if cur_entropy == 0:
@@ -398,7 +400,10 @@ class JointSurrogateTree:
 
             return col, cutoff, min_entropy
 
-        rs = [_find_best_split_of_all_double.remote(idx, c, y1, y2, min_entropy) for idx, c in enumerate(x1.T)]
+        y1_ = ray.put(y1)
+        y2_ = ray.put(y2)
+        min_entropy_ = ray.put(min_entropy)
+        rs = [_find_best_split_of_all_double.remote(idx, c, y1_, y2_, min_entropy_) for idx, c in enumerate(x1.T)]
         rs_list = ray.get(rs)
         for idx, value, cur_entropy in rs_list:
             if cur_entropy == 0:
