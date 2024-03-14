@@ -1,38 +1,79 @@
+from sklearn import tree
+
 from differlib.dise import DISExplainer
 
 import numpy as np
 import pandas as pd
 
-from .utils import _parse_feature_names
-from .jst import JointSurrogateTree
-from .rule import Rule
+
+def dtree_to_rule(tree, feature_names, df_name='data', badrate_need=0.5):
+    tree_ = tree.tree_
+    feature_name = [
+        feature_names[i] if i != tree._tree.TREE_UNDEFINED else "undefined!"
+        for i in tree_.feature
+    ]
+
+    pathto = dict()
+    global k
+    k = 0
+    rule_list = []
+
+    def recurse(node, depth, parent, badrate_need):
+        global k
+        if tree_.feature[node] != tree._tree.TREE_UNDEFINED:
+            name = feature_name[node]
+            threshold = tree_.threshold[node]
+            s = "({}['{}'] <= {})".format(df_name, name, threshold)
+            if node == 0:
+                pathto[node] = s
+            else:
+                pathto[node] = pathto[parent] + ' & ' + s
+
+            recurse(tree_.children_left[node], depth + 1, node, badrate_need)
+            s = "({}['{}'] > {})".format(df_name, name, threshold)
+            if node == 0:
+                pathto[node] = s
+            else:
+                pathto[node] = pathto[parent] + ' & ' + s
+
+            recurse(tree_.children_right[node], depth + 1, node, badrate_need)
+        else:
+            k = k + 1
+            dct = {}
+            if tree_.value[node][0][1] / tree_.n_node_samples[node] >= badrate_need:
+                dct['rule_name'] = pathto[parent]
+                dct['bad_rate'] = tree_.value[node][0][1] / tree_.n_node_samples[node]
+                dct['bad_num'] = tree_.value[node][0][1]
+                dct['hit_num'] = tree_.n_node_samples[node]
+                # sum(tree_.value[0][0]) # total
+                rule_list.append(dct)
+
+    recurse(0, 1, 0, badrate_need)
+    return rule_list
 
 
-class IMDExplainer(DISExplainer):
+class DeltaExplainer(DISExplainer):
     """
-    Interpretable Model Differencing to explain the similarities and differences between two classifiers.
-    Provides access to :class:`aix360.algorithms.imd.jst.JointSurrogateTree`, a novel data structure to
-    compactly represent the differences between the models in terms of rules, and also provides a way to
-    visualize the joint surrogate tree structure.
+    DeltaXplainer, a model-agnostic method for generating rule-based explanations describing the differences between
+    two binary classifiers.
 
-    References:
-        .. [#UAI2023] `S. Haldar, D. Saha, D. Wei, R. Nair, E. M. Daly, "Interpretable Differencing of Machine Learning
-            Models." Uncertainty in Artificial Intelligence (UAI), 2023.`
+    References: A. Rida, M.-J. Lesot, X. Renard, and C. Marsala, “Dynamic Interpretability
+    for Model Comparison via Decision Rules.” arXiv, Sep. 29, 2023. Accessed: Oct. 07, 2023. [Online]. Available:
+    https://arxiv.org/abs/2309.17095
+
     """
 
     def __init__(self):
         """
-        Initialize an IMDExplainer object.
+        Initialize an DeltaXplainer object.
         """
 
-        super(IMDExplainer, self).__init__()
+        super(DeltaExplainer, self).__init__()
 
         # to be populated on calling fit() method, or set manually
-        self.jst = None
+        self.delta_tree = None
         self.diffrules = []
-        self.diffregions = []  # regions in which the model differ, for all feature {'feature': [min, max],...}
         self.feature_names = []
-        self.is_int_col = dict()
 
     def set_params(self, *argv, **kwargs):
         """
@@ -40,7 +81,7 @@ class IMDExplainer(DISExplainer):
         """
         pass
 
-    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, split_criterion=1, alpha=0.0, verbose=True, **kwargs):
+    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, min_samples_leaf=1, verbose=True, **kwargs):
         """
         Fit joint surrogate tree to input data, and outputs from two models.
         Args:
@@ -48,9 +89,7 @@ class IMDExplainer(DISExplainer):
             Y1: model1 outputs
             Y2: model2 outputs
             max_depth: maximum depth of the joint surrogate tree to be built
-            feature_names: list of input feature names
-            alpha: parameter to control degree of favouring common nodes vs. separate nodes
-            split_criterion: which divergence criterion to use? (see paper for more details)
+            min_samples_leaf: minimum number of samples required to be at a leaf node
             verbose:
             **kwargs:
         Returns:
@@ -59,50 +98,23 @@ class IMDExplainer(DISExplainer):
         feature_names = X_train.columns.to_list()
         self.feature_names = feature_names
 
-        x1 = x2 = X_train.to_numpy()
+        X_train = X_train.to_numpy()
 
         if not isinstance(Y1, np.ndarray):
             Y1 = Y1.to_numpy()
         if not isinstance(Y2, np.ndarray):
             Y2 = Y2.to_numpy()
 
-        y1 = Y1
-        y2 = Y2
-
-        ydiff = (y1 != y2).astype(int)
+        ydiff = (Y1 != Y2).astype(int)
         if verbose:
             print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
 
-        jstobj = JointSurrogateTree(max_depth=max_depth,
-                                    feature_names=feature_names,
-                                    split_criterion=split_criterion,
-                                    alpha=alpha)
-        t1, t2 = jstobj.fit(x1, y1, x2, y2)
-        ct = jstobj.common_trunk(t1, t2)
-        diffrules = jstobj.get_diffrules_from_jst(ct)
+        delta_target = Y1 ^ Y2
 
-        self.jst = ct
-        self.diffrules = diffrules
+        self.delta_tree = tree.DecisionTreeClassifier(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
+        self.delta_tree.fit(X_train, delta_target)
+        self.diffrules = dtree_to_rule(tree=self.delta_tree, feature_names=self.feature_names)
 
-        # prepare regions from the rules
-        cat_dict, nums = _parse_feature_names(feature_names)
-        is_int_col = dict()
-        for num_feature in nums:
-            is_int_col[num_feature] = np.array_equal(X_train[num_feature], X_train[num_feature].astype(int))
-        self.is_int_col = is_int_col
-
-        minimums = X_train.to_numpy().min(0)
-        maximums = X_train.to_numpy().max(0)
-
-        fd = [[minimums[i], maximums[i]] for i in range(len(minimums))]
-        total_region_dict = {feature_names[i]: fd[i] for i in range(len(feature_names))}
-
-        # some unnecessary wrapping to reuse some code
-        diffruledict = dict(enumerate(self.diffrules))
-        self.diffregions = [
-            rule.as_dict(feature_names=self.feature_names, total_region=total_region_dict, only_preds=False)
-            for _, rule in diffruledict.items()
-        ]
 
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
