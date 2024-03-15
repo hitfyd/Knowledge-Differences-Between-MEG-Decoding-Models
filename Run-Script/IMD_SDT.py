@@ -9,8 +9,10 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import log_msg, setup_seed, get_data_loader_from_dataset, load_checkpoint, \
     get_data_labels_from_dataset
-from differlib.imd.utils import visualize_jst
 from differlib.models import model_dict
+from differlib.imd.imd import IMDExplainer
+from differlib.imd.utils import visualize_jst
+from differlib.DeltaXpainer import DeltaExplainer
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("training for knowledge distillation.")
@@ -93,12 +95,11 @@ if __name__ == "__main__":
     ydiff = (pred_A != pred_B).astype(int)
     print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff)):.2f}")
 
-    from differlib.imd.imd import IMDExplainer
-
     max_depth = 7
 
     x = pd.DataFrame(data.cpu().detach().numpy().reshape((-1, 204*100)))
-    imd = IMDExplainer()
+    # imd = IMDExplainer()
+    imd = DeltaExplainer()
     imd.fit(x, pred_target_A, pred_target_B, max_depth=max_depth)
     # imd.fit(pd.DataFrame(data.cpu().detach().numpy()[:, :, 0]), pred_target_A, pred_target_B,
     #         max_depth=max_depth)
@@ -106,26 +107,26 @@ if __name__ == "__main__":
     diffrules = imd.explain()
     print(diffrules)
 
-    rule_idx = -1
-
-    rule = diffrules[rule_idx]
-    filtered_data = x[rule.apply(x)]
-    print(filtered_data)
+    # rule_idx = -1
+    #
+    # rule = diffrules[rule_idx]
+    # filtered_data = x[rule.apply(x)]
+    # print(filtered_data)
 
     # Computation of metrics
     # on train set
     metrics = imd.metrics(x, pred_target_A, pred_target_B, name="train")
     print(metrics)
 
-    visualize_jst(imd.jst, path="joint.jpg")
+    # visualize_jst(imd.jst, path="joint.jpg")
 
-    # Separate surrogate approach
-    sepsur = IMDExplainer()
-    sepsur.fit(x, pred_target_A, pred_target_B, max_depth=max_depth, split_criterion=2, alpha=1.0)
-
-    # on train set
-    metrics = sepsur.metrics(x, pred_target_A, pred_target_B, name="train")
-    print(metrics)
-
-    # Visualizing separate surrogates
-    visualize_jst(sepsur.jst, path="separate.jpg")
+    # # Separate surrogate approach
+    # sepsur = IMDExplainer()
+    # sepsur.fit(x, pred_target_A, pred_target_B, max_depth=max_depth, split_criterion=2, alpha=1.0)
+    #
+    # # on train set
+    # metrics = sepsur.metrics(x, pred_target_A, pred_target_B, name="train")
+    # print(metrics)
+    #
+    # # Visualizing separate surrogates
+    # visualize_jst(sepsur.jst, path="separate.jpg")

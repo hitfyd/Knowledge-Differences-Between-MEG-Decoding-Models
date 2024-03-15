@@ -9,7 +9,7 @@ import pandas as pd
 def dtree_to_rule(tree, feature_names, df_name='data', badrate_need=0.5):
     tree_ = tree.tree_
     feature_name = [
-        feature_names[i] if i != tree._tree.TREE_UNDEFINED else "undefined!"
+        feature_names[i] if i != tree.tree_.TREE_UNDEFINED else "undefined!"
         for i in tree_.feature
     ]
 
@@ -20,7 +20,7 @@ def dtree_to_rule(tree, feature_names, df_name='data', badrate_need=0.5):
 
     def recurse(node, depth, parent, badrate_need):
         global k
-        if tree_.feature[node] != tree._tree.TREE_UNDEFINED:
+        if tree_.feature[node] != tree.tree_.TREE_UNDEFINED:
             name = feature_name[node]
             threshold = tree_.threshold[node]
             s = "({}['{}'] <= {})".format(df_name, name, threshold)
@@ -113,8 +113,7 @@ class DeltaExplainer(DISExplainer):
 
         self.delta_tree = tree.DecisionTreeClassifier(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
         self.delta_tree.fit(X_train, delta_target)
-        self.diffrules = dtree_to_rule(tree=self.delta_tree, feature_names=self.feature_names)
-
+        self.diffrules = tree.export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True)
 
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
@@ -126,45 +125,7 @@ class DeltaExplainer(DISExplainer):
         """
         return self.diffrules
 
-    def inregion(self, regions, data):
-        # utility to return a boolean array, True if a datarow is satisfied by one region in `regions`
-        # data is numpy array, `regions` is self.diffregions
-        res1 = np.zeros(data.shape[0])
-
-        for region in regions:
-            res = np.ones(data.shape[0])
-            for field in region.keys():
-                f_index = self.feature_names.index(field)
-                col = data[:, f_index]
-                left = region[field][0]
-                right = region[field][1]
-                res = np.logical_and(res, np.logical_and(col >= left, col <= right))
-
-            res1 = np.logical_or(res1, res)
-
-        return res1
-
     def metrics(self, x_test: pd.DataFrame, y_test1, y_test2, name="test"):
-        """
-        take x_test and check the precision and recall
-        precision =
-           number of actual diff samples inside the diffregion /
-           number of test samples inside the diffregion
-        recall = diff samples inside the region / total number of diff samples
-
-
-        Args:
-            x_test: test data (only x) to compute diff-based metrics
-            name: string (`train` or `test`)
-
-        Returns:
-            a dictionary having `precision`, `recall`, `num-rules`, and `num-unique-preds` values
-            as obtained from the diff-rules extracted from the jst.
-        """
-
-        if self.jst is None:
-            print("jst not fitted yet, please call .fit method first!")
-            return {}
 
         metrics = {}
         # y_test1 = self.model1.predict(x_test)
@@ -174,14 +135,14 @@ class DeltaExplainer(DISExplainer):
         metrics["diffs"] = total_number_diff_samples
         metrics["samples"] = len(x_test)
 
-        inregiondiff = self.inregion(self.diffregions, x_test[diff_samples].to_numpy())
-        diff_samples_inside_diff_region = np.sum(inregiondiff)
-        inregion = self.inregion(self.diffregions, x_test.to_numpy())
-        samples_in_region = np.sum(inregion)
-
-        metrics[name + "-precision"] = round(diff_samples_inside_diff_region / samples_in_region, 6)
-        metrics[name + "-recall"] = round(diff_samples_inside_diff_region / total_number_diff_samples, 6)
-        metrics["num-rules"] = len(self.diffregions)
+        # inregiondiff = self.inregion(self.diffregions, x_test[diff_samples].to_numpy())
+        # diff_samples_inside_diff_region = np.sum(inregiondiff)
+        # inregion = self.inregion(self.diffregions, x_test.to_numpy())
+        # samples_in_region = np.sum(inregion)
+        #
+        # metrics[name + "-precision"] = round(diff_samples_inside_diff_region / samples_in_region, 6)
+        # metrics[name + "-recall"] = round(diff_samples_inside_diff_region / total_number_diff_samples, 6)
+        metrics["num-rules"] = len(self.diffrules)
 
         preds = []
         for rule in self.diffrules:
