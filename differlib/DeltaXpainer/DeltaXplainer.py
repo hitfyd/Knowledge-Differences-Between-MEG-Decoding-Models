@@ -1,54 +1,55 @@
-from sklearn import tree
+import copy
+
+from sklearn.tree import DecisionTreeClassifier, export_text, plot_tree, _tree
 
 from differlib.dise import DISExplainer
+from differlib.imd.rule import Rule
 
 import numpy as np
 import pandas as pd
 
 
-def dtree_to_rule(tree, feature_names, df_name='data', badrate_need=0.5):
+def dtree_to_rule(tree, feature_names, class_labels=[0, 1]):
     tree_ = tree.tree_
-    feature_name = [
-        feature_names[i] if i != tree.tree_.TREE_UNDEFINED else "undefined!"
-        for i in tree_.feature
-    ]
 
-    pathto = dict()
-    global k
-    k = 0
+    predicates = dict()
+    assert len(class_labels) == 2
     rule_list = []
 
-    def recurse(node, depth, parent, badrate_need):
-        global k
-        if tree_.feature[node] != tree.tree_.TREE_UNDEFINED:
-            name = feature_name[node]
+    def recurse(node, depth, parent):
+        if tree_.feature[node] != _tree.TREE_UNDEFINED:
+            key = feature_names[tree_.feature[node]]
             threshold = tree_.threshold[node]
-            s = "({}['{}'] <= {})".format(df_name, name, threshold)
+            pred = (key, '<=', threshold)
             if node == 0:
-                pathto[node] = s
+                predicates[node] = [pred]
             else:
-                pathto[node] = pathto[parent] + ' & ' + s
+                predicates[node] = []
+                predicates[node].extend(predicates[parent])
+                predicates[node].append(pred)
 
-            recurse(tree_.children_left[node], depth + 1, node, badrate_need)
-            s = "({}['{}'] > {})".format(df_name, name, threshold)
+            recurse(tree_.children_left[node], depth + 1, node)
+            pred = (key, '>', threshold)
             if node == 0:
-                pathto[node] = s
+                predicates[node] = [pred]
             else:
-                pathto[node] = pathto[parent] + ' & ' + s
+                predicates[node] = []
+                predicates[node].extend(predicates[parent])
+                predicates[node].append(pred)
 
-            recurse(tree_.children_right[node], depth + 1, node, badrate_need)
+            recurse(tree_.children_right[node], depth + 1, node)
         else:
-            k = k + 1
-            dct = {}
-            if tree_.value[node][0][1] / tree_.n_node_samples[node] >= badrate_need:
-                dct['rule_name'] = pathto[parent]
-                dct['bad_rate'] = tree_.value[node][0][1] / tree_.n_node_samples[node]
-                dct['bad_num'] = tree_.value[node][0][1]
-                dct['hit_num'] = tree_.n_node_samples[node]
-                # sum(tree_.value[0][0]) # total
-                rule_list.append(dct)
+            value = tree_.value[node].squeeze()
+            n_node_samples = tree_.n_node_samples[node]
+            impurity = tree_.impurity[node]
+            class_label = class_labels[value.argmax()]
+            print("node {} depth {} parent {} class_label {}".format(node, depth, parent, class_label))
+            print("value {} n_node_samples {} impurity {}".format(value, n_node_samples, impurity))
+            print("predicates {}".format(predicates))
+            rule = Rule(node, predicates[parent], class_label)
+            rule_list.append(rule)
 
-    recurse(0, 1, 0, badrate_need)
+    recurse(0, 1, 0)
     return rule_list
 
 
@@ -111,9 +112,11 @@ class DeltaExplainer(DISExplainer):
 
         delta_target = Y1 ^ Y2
 
-        self.delta_tree = tree.DecisionTreeClassifier(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
+        self.delta_tree = DecisionTreeClassifier(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
         self.delta_tree.fit(X_train, delta_target)
-        self.diffrules = tree.export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True)
+        print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
+        plot_tree(self.delta_tree)
+        self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
 
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.

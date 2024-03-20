@@ -4,6 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 import torch.nn as nn
+from matplotlib import pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix
 
 from differlib.engine.cfg import CFG as cfg
@@ -106,6 +107,7 @@ if __name__ == "__main__":
 
     diffrules = imd.explain()
     print(diffrules)
+    plt.show()
 
     # rule_idx = -1
     #
