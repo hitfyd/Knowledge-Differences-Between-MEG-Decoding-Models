@@ -1,7 +1,7 @@
 import copy
 
 import sklearn
-from sklearn.tree import DecisionTreeClassifier, export_text, plot_tree, _tree
+from sklearn.tree import DecisionTreeClassifier, export_text, plot_tree, _tree, DecisionTreeRegressor
 
 from differlib.dise import DISExplainer
 from differlib.imd.rule import Rule
@@ -43,18 +43,17 @@ def dtree_to_rule(tree, feature_names, class_labels=[0, 1]):
             value = tree_.value[node].squeeze()
             n_node_samples = tree_.n_node_samples[node]
             impurity = tree_.impurity[node]
-            class_label = class_labels[value.argmax()]
-            print("node {} depth {} parent {} class_label {}".format(node, depth, parent, class_label))
+            print("node {} depth {} parent {}".format(node, depth, parent))
             print("value {} n_node_samples {} impurity {}".format(value, n_node_samples, impurity))
             print("predicates {}".format(predicates))
-            rule = Rule(node, predicates[parent], class_label)
+            rule = Rule(node, predicates[parent], value)
             rule_list.append(rule)
 
     recurse(0, 1, 0)
     return rule_list
 
 
-class DeltaExplainer(DISExplainer):
+class LogitDeltaRule(DISExplainer):
     """
     DeltaXplainer, a model-agnostic method for generating rule-based explanations describing the differences between
     two binary classifiers.
@@ -67,10 +66,10 @@ class DeltaExplainer(DISExplainer):
 
     def __init__(self):
         """
-        Initialize an DeltaXplainer object.
+        Initialize an LogitDeltaRule object.
         """
 
-        super(DeltaExplainer, self).__init__()
+        super(LogitDeltaRule, self).__init__()
 
         # to be populated on calling fit() method, or set manually
         self.delta_tree = None
@@ -88,8 +87,8 @@ class DeltaExplainer(DISExplainer):
         Fit joint surrogate tree to input data, and outputs from two models.
         Args:
             X_train: input dataframe
-            Y1: model1 outputs
-            Y2: model2 outputs
+            Y1: model1 outputs(logits)
+            Y2: model2 outputs(logits)
             max_depth: maximum depth of the joint surrogate tree to be built
             min_samples_leaf: minimum number of samples required to be at a leaf node
             verbose:
@@ -107,16 +106,19 @@ class DeltaExplainer(DISExplainer):
         if not isinstance(Y2, np.ndarray):
             Y2 = Y2.to_numpy()
 
-        assert len(Y1.shape) == len(Y2.shape) == 1 and Y1.shape[0] == Y2.shape[0], "Y1 and Y2 must have the same"
+        assert len(Y1.shape) == len(Y2.shape) == 2 and Y1.shape[0] == Y2.shape[0], "Y1 and Y2 must have the same"
+        pred_target_1 = Y1.argmax(axis=1)
+        pred_target_2 = Y2.argmax(axis=1)
 
-        ydiff = (Y1 != Y2).astype(int)
+        ydiff = (pred_target_1 != pred_target_2).astype(int)
         if verbose:
             print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
 
-        delta_target = Y1 ^ Y2
+        delta_target = pred_target_1 ^ pred_target_2
+        delta_output = Y1 - Y2
 
-        self.delta_tree = DecisionTreeClassifier(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
-        self.delta_tree.fit(X_train, delta_target)
+        self.delta_tree = DecisionTreeRegressor(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
+        self.delta_tree.fit(X_train, delta_output)
         print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
         plot_tree(self.delta_tree)
         self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
@@ -132,15 +134,22 @@ class DeltaExplainer(DISExplainer):
         return self.diffrules
 
     def metrics(self, x_test: pd.DataFrame, y_test1, y_test2, name="test"):
+        assert len(y_test1.shape) == len(y_test2.shape) == 2 and y_test1.shape[0] == y_test2.shape[0], \
+            "y_test1 and y_test2 must have the same"
+        pred_target_1 = y_test1.argmax(axis=1)
+        pred_target_2 = y_test2.argmax(axis=1)
 
         metrics = {}
-        diff_samples = y_test1 != y_test2
+        diff_samples = pred_target_1 != pred_target_2
         total_number_diff_samples = np.sum(diff_samples)
         metrics["diffs"] = total_number_diff_samples
         metrics["samples"] = len(x_test)
 
-        delta_target = y_test1 ^ y_test2
-        pred_target = self.delta_tree.predict(x_test)
+        delta_target = pred_target_1 ^ pred_target_2
+        logit_delta = self.delta_tree.predict(x_test)
+        y_test2_ = y_test1 - logit_delta
+        pred_target_2_ = y_test2_.argmax(axis=1)
+        pred_target = pred_target_1 ^ pred_target_2_
         metrics["confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
         metrics["accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
         metrics["precision"] = sklearn.metrics.precision_score(delta_target, pred_target)

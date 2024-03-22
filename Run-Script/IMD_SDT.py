@@ -14,6 +14,7 @@ from differlib.models import model_dict
 from differlib.imd.imd import IMDExplainer
 from differlib.imd.utils import visualize_jst
 from differlib.DeltaXpainer import DeltaExplainer
+from differlib.LogitDeltaRule import LogitDeltaRule
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("training for knowledge distillation.")
@@ -96,18 +97,23 @@ if __name__ == "__main__":
     ydiff = (pred_A != pred_B).astype(int)
     print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff)):.2f}")
 
-    max_depth = 7
+    max_depth = 5
 
     x = pd.DataFrame(data.cpu().detach().numpy().reshape((-1, 204*100)))
     # imd = IMDExplainer()
     imd = DeltaExplainer()
-    imd.fit(x, pred_target_A, pred_target_B, max_depth=max_depth)
+    imd = LogitDeltaRule()
+    output_A = output_A.squeeze().cpu().detach().numpy()
+    output_A = np.exp(output_A)/np.sum(np.exp(output_A), axis=-1, keepdims=True)
+    output_B = output_B.squeeze().cpu().detach().numpy()
+    imd.fit(x, output_A, output_B, max_depth=max_depth)
+    # imd.fit(x, pred_target_A, pred_target_B, max_depth=max_depth)
     # imd.fit(pd.DataFrame(data.cpu().detach().numpy()[:, :, 0]), pred_target_A, pred_target_B,
     #         max_depth=max_depth)
 
     diffrules = imd.explain()
     print(diffrules)
-    plt.show()
+    # plt.show()
 
     # rule_idx = -1
     #
@@ -117,7 +123,8 @@ if __name__ == "__main__":
 
     # Computation of metrics
     # on train set
-    metrics = imd.metrics(x, pred_target_A, pred_target_B, name="train")
+    # metrics = imd.metrics(x, pred_target_A, pred_target_B, name="train")
+    metrics = imd.metrics(x, output_A, output_B, name="train")
     print(metrics)
 
     # visualize_jst(imd.jst, path="joint.jpg")
