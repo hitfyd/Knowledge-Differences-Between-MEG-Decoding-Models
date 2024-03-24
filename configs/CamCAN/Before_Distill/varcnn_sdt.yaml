@@ -9,6 +9,6 @@ DATASET:
   NUM_CLASSES: 2
 MODELS:
   A: "CamCAN_varcnn"
-  B: "CamCAN_sdt_varcnn_fakd"
+  B: "CamCAN_sdt" #"CamCAN_sdt_varcnn_fakd"
 #GLOBAL:
 #LOCAL:
