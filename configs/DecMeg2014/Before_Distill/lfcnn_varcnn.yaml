@@ -1,6 +1,6 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "varcnn,sdt"
+  TAG: "lfcnn,varcnn"
   PROJECT: "DecMeg2014_baselines"
 DATASET:
   TYPE: "DecMeg2014"
@@ -8,7 +8,5 @@ DATASET:
   POINTS: 250
   NUM_CLASSES: 2
 MODELS:
-  A: "DecMeg2014_varcnn"
-  B: "DecMeg2014_sdt"
-#GLOBAL:
-#LOCAL:
+  A: "DecMeg2014_lfcnn"
+  B: "DecMeg2014_varcnn"
