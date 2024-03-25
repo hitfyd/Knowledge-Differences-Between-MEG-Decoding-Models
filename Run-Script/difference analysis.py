@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import torch
 import torch.nn as nn
 from sklearn.metrics import accuracy_score, confusion_matrix
 
@@ -31,6 +32,10 @@ if __name__ == "__main__":
 
     # init dataset & models
     data, labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
+    dataset = cfg.DATASET.TYPE
+    channels = cfg.DATASET.CHANNELS
+    points = cfg.DATASET.POINTS
+    n_classes = cfg.DATASET.NUM_CLASSES
 
     print(log_msg("Loading model A", "INFO"))
     model_A_type, model_A_pretrain_path = model_dict[cfg.MODELS.A]
@@ -49,78 +54,30 @@ if __name__ == "__main__":
     model_B = model_B.cuda()
 
     # models predict differences
-    output_A = model_A(data)
+    data_torch = torch.from_numpy(data).float().cuda()
+    output_A = model_A(data_torch)
     _, pred_target_A = output_A.topk(1, 1, True, True)
     output_A = output_A.cpu().detach().numpy()
     pred_target_A = pred_target_A.squeeze().cpu().detach().numpy()
 
-    output_B = model_B(data)
+    output_B = model_B(data_torch)
     _, pred_target_B = output_B.topk(1, 1, True, True)
     output_B = output_B.cpu().detach().numpy()
     pred_target_B = pred_target_B.squeeze().cpu().detach().numpy()
 
-    # # validate
-    # data_, targets, pred_A, pred_B = [], [], [], []
-    # criterion = nn.CrossEntropyLoss()
-    # for idx, (data, target) in enumerate(val_loader):
-    #     data_.extend(data.numpy())
-    #     targets.extend(target.numpy())
-    #     data = data.float()
-    #     data = data.cuda(non_blocking=True)
-    #     target = target.cuda(non_blocking=True)
-    #
-    #     output_A = model_A(data)
-    #     _, pred_target_A = output_A.topk(1, 1, True, True)
-    #     pred_target_A = pred_target_A.squeeze().cpu().detach().numpy()
-    #     pred_A.extend(pred_target_A)
-    #     acc_A = accuracy_score(y_true=target.cpu().detach().numpy(), y_pred=pred_target_A)
-    #     print(f"{idx}: model_A test accuracy: {(acc_A * 100):.2f}%")
-    #     # loss_A = criterion(output_A, target)
-    #     # acc_A, _ = accuracy(output_A, target, topk=(1, 2))
-    #     # print(acc_A, loss_A)
-    #
-    #     output_B = model_B(data)
-    #     _, pred_target_B = output_B.topk(1, 1, True, True)
-    #     pred_target_B = pred_target_B.squeeze().cpu().detach().numpy()
-    #     pred_B.extend(pred_target_B)
-    #     acc_B = accuracy_score(y_true=target.cpu().detach().numpy(), y_pred=pred_target_B)
-    #     print(f"{idx}: model_B test accuracy: {(acc_B * 100):.2f}%")
-    #     # loss_B = criterion(output_B, target)
-    #     # acc_B, _ = accuracy(output_B, target, topk=(1, 2))
-    #     # print(acc_B, loss_B)
-    #
-    # data_, targets, pred_A, pred_B = np.array(data_), np.array(targets), np.array(pred_A), np.array(pred_B)
-    #
-    # acc_A = accuracy_score(y_true=targets, y_pred=pred_A)
-    # print(f"sum_model_A test accuracy: {(acc_A * 100):.2f}%")
-    # cm_A = confusion_matrix(y_true=targets, y_pred=pred_A)
-    # print('cm_A is:\n', cm_A)
-    #
-    # acc_B = accuracy_score(y_true=targets, y_pred=pred_B)
-    # print(f"sum_model_B test accuracy: {(acc_B * 100):.2f}%")
-    # cm_B = confusion_matrix(y_true=targets, y_pred=pred_B)
-    # print('cm_B is:\n', cm_B)
+    max_depth = 7
 
-    ydiff = (pred_target_A != pred_target_B).astype(int)
-    print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff)):.2f}")
+    x = pd.DataFrame(data.reshape((-1, channels*points)))
+    imd = IMDExplainer()
+    # imd = DeltaExplainer()
+    imd.fit(x, pred_target_A, pred_target_B, max_depth=max_depth)
 
-    max_depth = 5
-
-    x = pd.DataFrame(data.cpu().detach().numpy().reshape((-1, 204*100)))
-    # imd = IMDExplainer()
-    imd = DeltaExplainer()
-    imd = LogitDeltaRule()
-    output_A = output_A.squeeze().cpu().detach().numpy()
-    output_A = np.exp(output_A)/np.sum(np.exp(output_A), axis=-1, keepdims=True)
-    output_B = output_B.squeeze().cpu().detach().numpy()
-    imd.fit(x, output_A, output_B, max_depth=max_depth)
-    # imd.fit(x, pred_target_A, pred_target_B, max_depth=max_depth)
-    # imd.fit(pd.DataFrame(data.cpu().detach().numpy()[:, :, 0]), pred_target_A, pred_target_B,
-    #         max_depth=max_depth)
+    # imd = LogitDeltaRule()
+    # output_A = np.exp(output_A)/np.sum(np.exp(output_A), axis=-1, keepdims=True)
+    # imd.fit(x, output_A, output_B, max_depth=max_depth)
 
     diffrules = imd.explain()
     print(diffrules)
-    # plt.show()
 
     # rule_idx = -1
     #
@@ -130,6 +87,6 @@ if __name__ == "__main__":
 
     # Computation of metrics
     # on train set
-    # metrics = imd.metrics(x, pred_target_A, pred_target_B, name="train")
-    metrics = imd.metrics(x, output_A, output_B, name="train")
+    metrics = imd.metrics(x, pred_target_A, pred_target_B, name="train")
+    # metrics = imd.metrics(x, output_A, output_B, name="train")
     print(metrics)

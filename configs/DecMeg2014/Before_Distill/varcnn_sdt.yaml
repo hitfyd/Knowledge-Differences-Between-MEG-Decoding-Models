@@ -1,0 +1,14 @@
+EXPERIMENT:
+  NAME: ""
+  TAG: "varcnn,sdt"
+  PROJECT: "DecMeg2014_baselines"
+DATASET:
+  TYPE: "DecMeg2014"
+  CHANNELS: 204
+  POINTS: 250
+  NUM_CLASSES: 2
+MODELS:
+  A: "DecMeg2014_varcnn"
+  B: "DecMeg2014_sdt"
+#GLOBAL:
+#LOCAL:
