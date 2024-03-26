@@ -35,7 +35,7 @@ if __name__ == "__main__":
         experiment_name = cfg.EXPERIMENT.TAG
     tags = cfg.EXPERIMENT.TAG.split(",")
     if args.opts:
-        addtional_tags = ["{}:{}".format(k, v) for k, v in zip(opts[::2], opts[1::2])]
+        addtional_tags = ["{}:{}".format(k, v) for k, v in zip(args.opts[::2], args.opts[1::2])]
         tags += addtional_tags
         experiment_name += ",".join(addtional_tags)
     experiment_name = os.path.join(cfg.EXPERIMENT.PROJECT, experiment_name)
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     n_classes = cfg.DATASET.NUM_CLASSES
     n_splits = cfg.DATASET.NUM_SPLITS
 
-    print(log_msg("Loading model A", "INFO"))
+    print(log_msg("Loading model A {}".format(cfg.MODELS.A), "INFO"))
     model_A_type, model_A_pretrain_path = model_dict[cfg.MODELS.A]
     assert (model_A_pretrain_path is not None), "no pretrain model A {}".format(cfg.MODELS.A)
     model_A = model_A_type(
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     model_A.load_state_dict(load_checkpoint(model_A_pretrain_path))
     model_A = model_A.cuda()
 
-    print(log_msg("Loading model B", "INFO"))
+    print(log_msg("Loading model B {}".format(cfg.MODELS.B), "INFO"))
     model_B_type, model_B_pretrain_path = model_dict[cfg.MODELS.B]
     assert (model_B_pretrain_path is not None), "no pretrain model B {}".format(cfg.MODELS.B)
     model_B = model_B_type(
@@ -88,14 +88,14 @@ if __name__ == "__main__":
     _, pred_target_A = output_A.topk(1, 1, True, True)
     output_A = output_A.cpu().detach().numpy()
     pred_target_A = pred_target_A.squeeze().cpu().detach().numpy()
-    if model_A.__class__.__name__ in ["LFCNN", "VARCNN"]:
+    if model_A.__class__.__name__ in ["LFCNN", "VARCNN", "HGRN"]:
         output_A = np.exp(output_A) / np.sum(np.exp(output_A), axis=-1, keepdims=True)
 
     output_B = model_B(data_torch)
     _, pred_target_B = output_B.topk(1, 1, True, True)
     output_B = output_B.cpu().detach().numpy()
     pred_target_B = pred_target_B.squeeze().cpu().detach().numpy()
-    if model_B.__class__.__name__ in ["LFCNN", "VARCNN"]:
+    if model_B.__class__.__name__ in ["LFCNN", "VARCNN", "HGRN"]:
         output_B = np.exp(output_B) / np.sum(np.exp(output_B), axis=-1, keepdims=True)
 
     delta_target = pred_target_A ^ pred_target_B

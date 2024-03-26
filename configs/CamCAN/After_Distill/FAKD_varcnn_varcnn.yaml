@@ -1,6 +1,6 @@
 EXPERIMENT:
   NAME: ""
-  TAG: "sdt_varcnn_kd, sdt"
+  TAG: "sdt_varcnn_fakd, varcnn"
   PROJECT: "CamCAN_baselines"
 DATASET:
   TYPE: "CamCAN"
@@ -9,8 +9,8 @@ DATASET:
   NUM_CLASSES: 2
   NUM_SPLITS: 3
 MODELS:
-  A: "CamCAN_sdt_varcnn_kd"
-  B: "CamCAN_sdt"
+  A: "CamCAN_sdt_varcnn_fakd"
+  B: "CamCAN_varcnn"
 EXPLAINER:
   TYPE: "LogitDeltaRule"
   MAX_DEPTH: 7
