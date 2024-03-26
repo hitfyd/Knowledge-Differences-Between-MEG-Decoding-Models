@@ -169,12 +169,39 @@ class IMDExplainer(DISExplainer):
 
         metrics[name + "-precision"] = round(diff_samples_inside_diff_region / samples_in_region, 6)
         metrics[name + "-recall"] = round(diff_samples_inside_diff_region / total_number_diff_samples, 6)
+        metrics[name + "-f1"] = round(2 * metrics[name + "-precision"] * metrics[name + "-recall"] /
+                                      (metrics[name + "-precision"]+metrics[name + "-recall"]), 6)
         metrics["num-rules"] = len(self.diffregions)
 
         preds = []
         for rule in self.diffrules:
             preds += rule.predicates
+        metrics["average-num-rule-preds"] = float(len(preds)) / metrics["num-rules"]
         preds = set(preds)
         metrics["num-unique-preds"] = len(preds)
         return metrics
+
+
+class SeparateSurrogate(IMDExplainer):
+    def __init__(self):
+        super(SeparateSurrogate, self).__init__()
+
+    def set_params(self, *argv, **kwargs):
+        """
+        Set parameters for the explainer.
+        """
+        pass
+
+    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, **kwargs):
+        super().fit(X_train, Y1, Y2, max_depth=max_depth, split_criterion=2, alpha=1.0, verbose=True)
+
+    def predict(self, X, *argv, **kwargs):
+        """Predict diff-labels.
+        """
+        pass
+
+    def explain(self, *argv, **kwargs):
+        """Return diff-rules.
+        """
+        return self.diffrules
 

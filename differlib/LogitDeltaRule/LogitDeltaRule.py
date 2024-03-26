@@ -43,9 +43,9 @@ def dtree_to_rule(tree, feature_names, class_labels=[0, 1]):
             value = tree_.value[node].squeeze()
             n_node_samples = tree_.n_node_samples[node]
             impurity = tree_.impurity[node]
-            print("node {} depth {} parent {}".format(node, depth, parent))
-            print("value {} n_node_samples {} impurity {}".format(value, n_node_samples, impurity))
-            print("predicates {}".format(predicates))
+            # print("node {} depth {} parent {}".format(node, depth, parent))
+            # print("value {} n_node_samples {} impurity {}".format(value, n_node_samples, impurity))
+            # print("predicates {}".format(predicates))
             rule = Rule(node, predicates[parent], value)
             rule_list.append(rule)
 
@@ -119,9 +119,9 @@ class LogitDeltaRule(DISExplainer):
 
         self.delta_tree = DecisionTreeRegressor(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
         self.delta_tree.fit(X_train, delta_output)
-        print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
-        plot_tree(self.delta_tree)
         self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
+        # print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
+        # plot_tree(self.delta_tree)
 
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
@@ -150,17 +150,18 @@ class LogitDeltaRule(DISExplainer):
         y_test2_ = y_test1 - logit_delta
         pred_target_2_ = y_test2_.argmax(axis=1)
         pred_target = pred_target_1 ^ pred_target_2_
-        metrics["confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
-        metrics["accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
-        metrics["precision"] = sklearn.metrics.precision_score(delta_target, pred_target)
-        metrics["recall"] = sklearn.metrics.recall_score(delta_target, pred_target)
-        metrics["f1"] = sklearn.metrics.f1_score(delta_target, pred_target)
+        metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
+        metrics[name + "-accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
+        metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target)
+        metrics[name + "-recall"] = sklearn.metrics.recall_score(delta_target, pred_target)
+        metrics[name + "-f1"] = sklearn.metrics.f1_score(delta_target, pred_target)
 
         metrics["num-rules"] = len(self.diffrules)
 
         preds = []
         for rule in self.diffrules:
             preds += rule.predicates
+        metrics["average-num-rule-preds"] = float(len(preds)) / metrics["num-rules"]
         preds = set(preds)
         metrics["num-unique-preds"] = len(preds)
         return metrics
