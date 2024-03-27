@@ -7,10 +7,11 @@ DATASET:
   CHANNELS: 204
   POINTS: 250
   NUM_CLASSES: 2
-  NUM_SPLITS: 3
+  NUM_SPLITS: 5
 MODELS:
   A: "DecMeg2014_sdt_hgrn_fakd"
   B: "DecMeg2014_sdt"
 EXPLAINER:
   TYPE: "LogitDeltaRule"
-  MAX_DEPTH: 7
+  MAX_DEPTH: 5
+  MIN_SAMPLES_LEAF: 2

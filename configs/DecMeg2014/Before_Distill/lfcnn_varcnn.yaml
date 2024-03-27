@@ -13,4 +13,4 @@ MODELS:
   B: "DecMeg2014_varcnn"
 EXPLAINER:
   TYPE: "LogitDeltaRule"
-  MAX_DEPTH: 7
+  MAX_DEPTH: 5

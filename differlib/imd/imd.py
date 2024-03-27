@@ -176,7 +176,10 @@ class IMDExplainer(DISExplainer):
         preds = []
         for rule in self.diffrules:
             preds += rule.predicates
-        metrics["average-num-rule-preds"] = float(len(preds)) / metrics["num-rules"]
+        if metrics["num-rules"] > 0:
+            metrics["average-num-rule-preds"] = float(len(preds)) / metrics["num-rules"]
+        else:
+            metrics["average-num-rule-preds"] = metrics["num-rules"]
         preds = set(preds)
         metrics["num-unique-preds"] = len(preds)
         return metrics

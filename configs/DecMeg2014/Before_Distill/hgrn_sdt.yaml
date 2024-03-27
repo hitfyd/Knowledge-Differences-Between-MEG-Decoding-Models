@@ -12,5 +12,5 @@ MODELS:
   A: "DecMeg2014_hgrn"
   B: "DecMeg2014_sdt"
 EXPLAINER:
-  TYPE: "DeltaExplainer"
-  MAX_DEPTH: 7
+  TYPE: "LogitDeltaRule"
+  MAX_DEPTH: 6

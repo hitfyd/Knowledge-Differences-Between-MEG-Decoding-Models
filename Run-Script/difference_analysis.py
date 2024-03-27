@@ -75,6 +75,7 @@ if __name__ == "__main__":
     explainer_name = cfg.EXPLAINER.TYPE
     explainer = explainer_dict[cfg.EXPLAINER.TYPE]
     max_depth = cfg.EXPLAINER.MAX_DEPTH
+    min_samples_leaf = cfg.EXPLAINER.MIN_SAMPLES_LEAF
     # all initialization is ok
 
     # log config
@@ -101,7 +102,7 @@ if __name__ == "__main__":
     delta_target = pred_target_A ^ pred_target_B
 
     # K-Fold evaluation
-    skf = StratifiedKFold(n_splits=3)
+    skf = StratifiedKFold(n_splits=n_splits)
     skf_id = 0
     # record metrics of i-th Fold
     precision_l, recall_l, f1_l, num_rules_l, average_num_rule_preds_l, num_unique_preds_l = [], [], [], [], [], []
@@ -110,9 +111,9 @@ if __name__ == "__main__":
         x_test = pd.DataFrame(data[test_index].reshape((-1, channels * points)))
 
         if explainer_name == "LogitDeltaRule":
-            explainer.fit(x_train, output_A[train_index], output_B[train_index], max_depth)
+            explainer.fit(x_train, output_A[train_index], output_B[train_index], max_depth, min_samples_leaf=min_samples_leaf)
         else:
-            explainer.fit(x_train, pred_target_A[train_index], pred_target_B[train_index], max_depth)
+            explainer.fit(x_train, pred_target_A[train_index], pred_target_B[train_index], max_depth, min_samples_leaf=min_samples_leaf)
 
         diffrules = explainer.explain()
         print(diffrules)
@@ -130,11 +131,12 @@ if __name__ == "__main__":
         else:
             test_metrics = explainer.metrics(x_test, pred_target_A[test_index], pred_target_B[test_index])
 
-        print("skf_id", skf_id, "Explainer", explainer_name, "max_depth", max_depth)
+        print("skf_id", skf_id, "Explainer", explainer_name, "max_depth", max_depth, "min_samples_leaf", min_samples_leaf)
         print("Train set", train_metrics)
         print("Test set", test_metrics)
         with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-            writer.write("skf_id {} Explainer {} max_depth {}\n".format(skf_id, explainer_name, max_depth))
+            writer.write("skf_id {} Explainer {} max_depth {} min_samples_leaf {}\n".format(
+                skf_id, explainer_name, max_depth, min_samples_leaf))
             writer.write("Train {}\n".format(train_metrics))
             writer.write("Test {}\n".format(test_metrics))
             writer.write("train_index {}\n".format(train_index))
