@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import StratifiedKFold
 
@@ -54,6 +55,28 @@ if __name__ == "__main__":
     points = cfg.DATASET.POINTS
     n_classes = cfg.DATASET.NUM_CLASSES
     n_splits = cfg.DATASET.NUM_SPLITS
+
+    # define random forest classifier, with utilising all cores and
+    # sampling in proportion to y labels
+    rf = RandomForestClassifier(n_jobs=-1, class_weight='balanced', max_depth=5)
+
+    from boruta import BorutaPy
+
+    # define Boruta feature selection method
+    feat_selector = BorutaPy(rf, n_estimators='auto', perc=100, alpha=0.05, two_step=True, max_iter=20, verbose=2, random_state=1)
+
+    # find all relevant features - 5 features should be selected
+    feat_selector.fit(data.reshape((-1, channels * points)), labels)
+
+    # check selected features - first 5 features are selected
+    print(feat_selector.support_)
+
+    # check ranking of features
+    print(feat_selector.ranking_)
+
+    # call transform() on X to filter it down to selected features
+    data_filtered = feat_selector.transform(data.reshape((-1, channels * points)))
+    # data_filtered = data.reshape((-1, channels * points))
 
     print(log_msg("Loading model A {}".format(cfg.MODELS.A), "INFO"))
     model_A_type, model_A_pretrain_path = model_dict[cfg.MODELS.A]
@@ -106,9 +129,9 @@ if __name__ == "__main__":
     skf_id = 0
     # record metrics of i-th Fold
     precision_l, recall_l, f1_l, num_rules_l, average_num_rule_preds_l, num_unique_preds_l = [], [], [], [], [], []
-    for train_index, test_index in skf.split(data, delta_target):
-        x_train = pd.DataFrame(data[train_index].reshape((-1, channels * points)))
-        x_test = pd.DataFrame(data[test_index].reshape((-1, channels * points)))
+    for train_index, test_index in skf.split(data_filtered, delta_target):
+        x_train = pd.DataFrame(data_filtered[train_index])
+        x_test = pd.DataFrame(data_filtered[test_index])
 
         if explainer_name == "LogitDeltaRule":
             explainer.fit(x_train, output_A[train_index], output_B[train_index], max_depth, min_samples_leaf=min_samples_leaf)

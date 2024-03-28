@@ -14,6 +14,7 @@ conda install tqdm yacs
 conda install numpy pandas scikit-learn matplotlib networkx graphviz pygraphviz
 # The graphviz library needs to be installed on your operating system as well, see https://pygraphviz.github.io/documentation/stable/install.html
 pip install -U "ray"
+pip install Boruta
 ```
 
 Major dependency packages:
