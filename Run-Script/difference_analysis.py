@@ -51,6 +51,7 @@ if __name__ == "__main__":
     # init dataset & models
     data, labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
     dataset = cfg.DATASET.TYPE
+    n_samples = data.shape[0]
     channels = cfg.DATASET.CHANNELS
     points = cfg.DATASET.POINTS
     n_classes = cfg.DATASET.NUM_CLASSES
@@ -63,7 +64,7 @@ if __name__ == "__main__":
     from boruta import BorutaPy
 
     # define Boruta feature selection method
-    feat_selector = BorutaPy(rf, n_estimators='auto', perc=100, alpha=0.05, two_step=True, max_iter=20, verbose=2, random_state=1)
+    feat_selector = BorutaPy(rf, n_estimators='auto', perc=60, alpha=0.05, two_step=True, max_iter=100, verbose=2, random_state=1)
 
     # find all relevant features - 5 features should be selected
     feat_selector.fit(data.reshape((-1, channels * points)), labels)
@@ -76,7 +77,8 @@ if __name__ == "__main__":
 
     # call transform() on X to filter it down to selected features
     data_filtered = feat_selector.transform(data.reshape((-1, channels * points)))
-    # data_filtered = data.reshape((-1, channels * points))
+    # data_filtered = data.reshape((n_samples, -1))
+    # data_filtered = data[:, :, :].reshape((n_samples, -1))
 
     print(log_msg("Loading model A {}".format(cfg.MODELS.A), "INFO"))
     model_A_type, model_A_pretrain_path = model_dict[cfg.MODELS.A]

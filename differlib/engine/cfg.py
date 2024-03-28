@@ -19,7 +19,7 @@ CFG.EXPERIMENT = CN()
 CFG.EXPERIMENT.PROJECT = "distill"
 CFG.EXPERIMENT.NAME = ""
 CFG.EXPERIMENT.TAG = "default"
-CFG.EXPERIMENT.SEED = 0  # Random number seed, which is beneficial to the repeatability of the experiment.
+CFG.EXPERIMENT.SEED = 2024  # Random number seed, which is beneficial to the repeatability of the experiment.
 CFG.EXPERIMENT.GPU_IDS = "0, 1"    # List of GPUs used
 
 # Dataset
