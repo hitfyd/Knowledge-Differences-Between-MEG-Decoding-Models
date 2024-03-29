@@ -13,7 +13,7 @@ from torch import optim
 
 from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import get_data_labels_from_dataset, log_msg, load_checkpoint, setup_seed, get_data_loader
-from differlib.models import model_dict
+from differlib.models import model_dict, sdt
 
 
 def predict(model, data, batch_size=1024):
@@ -122,13 +122,17 @@ if __name__ == "__main__":
     delta_target = pred_target_A ^ pred_target_B
     print("0: {}\t 1: {}".format(data_len - delta_target.sum(), delta_target.sum()))
 
-    skf = StratifiedKFold(n_splits=5)
+    depth = 1
+
+    skf = StratifiedKFold(n_splits=3)
     for train_index, test_index in skf.split(val_data, delta_target):
         delta_model = model_A_type(
             channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
+        delta_model = sdt(channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS,
+            num_classes=cfg.DATASET.NUM_CLASSES, depth=depth)
         delta_model = delta_model.cuda()
 
-        train_loader = get_data_loader(val_data[train_index], delta_target[train_index], cfg.SOLVER.BATCH_SIZE)
+        train_loader = get_data_loader(val_data[train_index], delta_target[train_index], 128)
 
         for epoch in range(100):
             train_accuracy, train_loss = train(delta_model, train_loader, epoch)

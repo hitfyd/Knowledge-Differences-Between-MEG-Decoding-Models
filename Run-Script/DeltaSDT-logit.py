@@ -130,21 +130,22 @@ if __name__ == "__main__":
     print("0: {}\t 1: {}".format(data_len - delta_target.sum(), delta_target.sum()))
 
     retrain = False
+    depth = 1
 
     skf = StratifiedKFold(n_splits=3)
     for train_index, test_index in skf.split(val_data, delta_target):
         # delta_model = model_A_type(
         #     channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
         delta_model = sdt(channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS,
-                          num_classes=cfg.DATASET.NUM_CLASSES, depth=1)
+                          num_classes=cfg.DATASET.NUM_CLASSES, depth=depth)
         # delta_model = sdt(channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS,
         #                   num_classes=cfg.DATASET.NUM_CLASSES, depth=2)
         delta_model = delta_model.cuda()
 
         # train_loader = get_data_loader(val_data[train_index], delta_target[train_index], cfg.SOLVER.BATCH_SIZE)
-        train_loader = get_data_loader(val_data, delta_output, cfg.SOLVER.BATCH_SIZE)
+        train_loader = get_data_loader(val_data, delta_output, 128)
 
-        save_path = "{}_SDT_Depth{}_{}.sav".format(cfg.DATASET.TYPE, 1, test_index[0])
+        save_path = "{}_SDT_Depth{}_{}.sav".format(cfg.DATASET.TYPE, depth, test_index[0])
         if os.path.exists(save_path) and not retrain:
             # 从文件中加载
             delta_model = joblib.load(save_path)
@@ -155,6 +156,11 @@ if __name__ == "__main__":
                 pred, output = predict(delta_model, val_data[test_index])
                 print(evaluate(output_A[test_index], delta_target[test_index], output))
             joblib.dump(delta_model, save_path)
+
+        inner_weights = delta_model.inner_nodes[0].weight.cpu().detach().numpy()[0][1:]
+        print(inner_weights)
+        filtered_feature_indexes = np.abs(inner_weights) > 0.03
+        print(filtered_feature_indexes.sum())
 
         print("Train:")
         pred, output = predict(delta_model, val_data[train_index])
