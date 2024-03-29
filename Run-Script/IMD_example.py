@@ -1,5 +1,7 @@
 import warnings
 
+from differlib import DeltaExplainer
+
 warnings.filterwarnings('ignore')
 
 from sklearn.model_selection import train_test_split
@@ -13,8 +15,8 @@ from differlib.imd.utils import load_bc_dataset, load_iris_dataset
 
 # Data preparation
 random_state = 1234
-datadf, target = load_bc_dataset()
-# datadf, target = load_iris_dataset()
+# datadf, target = load_bc_dataset()
+datadf, target = load_iris_dataset()
 x_train, x_test, y_train, y_test = train_test_split(datadf, target, train_size=0.7,
                                                     random_state=random_state)
 print(x_train.shape, x_test.shape)
@@ -50,9 +52,10 @@ print(f"diffs in X_test = {ydifftest.sum()} / {len(ydifftest)} = {(ydifftest.sum
 # Interpretable model differencing
 from differlib.imd.imd import IMDExplainer
 
-max_depth = 6
+max_depth = 4
 
-imd = IMDExplainer()
+# imd = IMDExplainer()
+imd = DeltaExplainer()
 imd.fit(x_train, y1, y2, max_depth=max_depth)
 
 # See diff-rules
@@ -75,22 +78,22 @@ print(metrics)
 metrics = imd.metrics(x_test, model1.predict(x_test), model2.predict(x_test), name="test")
 print(metrics)
 
-# Generate the jst visualization
-from differlib.imd.utils import visualize_jst
-
-visualize_jst(imd.jst, path="imd_example_joint.jpg")
-
-# Separate surrogate approach
-sepsur = IMDExplainer()
-sepsur.fit(x_train, y1, y2, max_depth=max_depth, split_criterion=2, alpha=1.0)
-
-# on train set
-metrics = sepsur.metrics(x_train, y1, y2, name="train")
-print(metrics)
-
-# on test set
-metrics = sepsur.metrics(x_test, model1.predict(x_test), model2.predict(x_test), name="test")
-print(metrics)
-
-# Visualizing separate surrogates
-visualize_jst(sepsur.jst, path="imd_example_separate.jpg")
+# # Generate the jst visualization
+# from differlib.imd.utils import visualize_jst
+#
+# visualize_jst(imd.jst, path="imd_example_joint.jpg")
+#
+# # Separate surrogate approach
+# sepsur = IMDExplainer()
+# sepsur.fit(x_train, y1, y2, max_depth=max_depth, split_criterion=2, alpha=1.0)
+#
+# # on train set
+# metrics = sepsur.metrics(x_train, y1, y2, name="train")
+# print(metrics)
+#
+# # on test set
+# metrics = sepsur.metrics(x_test, model1.predict(x_test), model2.predict(x_test), name="test")
+# print(metrics)
+#
+# # Visualizing separate surrogates
+# visualize_jst(sepsur.jst, path="imd_example_separate.jpg")

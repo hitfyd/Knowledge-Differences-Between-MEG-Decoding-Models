@@ -51,34 +51,12 @@ if __name__ == "__main__":
     # init dataset & models
     data, labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
     dataset = cfg.DATASET.TYPE
-    n_samples = data.shape[0]
-    channels = cfg.DATASET.CHANNELS
-    points = cfg.DATASET.POINTS
-    n_classes = cfg.DATASET.NUM_CLASSES
+    n_samples, channels, points = data.shape
+    n_classes = len(set(labels))
+    assert channels == cfg.DATASET.CHANNELS
+    assert points == cfg.DATASET.POINTS
+    assert n_classes == cfg.DATASET.NUM_CLASSES
     n_splits = cfg.DATASET.NUM_SPLITS
-
-    # define random forest classifier, with utilising all cores and
-    # sampling in proportion to y labels
-    rf = RandomForestClassifier(n_jobs=-1, class_weight='balanced', max_depth=5)
-
-    from boruta import BorutaPy
-
-    # define Boruta feature selection method
-    feat_selector = BorutaPy(rf, n_estimators='auto', perc=60, alpha=0.05, two_step=True, max_iter=100, verbose=2, random_state=1)
-
-    # find all relevant features - 5 features should be selected
-    feat_selector.fit(data.reshape((-1, channels * points)), labels)
-
-    # check selected features - first 5 features are selected
-    print(feat_selector.support_)
-
-    # check ranking of features
-    print(feat_selector.ranking_)
-
-    # call transform() on X to filter it down to selected features
-    data_filtered = feat_selector.transform(data.reshape((-1, channels * points)))
-    # data_filtered = data.reshape((n_samples, -1))
-    # data_filtered = data[:, :, :].reshape((n_samples, -1))
 
     print(log_msg("Loading model A {}".format(cfg.MODELS.A), "INFO"))
     model_A_type, model_A_pretrain_path = model_dict[cfg.MODELS.A]
@@ -125,6 +103,30 @@ if __name__ == "__main__":
         output_B = np.exp(output_B) / np.sum(np.exp(output_B), axis=-1, keepdims=True)
 
     delta_target = pred_target_A ^ pred_target_B
+
+    # define random forest classifier, with utilising all cores and
+    # sampling in proportion to y labels
+    rf = RandomForestClassifier(n_jobs=-1, class_weight='balanced', max_depth=5)
+
+    from boruta import BorutaPy
+
+    # define Boruta feature selection method
+    feat_selector = BorutaPy(rf, n_estimators='auto', perc=75, alpha=0.05, two_step=True, max_iter=100, verbose=2,
+                             random_state=1)
+
+    # find all relevant features - 5 features should be selected
+    feat_selector.fit(data.reshape((-1, channels * points)), delta_target)
+
+    # check selected features - first 5 features are selected
+    print(feat_selector.support_)
+
+    # check ranking of features
+    print(feat_selector.ranking_)
+
+    # call transform() on X to filter it down to selected features
+    data_filtered = feat_selector.transform(data.reshape((-1, channels * points)))
+    # data_filtered = data.reshape((n_samples, -1))
+    # data_filtered = data[:, :, :].reshape((n_samples, -1))
 
     # K-Fold evaluation
     skf = StratifiedKFold(n_splits=n_splits)

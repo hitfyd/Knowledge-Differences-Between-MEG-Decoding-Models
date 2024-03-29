@@ -114,7 +114,7 @@ class LogitDeltaRule(DISExplainer):
         if verbose:
             print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
 
-        delta_target = pred_target_1 ^ pred_target_2
+        delta_target = (pred_target_1 != pred_target_2).astype(int)
         delta_output = Y1 - Y2
 
         self.delta_tree = DecisionTreeRegressor(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
@@ -145,7 +145,7 @@ class LogitDeltaRule(DISExplainer):
         metrics["diffs"] = total_number_diff_samples
         metrics["samples"] = len(x_test)
 
-        delta_target = pred_target_1 ^ pred_target_2
+        delta_target = (pred_target_1 != pred_target_2).astype(int)
         logit_delta = self.delta_tree.predict(x_test)
         y_test2_ = y_test1 - logit_delta
         pred_target_2_ = y_test2_.argmax(axis=1)
