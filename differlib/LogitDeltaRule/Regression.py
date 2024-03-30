@@ -1,59 +1,13 @@
-import copy
-
 import sklearn
-from sklearn.tree import DecisionTreeClassifier, export_text, plot_tree, _tree, DecisionTreeRegressor
+from sklearn.linear_model import LinearRegression, SGDRegressor, Ridge
 
 from differlib.dise import DISExplainer
-from differlib.imd.rule import Rule
 
 import numpy as np
 import pandas as pd
 
 
-def dtree_to_rule(tree, feature_names, class_labels=[0, 1]):
-    tree_ = tree.tree_
-
-    predicates = dict()
-    assert len(class_labels) == 2
-    rule_list = []
-
-    def recurse(node, depth, parent):
-        if tree_.feature[node] != _tree.TREE_UNDEFINED:
-            key = feature_names[tree_.feature[node]]
-            threshold = tree_.threshold[node]
-            pred = (key, '<=', threshold)
-            if node == 0:
-                predicates[node] = [pred]
-            else:
-                predicates[node] = []
-                predicates[node].extend(predicates[parent])
-                predicates[node].append(pred)
-
-            recurse(tree_.children_left[node], depth + 1, node)
-            pred = (key, '>', threshold)
-            if node == 0:
-                predicates[node] = [pred]
-            else:
-                predicates[node] = []
-                predicates[node].extend(predicates[parent])
-                predicates[node].append(pred)
-
-            recurse(tree_.children_right[node], depth + 1, node)
-        else:
-            value = tree_.value[node].squeeze()
-            n_node_samples = tree_.n_node_samples[node]
-            impurity = tree_.impurity[node]
-            # print("node {} depth {} parent {}".format(node, depth, parent))
-            # print("value {} n_node_samples {} impurity {}".format(value, n_node_samples, impurity))
-            # print("predicates {}".format(predicates))
-            rule = Rule(node, predicates[parent], value)
-            rule_list.append(rule)
-
-    recurse(0, 1, 0)
-    return rule_list
-
-
-class LogitDeltaRule(DISExplainer):
+class Regression(DISExplainer):
     """
     DeltaXplainer, a model-agnostic method for generating rule-based explanations describing the differences between
     two binary classifiers.
@@ -69,7 +23,7 @@ class LogitDeltaRule(DISExplainer):
         Initialize an LogitDeltaRule object.
         """
 
-        super(LogitDeltaRule, self).__init__()
+        super(Regression, self).__init__()
 
         # to be populated on calling fit() method, or set manually
         self.delta_tree = None
@@ -117,11 +71,12 @@ class LogitDeltaRule(DISExplainer):
         delta_target = (pred_target_1 != pred_target_2).astype(int)
         delta_output = Y1 - Y2
 
-        self.delta_tree = LogisticRegression(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
-        self.delta_tree.fit(X_train, delta_output)
-        self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
-        # print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
-        # plot_tree(self.delta_tree)
+        # self.delta_tree = LinearRegression()
+        # self.delta_tree = Ridge()
+        self.delta_tree = SGDRegressor()
+        self.delta_tree.fit(X_train, delta_output[:, 0])
+        self.diffrules = []
+        print(self.delta_tree.coef_)
 
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
@@ -147,7 +102,7 @@ class LogitDeltaRule(DISExplainer):
 
         delta_target = (pred_target_1 != pred_target_2).astype(int)
         logit_delta = self.delta_tree.predict(x_test)
-        y_test2_ = y_test1 - logit_delta
+        y_test2_ = y_test1 - np.array([logit_delta, -logit_delta]).swapaxes(1, 0)
         pred_target_2_ = y_test2_.argmax(axis=1)
         pred_target = pred_target_1 ^ pred_target_2_
         metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
@@ -156,13 +111,16 @@ class LogitDeltaRule(DISExplainer):
         metrics[name + "-recall"] = sklearn.metrics.recall_score(delta_target, pred_target)
         metrics[name + "-f1"] = sklearn.metrics.f1_score(delta_target, pred_target)
 
-        metrics["num-rules"] = len(self.diffrules)
-
-        preds = []
-        for rule in self.diffrules:
-            preds += rule.predicates
-        metrics["average-num-rule-preds"] = float(len(preds)) / metrics["num-rules"]
-        preds = set(preds)
-        metrics["num-unique-preds"] = len(preds)
+        # metrics["num-rules"] = len(self.diffrules)
+        #
+        # preds = []
+        # for rule in self.diffrules:
+        #     preds += rule.predicates
+        # metrics["average-num-rule-preds"] = float(len(preds)) / metrics["num-rules"]
+        # preds = set(preds)
+        # metrics["num-unique-preds"] = len(preds)
+        metrics["num-rules"] = 0
+        metrics["average-num-rule-preds"] = 0
+        metrics["num-unique-preds"] = 0
         return metrics
 

@@ -105,48 +105,50 @@ if __name__ == "__main__":
 
     delta_target = pred_target_A ^ pred_target_B
 
-    perc = 80
-    save_path = f"{dataset}_{perc}_feat_selector.model"
-    if os.path.exists(save_path):
-        # 从文件中加载
-        feat_selector = joblib.load(save_path)
-    else:
-        # define random forest classifier, with utilising all cores and
-        # sampling in proportion to y labels
-        rf = RandomForestClassifier(n_jobs=-1, class_weight='balanced', max_depth=5)
+    # perc = 80
+    # save_path = f"{dataset}_{perc}_feat_selector.model"
+    # if os.path.exists(save_path):
+    #     # 从文件中加载
+    #     feat_selector = joblib.load(save_path)
+    # else:
+    #     # define random forest classifier, with utilising all cores and
+    #     # sampling in proportion to y labels
+    #     rf = RandomForestClassifier(n_jobs=-1, class_weight='balanced', max_depth=5)
+    #
+    #     from boruta import BorutaPy
+    #
+    #     # define Boruta feature selection method
+    #     feat_selector = BorutaPy(rf, n_estimators='auto', perc=perc, alpha=0.05, two_step=True, max_iter=100,
+    #                              verbose=2, random_state=1)
+    #
+    #     # find all relevant features - 5 features should be selected
+    #     feat_selector.fit(data.reshape((-1, channels * points)), delta_target)
+    #
+    #     # 保存到当前工作目录中的文件
+    #     if save_path is not None:
+    #         joblib.dump(feat_selector, save_path)
+    #
+    # # check selected features - first 5 features are selected
+    # print(feat_selector.support_)
+    #
+    # # check ranking of features
+    # print(feat_selector.ranking_)
+    #
+    # # call transform() on X to filter it down to selected features
+    # data_filtered = feat_selector.transform(data.reshape((-1, channels * points)))
 
-        from boruta import BorutaPy
+    data_filtered = data.reshape((n_samples, -1))
 
-        # define Boruta feature selection method
-        feat_selector = BorutaPy(rf, n_estimators='auto', perc=perc, alpha=0.05, two_step=True, max_iter=100,
-                                 verbose=2, random_state=1)
-
-        # find all relevant features - 5 features should be selected
-        feat_selector.fit(data.reshape((-1, channels * points)), delta_target)
-
-        # 保存到当前工作目录中的文件
-        if save_path is not None:
-            joblib.dump(feat_selector, save_path)
-
-    # check selected features - first 5 features are selected
-    print(feat_selector.support_)
-
-    # check ranking of features
-    print(feat_selector.ranking_)
-
-    # call transform() on X to filter it down to selected features
-    data_filtered = feat_selector.transform(data.reshape((-1, channels * points)))
-    # data_filtered = data.reshape((n_samples, -1))
-    data_filtered = data[:, :, :].reshape((n_samples, -1))
-
-    save_path = "{}_SDT_Depth{}_{}.sav".format(cfg.DATASET.TYPE, 1, 0)
-    feature_model = joblib.load(save_path)
-
-    inner_weights = feature_model.inner_nodes[0].weight.cpu().detach().numpy()[0][1:]
-    print(inner_weights)
-    filtered_feature_indexes = np.abs(inner_weights) > 0.01
-    print(filtered_feature_indexes.sum())
-    data_filtered = data[:, :, :].reshape((n_samples, -1))[:, filtered_feature_indexes]
+    # data_filtered = data[:, :, :].reshape((n_samples, -1))
+    #
+    # save_path = "{}_SDT_Depth{}_{}.sav".format(cfg.DATASET.TYPE, 1, 0)
+    # feature_model = joblib.load(save_path)
+    #
+    # inner_weights = feature_model.inner_nodes[0].weight.cpu().detach().numpy()[0][1:]
+    # print(inner_weights)
+    # filtered_feature_indexes = np.abs(inner_weights) > 0.01
+    # print(filtered_feature_indexes.sum())
+    # data_filtered = data[:, :, :].reshape((n_samples, -1))[:, filtered_feature_indexes]
 
     # K-Fold evaluation
     skf = StratifiedKFold(n_splits=n_splits)
@@ -157,7 +159,7 @@ if __name__ == "__main__":
         x_train = pd.DataFrame(data_filtered[train_index])
         x_test = pd.DataFrame(data_filtered[test_index])
 
-        if explainer_name == "LogitDeltaRule":
+        if explainer_name in ["LogitDeltaRule", "Regression"]:
             explainer.fit(x_train, output_A[train_index], output_B[train_index], max_depth, min_samples_leaf=min_samples_leaf)
         else:
             explainer.fit(x_train, pred_target_A[train_index], pred_target_B[train_index], max_depth, min_samples_leaf=min_samples_leaf)
@@ -167,13 +169,13 @@ if __name__ == "__main__":
 
         # Computation of metrics
         # on train set
-        if explainer_name == "LogitDeltaRule":
+        if explainer_name in ["LogitDeltaRule", "Regression"]:
             train_metrics = explainer.metrics(x_train, output_A[train_index], output_B[train_index], name="train")
         else:
             train_metrics = explainer.metrics(x_train, pred_target_A[train_index], pred_target_B[train_index], name="train")
 
         # on train set
-        if explainer_name == "LogitDeltaRule":
+        if explainer_name in ["LogitDeltaRule", "Regression"]:
             test_metrics = explainer.metrics(x_test, output_A[test_index], output_B[test_index])
         else:
             test_metrics = explainer.metrics(x_test, pred_target_A[test_index], pred_target_B[test_index])
