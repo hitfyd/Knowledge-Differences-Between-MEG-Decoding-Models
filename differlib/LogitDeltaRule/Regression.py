@@ -26,7 +26,7 @@ class Regression(DISExplainer):
         super(Regression, self).__init__()
 
         # to be populated on calling fit() method, or set manually
-        self.delta_tree = None
+        self.LinearRegression = None
         self.diffrules = []
         self.feature_names = []
 
@@ -73,10 +73,10 @@ class Regression(DISExplainer):
 
         # self.delta_tree = LinearRegression()
         # self.delta_tree = Ridge()
-        self.delta_tree = SGDRegressor()
-        self.delta_tree.fit(X_train, delta_output[:, 0])
+        self.LinearRegression = SGDRegressor()
+        self.LinearRegression.fit(X_train, delta_output[:, 0])
         self.diffrules = []
-        print(self.delta_tree.coef_)
+        print(self.LinearRegression.coef_)
 
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
@@ -101,7 +101,7 @@ class Regression(DISExplainer):
         metrics["samples"] = len(x_test)
 
         delta_target = (pred_target_1 != pred_target_2).astype(int)
-        logit_delta = self.delta_tree.predict(x_test)
+        logit_delta = self.LinearRegression.predict(x_test)
         y_test2_ = y_test1 - np.array([logit_delta, -logit_delta]).swapaxes(1, 0)
         pred_target_2_ = y_test2_.argmax(axis=1)
         pred_target = pred_target_1 ^ pred_target_2_

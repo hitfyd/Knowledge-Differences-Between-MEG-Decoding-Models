@@ -17,6 +17,7 @@ from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import log_msg, setup_seed, get_data_loader_from_dataset, load_checkpoint, \
     get_data_labels_from_dataset, save_checkpoint
 from differlib.models import model_dict
+from differlib.LogitDeltaRule.Regression import Regression
 from differlib.imd.imd import IMDExplainer, SeparateSurrogate
 from differlib.imd.utils import visualize_jst
 from differlib.DeltaXpainer import DeltaExplainer
@@ -158,6 +159,15 @@ if __name__ == "__main__":
     for train_index, test_index in skf.split(data_filtered, delta_target):
         x_train = pd.DataFrame(data_filtered[train_index])
         x_test = pd.DataFrame(data_filtered[test_index])
+
+        feature_filter = Regression()
+        feature_filter.fit(x_train, output_A[train_index], output_B[train_index], max_depth)
+        threshold = np.max(np.abs(feature_filter.LinearRegression.coef_))/2
+        feature_filtered_indexes = np.abs(feature_filter.LinearRegression.coef_) > threshold
+        print(threshold, feature_filtered_indexes.sum())
+
+        x_train = pd.DataFrame(data_filtered[train_index][:, feature_filtered_indexes])
+        x_test = pd.DataFrame(data_filtered[test_index][:, feature_filtered_indexes])
 
         if explainer_name in ["LogitDeltaRule", "Regression"]:
             explainer.fit(x_train, output_A[train_index], output_B[train_index], max_depth, min_samples_leaf=min_samples_leaf)
