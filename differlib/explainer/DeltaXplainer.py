@@ -1,13 +1,10 @@
-import copy
-
-import sklearn
-from sklearn.tree import DecisionTreeClassifier, export_text, plot_tree, _tree
-
-from differlib.dise import DISExplainer
-from differlib.imd.rule import Rule
-
 import numpy as np
 import pandas as pd
+import sklearn
+from sklearn.tree import DecisionTreeClassifier, _tree
+
+from .dise import DISExplainer
+from .imd.rule import Rule
 
 
 def dtree_to_rule(tree, feature_names, class_labels=[0, 1]):

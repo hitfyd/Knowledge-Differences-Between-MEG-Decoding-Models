@@ -1,4 +1,4 @@
-from differlib.dise import DISExplainer
+from ..dise import DISExplainer
 
 import numpy as np
 import pandas as pd

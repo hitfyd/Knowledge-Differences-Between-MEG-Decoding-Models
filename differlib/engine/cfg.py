@@ -7,6 +7,8 @@ def show_cfg(cfg):
     dump_cfg.EXPERIMENT = cfg.EXPERIMENT
     dump_cfg.DATASET = cfg.DATASET
     dump_cfg.MODEL = cfg.MODEL
+    dump_cfg.AUGMENTATION = cfg.AUGMENTATION
+    dump_cfg.SELECTION = cfg.SELECTION
     dump_cfg.EXPLAINER = cfg.EXPLAINER
     dump_cfg.LOG = cfg.LOG
     print(log_msg("CONFIG:\n{}".format(dump_cfg.dump()), "INFO"))
@@ -34,6 +36,15 @@ CFG.DATASET.NUM_SPLITS = 3
 CFG.MODELS = CN()
 CFG.MODELS.A = "CamCAN_varcnn"
 CFG.MODELS.B = "CamCAN_sdt"
+
+# Data Augmentation
+CFG.AUGMENTATION = CN()
+CFG.AUGMENTATION.TYPE = "random"
+
+# Feature Selection
+CFG.SELECTION = CN()
+CFG.SELECTION.TYPE = "SGDRegressor"
+CFG.SELECTION.RATE = 0.1
 
 # Explainer
 CFG.EXPLAINER = CN()

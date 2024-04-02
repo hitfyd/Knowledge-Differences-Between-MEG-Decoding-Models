@@ -16,6 +16,7 @@ from differlib import explainer_dict
 from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import log_msg, setup_seed, get_data_loader_from_dataset, load_checkpoint, \
     get_data_labels_from_dataset, save_checkpoint
+from differlib.feature_selection import fsm_dict
 from differlib.models import model_dict
 from differlib.LogitDeltaRule.Regression import Regression
 from differlib.imd.imd import IMDExplainer, SeparateSurrogate
@@ -75,6 +76,13 @@ if __name__ == "__main__":
         channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
     model_B.load_state_dict(load_checkpoint(model_B_pretrain_path))
     model_B = model_B.cuda()
+
+    # init data augmentation
+
+    # init feature selection
+    selection_name = cfg.SELECTION.TYPE
+    selection_method = fsm_dict[cfg.SELECTION.TYPE]
+    selection_rate = cfg.SELECTION.RATE
 
     # init explainer
     explainer_name = cfg.EXPLAINER.TYPE
@@ -160,14 +168,14 @@ if __name__ == "__main__":
         x_train = pd.DataFrame(data_filtered[train_index])
         x_test = pd.DataFrame(data_filtered[test_index])
 
-        feature_filter = Regression()
-        feature_filter.fit(x_train, output_A[train_index], output_B[train_index], max_depth)
-        threshold = np.max(np.abs(feature_filter.LinearRegression.coef_))/2
-        feature_filtered_indexes = np.abs(feature_filter.LinearRegression.coef_) > threshold
-        print(threshold, feature_filtered_indexes.sum())
+        selection_method.fit(x_train, output_A[train_index], output_B[train_index])
+        # selection_method.transform(x_test, selection_rate)
+        # threshold = np.max(np.abs(feature_filter.LinearRegression.coef_))/2
+        # feature_filtered_indexes = np.abs(feature_filter.LinearRegression.coef_) > threshold
+        # print(threshold, feature_filtered_indexes.sum())
 
-        x_train = pd.DataFrame(data_filtered[train_index][:, feature_filtered_indexes])
-        x_test = pd.DataFrame(data_filtered[test_index][:, feature_filtered_indexes])
+        x_train = pd.DataFrame(selection_method.transform(data_filtered[train_index], selection_rate))
+        x_test = pd.DataFrame(selection_method.transform(data_filtered[test_index], selection_rate))
 
         if explainer_name in ["LogitDeltaRule", "Regression"]:
             explainer.fit(x_train, output_A[train_index], output_B[train_index], max_depth, min_samples_leaf=min_samples_leaf)
