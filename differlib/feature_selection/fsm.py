@@ -49,5 +49,5 @@ class BaseFSM(FSMethod):
     def computing_contribution(self, *argv, **kwargs):
         pass
 
-    def transform(self, x, **kwargs):
+    def transform(self, x, *argv, **kwargs):
         return x
