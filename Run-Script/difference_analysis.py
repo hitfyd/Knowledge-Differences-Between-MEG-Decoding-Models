@@ -1,5 +1,6 @@
 import argparse
-import os
+import os, sys
+sys.path.append("..")
 from datetime import datetime
 from statistics import mean, pstdev
 
@@ -12,17 +13,11 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import StratifiedKFold
 
-from differlib import explainer_dict
+from differlib.explainer import explainer_dict
 from differlib.engine.cfg import CFG as cfg
-from differlib.engine.utils import log_msg, setup_seed, get_data_loader_from_dataset, load_checkpoint, \
-    get_data_labels_from_dataset, save_checkpoint
+from differlib.engine.utils import log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, save_checkpoint
 from differlib.feature_selection import fsm_dict
 from differlib.models import model_dict
-from differlib.LogitDeltaRule.Regression import Regression
-from differlib.imd.imd import IMDExplainer, SeparateSurrogate
-from differlib.imd.utils import visualize_jst
-from differlib.DeltaXpainer import DeltaExplainer
-from differlib.LogitDeltaRule import LogitDeltaRule
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
@@ -81,12 +76,12 @@ if __name__ == "__main__":
 
     # init feature selection
     selection_name = cfg.SELECTION.TYPE
-    selection_method = fsm_dict[cfg.SELECTION.TYPE]
+    selection_method = fsm_dict[cfg.SELECTION.TYPE]()
     selection_rate = cfg.SELECTION.RATE
 
     # init explainer
     explainer_name = cfg.EXPLAINER.TYPE
-    explainer = explainer_dict[cfg.EXPLAINER.TYPE]
+    explainer = explainer_dict[cfg.EXPLAINER.TYPE]()
     max_depth = cfg.EXPLAINER.MAX_DEPTH
     min_samples_leaf = cfg.EXPLAINER.MIN_SAMPLES_LEAF
     # all initialization is ok
@@ -187,13 +182,13 @@ if __name__ == "__main__":
 
         # Computation of metrics
         # on train set
-        if explainer_name in ["LogitDeltaRule", "Regression"]:
+        if explainer_name in ["Logit"]:
             train_metrics = explainer.metrics(x_train, output_A[train_index], output_B[train_index], name="train")
         else:
             train_metrics = explainer.metrics(x_train, pred_target_A[train_index], pred_target_B[train_index], name="train")
 
         # on train set
-        if explainer_name in ["LogitDeltaRule", "Regression"]:
+        if explainer_name in ["Logit"]:
             test_metrics = explainer.metrics(x_test, output_A[test_index], output_B[test_index])
         else:
             test_metrics = explainer.metrics(x_test, pred_target_A[test_index], pred_target_B[test_index])

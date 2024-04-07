@@ -13,12 +13,12 @@ class BorutaFS(FSMethod):
         self.method = BorutaPy(rf, n_estimators='auto', perc=perc, alpha=0.05, two_step=True, max_iter=100, verbose=2)
         self.contributions = None
 
-    def fit(self, x: np.ndarray, pred_target_A, pred_target_B, **kwargs):
+    def fit(self, x: np.ndarray, pred_target_A, pred_target_B, *args, **kwargs):
         delta_target = pred_target_A ^ pred_target_B
         self.method.fit(x, delta_target)
 
     def computing_contribution(self, *argv, **kwargs):
         pass
 
-    def transform(self, x: np.ndarray, **kwargs):
+    def transform(self, x: np.ndarray, *args, **kwargs):
         return self.method.transform(x)

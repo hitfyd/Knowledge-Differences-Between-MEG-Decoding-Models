@@ -11,7 +11,7 @@ class LinearRegression(FSMethod):
         self.method = sklearn.linear_model.LinearRegression()
         self.contributions = None
 
-    def fit(self, x: np.ndarray, logit1, logit2, **kwargs):
+    def fit(self, x: np.ndarray, logit1, logit2, *args, **kwargs):
         assert len(logit1.shape) == 2 and logit1.shape == logit2.shape, "logit1 and logit2 must have the same"
         delta_logit = logit1 - logit2
 
@@ -21,7 +21,7 @@ class LinearRegression(FSMethod):
     def computing_contribution(self, **kwargs):
         return self.contributions
 
-    def transform(self, x: np.ndarray, rate=0.1, **kwargs):
+    def transform(self, x: np.ndarray, *args, rate=0.1, **kwargs):
         assert len(x.shape) == 2
         kth = int(len(self.contributions) * rate)
         ind = np.argpartition(self.contributions, kth=-kth)[-kth:]

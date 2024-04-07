@@ -3,8 +3,8 @@ from .DeltaXplainer import DeltaExplainer
 from .LogitDeltaRule import LogitDeltaRule
 
 explainer_dict = {
-    "SeparateSurrogate": SeparateSurrogate(),
-    "IMDExplainer": IMDExplainer(),
-    "DeltaExplainer": DeltaExplainer(),
-    "LogitDeltaRule": LogitDeltaRule(),
+    "SS": SeparateSurrogate,
+    "IMD": IMDExplainer,
+    "Delta": DeltaExplainer,
+    "Logit": LogitDeltaRule,
 }

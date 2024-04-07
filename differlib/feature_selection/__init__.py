@@ -1,8 +1,8 @@
 from .LinearRegression import LinearRegression, SGDRegressor
-from .fsm import BaseFSM
+from .fsm import NoneFSM
 
 fsm_dict = {
-    "None": BaseFSM(),
-    "LinearRegression": LinearRegression(),
-    "SGDRegressor": SGDRegressor(),
+    "None": NoneFSM,
+    "LinearRegression": LinearRegression,
+    "SGDRegressor": SGDRegressor,
 }

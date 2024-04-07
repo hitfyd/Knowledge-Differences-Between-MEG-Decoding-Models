@@ -12,6 +12,6 @@ MODELS:
   A: "DecMeg2014_hgrn"
   B: "DecMeg2014_sdt"
 EXPLAINER:
-  TYPE: "IMDExplainer"
+  TYPE: "Logit"
   MAX_DEPTH: 7
   MIN_SAMPLES_LEAF: 2

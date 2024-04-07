@@ -42,7 +42,7 @@ class FSMethod(ABC):
         raise NotImplementedError
 
 
-class BaseFSM(FSMethod):
+class NoneFSM(FSMethod):
     def fit(self, *argv, **kwargs):
         pass
 
