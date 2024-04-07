@@ -172,7 +172,7 @@ if __name__ == "__main__":
         x_train = pd.DataFrame(selection_method.transform(data_filtered[train_index], selection_rate))
         x_test = pd.DataFrame(selection_method.transform(data_filtered[test_index], selection_rate))
 
-        if explainer_name in ["LogitDeltaRule", "Regression"]:
+        if explainer_name in ["Logit"]:
             explainer.fit(x_train, output_A[train_index], output_B[train_index], max_depth, min_samples_leaf=min_samples_leaf)
         else:
             explainer.fit(x_train, pred_target_A[train_index], pred_target_B[train_index], max_depth, min_samples_leaf=min_samples_leaf)

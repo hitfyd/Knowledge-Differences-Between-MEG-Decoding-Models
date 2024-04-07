@@ -103,7 +103,7 @@ class LogitDeltaRule(DISExplainer):
         if not isinstance(Y2, np.ndarray):
             Y2 = Y2.to_numpy()
 
-        assert len(Y1.shape) == len(Y2.shape) == 2 and Y1.shape[0] == Y2.shape[0], "Y1 and Y2 must have the same"
+        assert Y1.shape == Y2.shape, "Y1 and Y2 must have the same"
         pred_target_1 = Y1.argmax(axis=1)
         pred_target_2 = Y2.argmax(axis=1)
 
