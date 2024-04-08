@@ -14,6 +14,10 @@ class BorutaFS(FSMethod):
         self.contributions = None
 
     def fit(self, x: np.ndarray, pred_target_A, pred_target_B, *args, **kwargs):
+        assert pred_target_A.shape == pred_target_B.shape
+        if len(pred_target_A.shape) == 2:
+            pred_target_A = pred_target_A.argmax(axis=1)
+            pred_target_B = pred_target_B.argmax(axis=1)
         delta_target = pred_target_A ^ pred_target_B
         self.method.fit(x, delta_target)
 
