@@ -12,7 +12,7 @@ MODELS:
   A: "DecMeg2014_hgrn"
   B: "DecMeg2014_sdt"
 AUGMENTATION:
-  TYPE: "BASE"
+  TYPE: "NONE"
 SELECTION:
   TYPE: "NONE"
   RATE: 0.01

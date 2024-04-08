@@ -1,19 +1,16 @@
 import argparse
-import os, sys
+import os
+import sys
 
 from differlib.augmentation import am_dict
 
-sys.path.append("..")
+# sys.path.append("..")
 from datetime import datetime
 from statistics import mean, pstdev
 
-import joblib
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn as nn
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import StratifiedKFold
 
 from differlib.explainer import explainer_dict
@@ -50,7 +47,8 @@ if __name__ == "__main__":
     setup_seed(cfg.EXPERIMENT.SEED)
 
     # init dataset & models
-    data, labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
+    # data, labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
+    data, labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(cfg.DATASET.TYPE))
     dataset = cfg.DATASET.TYPE
     n_samples, channels, points = data.shape
     n_classes = len(set(labels))
@@ -114,51 +112,6 @@ if __name__ == "__main__":
 
     delta_target = pred_target_A ^ pred_target_B
 
-    # perc = 80
-    # save_path = f"{dataset}_{perc}_feat_selector.model"
-    # if os.path.exists(save_path):
-    #     # 从文件中加载
-    #     feat_selector = joblib.load(save_path)
-    # else:
-    #     # define random forest classifier, with utilising all cores and
-    #     # sampling in proportion to y labels
-    #     rf = RandomForestClassifier(n_jobs=-1, class_weight='balanced', max_depth=5)
-    #
-    #     from boruta import BorutaPy
-    #
-    #     # define Boruta feature selection method
-    #     feat_selector = BorutaPy(rf, n_estimators='auto', perc=perc, alpha=0.05, two_step=True, max_iter=100,
-    #                              verbose=2, random_state=1)
-    #
-    #     # find all relevant features - 5 features should be selected
-    #     feat_selector.fit(data.reshape((-1, channels * points)), delta_target)
-    #
-    #     # 保存到当前工作目录中的文件
-    #     if save_path is not None:
-    #         joblib.dump(feat_selector, save_path)
-    #
-    # # check selected features - first 5 features are selected
-    # print(feat_selector.support_)
-    #
-    # # check ranking of features
-    # print(feat_selector.ranking_)
-    #
-    # # call transform() on X to filter it down to selected features
-    # data_filtered = feat_selector.transform(data.reshape((-1, channels * points)))
-
-    data_filtered = data.reshape((n_samples, -1))
-
-    # data_filtered = data[:, :, :].reshape((n_samples, -1))
-    #
-    # save_path = "{}_SDT_Depth{}_{}.sav".format(cfg.DATASET.TYPE, 1, 0)
-    # feature_model = joblib.load(save_path)
-    #
-    # inner_weights = feature_model.inner_nodes[0].weight.cpu().detach().numpy()[0][1:]
-    # print(inner_weights)
-    # filtered_feature_indexes = np.abs(inner_weights) > 0.01
-    # print(filtered_feature_indexes.sum())
-    # data_filtered = data[:, :, :].reshape((n_samples, -1))[:, filtered_feature_indexes]
-
     # K-Fold evaluation
     skf = StratifiedKFold(n_splits=n_splits)
     skf_id = 0
@@ -182,10 +135,6 @@ if __name__ == "__main__":
         pred_target_B_train = output_B_train.argmax(axis=1)
 
         selection_method.fit(x_train, output_A_train, output_B_train)
-        # selection_method.transform(x_test, selection_rate)
-        # threshold = np.max(np.abs(feature_filter.LinearRegression.coef_))/2
-        # feature_filtered_indexes = np.abs(feature_filter.LinearRegression.coef_) > threshold
-        # print(threshold, feature_filtered_indexes.sum())
 
         x_train = pd.DataFrame(selection_method.transform(x_train, selection_rate))
         x_test = pd.DataFrame(selection_method.transform(x_test, selection_rate))
