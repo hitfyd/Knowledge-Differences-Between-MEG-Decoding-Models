@@ -29,8 +29,8 @@ class AMethod(ABC):
 
 
 class NoneAM(AMethod):
-    def augment(self, x, y_1, y_2, *argv, **kwargs):
-        return x, y_1, y_2
+    def augment(self, data, labels, *argv, **kwargs):
+        return data, labels
 
 
 import random
@@ -188,19 +188,15 @@ ALL_TRANSFORMS = [
 
 class BaseAM(AMethod):
 
-    def augment(self, origin_data, output_A, output_B, delta_labels, *argv, **kwargs):
-        ag_data, ag_output_A, ag_output_B, ag_label = [], [], [], []
+    def augment(self, origin_data, delta_labels, *argv, **kwargs):
+        ag_data, ag_label = [], [], [], []
         for i in range(len(delta_labels)):
             if delta_labels[i] == 0:
                 continue
             for op in ALL_TRANSFORMS:
                 ag_data.append(op.meg_transformer(1., PARAMETER_MAX-1)(origin_data[i]))
                 ag_label.append(delta_labels[i])
-                ag_output_A.append(output_A[i])
-                ag_output_B.append(output_B[i])
         ag_data, ag_label = np.array(ag_data), np.array(ag_label)
         all_data = np.concatenate((origin_data, ag_data), axis=0)
         all_label = np.concatenate((delta_labels, ag_label), axis=0)
-        all_output_A = np.concatenate((output_A, ag_output_A), axis=0)
-        all_output_B = np.concatenate((output_B, ag_output_B), axis=0)
-        return all_data, all_output_A, all_output_B
+        return all_data, all_label

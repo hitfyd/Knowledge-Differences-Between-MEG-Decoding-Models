@@ -2,8 +2,10 @@ from .am import AMethod
 
 from imblearn.over_sampling import SMOTE
 
+
 class SmoteAM(AMethod):
-    def augment(self, x, y_1, y_2, *argv, **kwargs):
+    def augment(self, data, labels, *argv, **kwargs):
+        n_samples, channels, points = data.shape
         oversampler = SMOTE(random_state=0)
-        os_x, os_y = oversampler.fit_resample(x, y_1)
-        return x, y_1, y_2
+        rs_data, rs_labels = oversampler.fit_resample(data.reshape((-1, channels * points)), labels)
+        return rs_data.reshape((-1, channels, points)), rs_labels

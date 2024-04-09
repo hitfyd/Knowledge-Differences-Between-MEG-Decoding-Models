@@ -1,10 +1,5 @@
 import argparse
 import os
-import sys
-
-from differlib.augmentation import am_dict
-
-# sys.path.append("..")
 from datetime import datetime
 from statistics import mean, pstdev
 
@@ -13,9 +8,11 @@ import pandas as pd
 import torch
 from sklearn.model_selection import StratifiedKFold
 
-from differlib.explainer import explainer_dict
+from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
-from differlib.engine.utils import log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, save_checkpoint
+from differlib.engine.utils import log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, save_checkpoint, \
+    predict_output
+from differlib.explainer import explainer_dict
 from differlib.feature_selection import fsm_dict
 from differlib.models import model_dict
 
@@ -47,8 +44,8 @@ if __name__ == "__main__":
     setup_seed(cfg.EXPERIMENT.SEED)
 
     # init dataset & models
-    # data, labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
-    data, labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(cfg.DATASET.TYPE))
+    data, labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
+    # data, labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(cfg.DATASET.TYPE))
     dataset = cfg.DATASET.TYPE
     n_samples, channels, points = data.shape
     n_classes = len(set(labels))
@@ -95,20 +92,22 @@ if __name__ == "__main__":
         writer.write("CONFIG:\n{}".format(cfg.dump()))
 
     # models predict differences
-    data_torch = torch.from_numpy(data).float().cuda()
-    output_A = model_A(data_torch)
-    _, pred_target_A = output_A.topk(1, 1, True, True)
-    output_A = output_A.cpu().detach().numpy()
-    pred_target_A = pred_target_A.squeeze().cpu().detach().numpy()
-    if model_A.__class__.__name__ in ["LFCNN", "VARCNN", "HGRN"]:
-        output_A = np.exp(output_A) / np.sum(np.exp(output_A), axis=-1, keepdims=True)
-
-    output_B = model_B(data_torch)
-    _, pred_target_B = output_B.topk(1, 1, True, True)
-    output_B = output_B.cpu().detach().numpy()
-    pred_target_B = pred_target_B.squeeze().cpu().detach().numpy()
-    if model_B.__class__.__name__ in ["LFCNN", "VARCNN", "HGRN"]:
-        output_B = np.exp(output_B) / np.sum(np.exp(output_B), axis=-1, keepdims=True)
+    output_A, pred_target_A = predict_output(model_A, data)
+    output_B, pred_target_B = predict_output(model_B, data)
+    # data_torch = torch.from_numpy(data).float().cuda()
+    # output_A = model_A(data_torch)
+    # _, pred_target_A = output_A.topk(1, 1, True, True)
+    # output_A = output_A.cpu().detach().numpy()
+    # pred_target_A = pred_target_A.squeeze().cpu().detach().numpy()
+    # if model_A.__class__.__name__ in ["LFCNN", "VARCNN", "HGRN"]:
+    #     output_A = np.exp(output_A) / np.sum(np.exp(output_A), axis=-1, keepdims=True)
+    #
+    # output_B = model_B(data_torch)
+    # _, pred_target_B = output_B.topk(1, 1, True, True)
+    # output_B = output_B.cpu().detach().numpy()
+    # pred_target_B = pred_target_B.squeeze().cpu().detach().numpy()
+    # if model_B.__class__.__name__ in ["LFCNN", "VARCNN", "HGRN"]:
+    #     output_B = np.exp(output_B) / np.sum(np.exp(output_B), axis=-1, keepdims=True)
 
     delta_target = pred_target_A ^ pred_target_B
 
@@ -129,7 +128,8 @@ if __name__ == "__main__":
         pred_target_A_test = pred_target_A[test_index]
         pred_target_B_test = pred_target_B[test_index]
 
-        x_train, output_A_train, output_B_train = augmentation_method.augment(x_train, output_A_train, output_B_train, delta_target[train_index])
+        x_train, delta_target = augmentation_method.augment(x_train, delta_target[train_index])
+        #
         x_train = x_train.reshape((-1, channels * points))
         pred_target_A_train = output_A_train.argmax(axis=1)
         pred_target_B_train = output_B_train.argmax(axis=1)
