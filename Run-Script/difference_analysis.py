@@ -94,22 +94,7 @@ if __name__ == "__main__":
     # models predict differences
     output_A, pred_target_A = predict_output(model_A, data)
     output_B, pred_target_B = predict_output(model_B, data)
-    # data_torch = torch.from_numpy(data).float().cuda()
-    # output_A = model_A(data_torch)
-    # _, pred_target_A = output_A.topk(1, 1, True, True)
-    # output_A = output_A.cpu().detach().numpy()
-    # pred_target_A = pred_target_A.squeeze().cpu().detach().numpy()
-    # if model_A.__class__.__name__ in ["LFCNN", "VARCNN", "HGRN"]:
-    #     output_A = np.exp(output_A) / np.sum(np.exp(output_A), axis=-1, keepdims=True)
-    #
-    # output_B = model_B(data_torch)
-    # _, pred_target_B = output_B.topk(1, 1, True, True)
-    # output_B = output_B.cpu().detach().numpy()
-    # pred_target_B = pred_target_B.squeeze().cpu().detach().numpy()
-    # if model_B.__class__.__name__ in ["LFCNN", "VARCNN", "HGRN"]:
-    #     output_B = np.exp(output_B) / np.sum(np.exp(output_B), axis=-1, keepdims=True)
-
-    delta_target = pred_target_A ^ pred_target_B
+    delta_target = (pred_target_A != pred_target_B).astype(int)
 
     # K-Fold evaluation
     skf = StratifiedKFold(n_splits=n_splits)
@@ -118,31 +103,33 @@ if __name__ == "__main__":
     precision_l, recall_l, f1_l, num_rules_l, average_num_rule_preds_l, num_unique_preds_l = [], [], [], [], [], []
     for train_index, test_index in skf.split(data, delta_target):
         x_train = data[train_index]
-        output_A_train = output_A[train_index]
-        output_B_train = output_B[train_index]
-        pred_target_A_train = pred_target_A[train_index]
-        pred_target_B_train = pred_target_B[train_index]
+
         x_test = data[test_index].reshape((-1, channels * points))
         output_A_test = output_A[test_index]
         output_B_test = output_B[test_index]
         pred_target_A_test = pred_target_A[test_index]
         pred_target_B_test = pred_target_B[test_index]
 
-        x_train, delta_target = augmentation_method.augment(x_train, delta_target[train_index])
-        #
-        x_train = x_train.reshape((-1, channels * points))
-        pred_target_A_train = output_A_train.argmax(axis=1)
-        pred_target_B_train = output_B_train.argmax(axis=1)
+        x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index])
+        output_A_train, pred_target_A_train = predict_output(model_A, x_train_aug)
+        output_B_train, pred_target_B_train = predict_output(model_B, x_train_aug)
 
-        selection_method.fit(x_train, output_A_train, output_B_train)
+        ydiff = (pred_target_A_train != pred_target_B_train).astype(int)
+        print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
+        delta_diff = (ydiff != delta_target_aug).astype(int)
+        print(f"delta_diffs in X_train = {delta_diff.sum()} / {len(delta_diff)} = {(delta_diff.sum() / len(delta_diff) * 100):.2f}%")
 
-        x_train = pd.DataFrame(selection_method.transform(x_train, selection_rate))
+        x_train_aug = x_train_aug.reshape((-1, channels * points))
+        selection_method.fit(x_train_aug, output_A_train, output_B_train)
+
+        x_train_aug_sel = pd.DataFrame(selection_method.transform(x_train_aug, selection_rate))
         x_test = pd.DataFrame(selection_method.transform(x_test, selection_rate))
+        print(x_train_aug_sel.shape, x_test.shape)
 
         if explainer_type in ["Logit"]:
-            explainer.fit(x_train, output_A_train, output_B_train, max_depth, min_samples_leaf=min_samples_leaf)
+            explainer.fit(x_train_aug_sel, output_A_train, output_B_train, max_depth, min_samples_leaf=min_samples_leaf)
         else:
-            explainer.fit(x_train, pred_target_A_train, pred_target_B_train, max_depth, min_samples_leaf=min_samples_leaf)
+            explainer.fit(x_train_aug_sel, pred_target_A_train, pred_target_B_train, max_depth, min_samples_leaf=min_samples_leaf)
 
         diffrules = explainer.explain()
         print(diffrules)
@@ -150,15 +137,15 @@ if __name__ == "__main__":
         # Computation of metrics
         # on train set
         if explainer_type in ["Logit"]:
-            train_metrics = explainer.metrics(x_train, output_A_train, output_B_train, name="train")
+            train_metrics = explainer.metrics(x_train_aug_sel, output_A_train, output_B_train, name="train")
         else:
-            train_metrics = explainer.metrics(x_train, pred_target_A_train, pred_target_B_train, name="train")
+            train_metrics = explainer.metrics(x_train_aug_sel, pred_target_A_train, pred_target_B_train, name="train")
 
         # on train set
         if explainer_type in ["Logit"]:
             test_metrics = explainer.metrics(x_test, output_A_test, output_B_test)
         else:
-            test_metrics = explainer.metrics(x_test, pred_target_A_test, pred_target_B[test_index])
+            test_metrics = explainer.metrics(x_test, pred_target_A_test, pred_target_A_test)
 
         print("skf_id", skf_id, "Explainer", explainer_type, "max_depth", max_depth, "min_samples_leaf", min_samples_leaf)
         print("Train set", train_metrics)

@@ -10,7 +10,7 @@ class BorutaFS(FSMethod):
         super(BorutaFS, self).__init__()
         perc = 80
         rf = RandomForestClassifier(n_jobs=-1, class_weight='balanced', max_depth=5)
-        self.method = BorutaPy(rf, n_estimators='auto', perc=perc, alpha=0.05, two_step=True, max_iter=100, verbose=2)
+        self.method = BorutaPy(rf, n_estimators='auto', perc=perc, alpha=0.05, two_step=True, max_iter=30, verbose=2)
         self.contributions = None
 
     def fit(self, x: np.ndarray, pred_target_A, pred_target_B, *args, **kwargs):

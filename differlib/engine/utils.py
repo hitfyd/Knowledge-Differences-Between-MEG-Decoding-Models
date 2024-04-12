@@ -128,7 +128,9 @@ def predict(model, data, num_classes=2, batch_size=1024, eval=False):
 
 def predict_output(model: torch.nn, data: np.ndarray, softmax=True):
     data_torch = torch.from_numpy(data).float().cuda()
-    output = model(data_torch)
+    model.eval()
+    with torch.no_grad():
+        output = model(data_torch)
     _, pred_target = output.topk(1, 1, True, True)
     output = output.cpu().detach().numpy()
     pred_target = pred_target.squeeze().cpu().detach().numpy()

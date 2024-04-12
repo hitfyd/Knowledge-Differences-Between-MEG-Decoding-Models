@@ -189,7 +189,7 @@ ALL_TRANSFORMS = [
 class BaseAM(AMethod):
 
     def augment(self, origin_data, delta_labels, *argv, **kwargs):
-        ag_data, ag_label = [], [], [], []
+        ag_data, ag_label = [], []
         for i in range(len(delta_labels)):
             if delta_labels[i] == 0:
                 continue
