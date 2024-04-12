@@ -12,7 +12,7 @@ MODELS:
   A: "DecMeg2014_hgrn"
   B: "DecMeg2014_sdt"
 AUGMENTATION:
-  TYPE: "SMOTE"
+  TYPE: "BASE"
 SELECTION:
   TYPE: "Boruta"
   RATE: 0.01

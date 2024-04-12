@@ -179,8 +179,8 @@ reduce_waveform = TransformT('reduce_waveform', lambda epoch_data, level: epoch_
 expand_waveform = TransformT('expand_waveform', lambda epoch_data, level: epoch_data * (
         1 + float_parameter(level, min_max_vals.expand_waveform.max)))
 ALL_TRANSFORMS = [
-    awgn_time,
-    awgn_frequency,
+    # awgn_time,
+    # awgn_frequency,
     reduce_waveform,
     expand_waveform,
 ]
