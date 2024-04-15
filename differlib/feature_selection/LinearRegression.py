@@ -21,7 +21,7 @@ class LinearRegression(FSMethod):
     def computing_contribution(self, **kwargs):
         return self.contributions
 
-    def transform(self, x: np.ndarray, *args, rate=0.1, **kwargs):
+    def transform(self, x: np.ndarray, rate=0.1, **kwargs):
         assert len(x.shape) == 2
         kth = int(len(self.contributions) * rate)
         ind = np.argpartition(self.contributions, kth=-kth)[-kth:]

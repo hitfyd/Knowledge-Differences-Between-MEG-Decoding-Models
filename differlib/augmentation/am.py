@@ -178,11 +178,59 @@ reduce_waveform = TransformT('reduce_waveform', lambda epoch_data, level: epoch_
         1 - float_parameter(level, min_max_vals.reduce_waveform.max)))
 expand_waveform = TransformT('expand_waveform', lambda epoch_data, level: epoch_data * (
         1 + float_parameter(level, min_max_vals.expand_waveform.max)))
+
+
+# 时域左右平移，空缺位置为常数或者随机数填充
+def _translation_left(epoch_data, level):
+    if level == 0:
+        return epoch_data
+    level = float_parameter(level, min_max_vals.translation_left.max)
+    translation_length = int(level * epoch_data.shape[1])
+    fill_matrix = np.zeros((epoch_data.shape[0], translation_length), dtype=float)
+    aug_data = np.concatenate((epoch_data[:, translation_length:], fill_matrix), axis=1)
+    return aug_data
+
+
+translation_left = TransformT('translation_left', _translation_left)
+
+
+def _translation_right(epoch_data, level):
+    if level == 0:
+        return epoch_data
+    level = float_parameter(level, min_max_vals.translation_right.max)
+    translation_length = int(level * epoch_data.shape[1])
+    fill_matrix = np.zeros((epoch_data.shape[0], translation_length), dtype=float)
+    aug_data = np.concatenate((fill_matrix, epoch_data[:, :-translation_length]), axis=1)
+    return aug_data
+
+
+translation_right = TransformT('translation_right', _translation_right)
+
+
+# 随机缺失，缺失位置为常数或者随机数填充
+def _mask(epoch_data, level):
+    channels, points = epoch_data.shape[0], epoch_data.shape[1]
+    level = float_parameter(level, min_max_vals.mask.max)
+    mask_length = int(level * points)
+    mask_start_index = random.randint(0, points - mask_length)
+    for i in range(channels):
+        for j in range(points):
+            if mask_start_index <= j < mask_start_index + mask_length:
+                epoch_data[i][j] = 0
+    return epoch_data
+
+
+mask = TransformT('mask', _mask)
+
+
 ALL_TRANSFORMS = [
     # awgn_time,
     # awgn_frequency,
     reduce_waveform,
     expand_waveform,
+    # translation_left,
+    # translation_right,
+    # mask,
 ]
 
 
