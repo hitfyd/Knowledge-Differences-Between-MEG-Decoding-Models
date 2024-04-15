@@ -1,22 +1,21 @@
 import warnings
 
-from differlib import DeltaExplainer
-
 warnings.filterwarnings('ignore')
 
+import pandas as pd
+from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score
 
-from differlib.imd.utils import load_bc_dataset, load_iris_dataset
+from differlib.explainer import DeltaExplainer, IMDExplainer
+from differlib.explainer.imd.utils import load_bc_dataset
 
 # Data preparation
 random_state = 1234
-# datadf, target = load_bc_dataset()
-datadf, target = load_iris_dataset()
+datadf, target = load_bc_dataset()
+# datadf, target = load_iris_dataset()
 x_train, x_test, y_train, y_test = train_test_split(datadf, target, train_size=0.7,
                                                     random_state=random_state)
 print(x_train.shape, x_test.shape)
@@ -49,13 +48,20 @@ print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(yd
 ydifftest = (model1.predict(x_test) != model2.predict(x_test)).astype(int)
 print(f"diffs in X_test = {ydifftest.sum()} / {len(ydifftest)} = {(ydifftest.sum() / len(ydifftest)):.2f}")
 
-# Interpretable model differencing
-from differlib.imd.imd import IMDExplainer
+# data augmentation
+oversampler = SMOTE(random_state=0)
+x_train_aug, delta_target_aug = oversampler.fit_resample(x1, ydiff)
+x_train = pd.DataFrame(x_train_aug, columns=feature_names)
+y1 = model1.predict(x_train_aug)
+y2 = model2.predict(x_train_aug)
+ydiff = (y1 != y2).astype(int)
+print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff)):.2f}")
 
+# Interpretable model differencing
 max_depth = 4
 
-# imd = IMDExplainer()
-imd = DeltaExplainer()
+imd = IMDExplainer()
+# imd = DeltaExplainer()
 imd.fit(x_train, y1, y2, max_depth=max_depth)
 
 # See diff-rules
