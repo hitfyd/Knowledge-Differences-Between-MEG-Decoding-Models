@@ -11,7 +11,12 @@ DATASET:
 MODELS:
   A: "DecMeg2014_lfcnn"
   B: "DecMeg2014_varcnn"
+AUGMENTATION:
+  TYPE: "NONE"
+SELECTION:
+  TYPE: "NONE"
+  RATE: 0.01
 EXPLAINER:
-  TYPE: "LogitDeltaRule"
+  TYPE: "Delta"
   MAX_DEPTH: 5
-  MIN_SAMPLES_LEAF: 4
+  MIN_SAMPLES_LEAF: 2

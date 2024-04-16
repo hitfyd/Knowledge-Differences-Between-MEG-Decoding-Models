@@ -103,6 +103,12 @@ if __name__ == "__main__":
     precision_l, recall_l, f1_l, num_rules_l, average_num_rule_preds_l, num_unique_preds_l = [], [], [], [], [], []
     for train_index, test_index in skf.split(data, delta_target):
         x_train = data[train_index]
+        output_A_train = output_A[train_index]
+        output_B_train = output_B[train_index]
+        pred_target_A_train = pred_target_A[train_index]
+        pred_target_B_train = pred_target_B[train_index]
+
+        # selection_method.fit(x_train.reshape((-1, channels * points)), output_A[train_index], output_B[train_index])
 
         x_test = data[test_index].reshape((-1, channels * points))
         output_A_test = output_A[test_index]
@@ -120,16 +126,19 @@ if __name__ == "__main__":
         print(f"delta_diffs in X_train = {delta_diff.sum()} / {len(delta_diff)} = {(delta_diff.sum() / len(delta_diff) * 100):.2f}%")
 
         x_train_aug = x_train_aug.reshape((-1, channels * points))
-        selection_method.fit(x_train_aug, output_A_train, output_B_train)
+        if selection_type in ["DiffShapley"]:
+            selection_method.fit(x_train_aug, model_A, model_B)
+        else:
+            selection_method.fit(x_train_aug, output_A_train, output_B_train)
 
-        x_train_aug_sel = pd.DataFrame(selection_method.transform(x_train_aug, selection_rate))
+        x_train = pd.DataFrame(selection_method.transform(x_train_aug, selection_rate))
         x_test = pd.DataFrame(selection_method.transform(x_test, selection_rate))
-        print(x_train_aug_sel.shape, x_test.shape)
+        print(x_train.shape, x_test.shape)
 
         if explainer_type in ["Logit"]:
-            explainer.fit(x_train_aug_sel, output_A_train, output_B_train, max_depth, min_samples_leaf=min_samples_leaf)
+            explainer.fit(x_train, output_A_train, output_B_train, max_depth, min_samples_leaf=min_samples_leaf)
         else:
-            explainer.fit(x_train_aug_sel, pred_target_A_train, pred_target_B_train, max_depth, min_samples_leaf=min_samples_leaf)
+            explainer.fit(x_train, pred_target_A_train, pred_target_B_train, max_depth, min_samples_leaf=min_samples_leaf)
 
         diffrules = explainer.explain()
         print(diffrules)
@@ -137,9 +146,9 @@ if __name__ == "__main__":
         # Computation of metrics
         # on train set
         if explainer_type in ["Logit"]:
-            train_metrics = explainer.metrics(x_train_aug_sel, output_A_train, output_B_train, name="train")
+            train_metrics = explainer.metrics(x_train, output_A_train, output_B_train, name="train")
         else:
-            train_metrics = explainer.metrics(x_train_aug_sel, pred_target_A_train, pred_target_B_train, name="train")
+            train_metrics = explainer.metrics(x_train, pred_target_A_train, pred_target_B_train, name="train")
 
         # on train set
         if explainer_type in ["Logit"]:
@@ -155,7 +164,7 @@ if __name__ == "__main__":
                 skf_id, explainer_type, max_depth, min_samples_leaf))
             writer.write("Train {}\n".format(train_metrics))
             writer.write("Test {}\n".format(test_metrics))
-            writer.write("train_index {}\n".format(train_index))
+            # writer.write("train_index {}\n".format(train_index))
             writer.write("test_index {}\n".format(test_index))
 
         precision_l.append(test_metrics["test-precision"])
