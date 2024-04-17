@@ -1,6 +1,6 @@
 import os
 
-from .DNNClassifier import lfcnn, varcnn, hgrn
+from .DNNClassifier import lfcnn, varcnn, hgrn, mlp
 from .SoftDecisionTree import sdt
 
 
@@ -14,6 +14,7 @@ model_dict = {
     "CamCAN_lfcnn": (lfcnn, model_checkpoint_prefix + "CamCAN_LFCNN_20220616160458_checkpoint.pt"),
     "CamCAN_varcnn": (varcnn, model_checkpoint_prefix + "CamCAN_VARCNN_20220616160458_checkpoint.pt"),
     "CamCAN_hgrn": (hgrn, model_checkpoint_prefix + "CamCAN_HGRN_20220616160458_checkpoint.pt"),
+    "CamCAN_mlp": (mlp, model_checkpoint_prefix + "CamCAN_MLP_best_checkpoint.pt"),
     "CamCAN_sdt": (sdt, model_checkpoint_prefix + "CamCAN_SDT_Vanilla"),
     "CamCAN_sdt3": (sdt, model_checkpoint_prefix + "CamCAN_SDT3_Vanilla"),
     "CamCAN_sdt4": (sdt, model_checkpoint_prefix + "CamCAN_SDT4_Vanilla"),
@@ -25,6 +26,7 @@ model_dict = {
     "DecMeg2014_lfcnn": (lfcnn, model_checkpoint_prefix + "DecMeg2014_LFCNN_20230601182643_checkpoint.pt"),     # "DecMeg2014_LFCNN_20220616192753_checkpoint.pt" "DecMeg2014_LFCNN_20230601182643_checkpoint.pt"
     "DecMeg2014_varcnn": (varcnn, model_checkpoint_prefix + "DecMeg2014_VARCNN_20230601184341_checkpoint.pt"),  # "DecMeg2014_VARCNN_20220616192753_checkpoint.pt" "DecMeg2014_VARCNN_20230601184341_checkpoint.pt"
     "DecMeg2014_hgrn": (hgrn, model_checkpoint_prefix + "DecMeg2014_HGRN_20220616192753_checkpoint.pt"),
+    "DecMeg2014_mlp": (mlp, model_checkpoint_prefix + "DecMeg2014_MLP_best_checkpoint.pt"),
     "DecMeg2014_sdt": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_Vanilla"),
     "DecMeg2014_sdt2": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT2_Vanilla"),
     "DecMeg2014_sdt_hgrn_kd": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_HGRN_KD"),

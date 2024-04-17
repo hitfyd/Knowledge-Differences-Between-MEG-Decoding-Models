@@ -23,14 +23,18 @@ global_gru2_hidden = 10
 global_gru_pool = 5
 global_gru_dropout = 0.1
 
+global_mlp_hidden_features = 500
+
 
 # init/reset global network parameters
 def init_global_network_parameters(channels=204, points=100, num_classes=2,
                                    spatial_sources=32, conv_pool=2, conv_dropout=0.5, active_func=nn.ReLU(),
-                                   gru1_hidden=100, gru2_hidden=10, gru_pool=5, gru_dropout=0.1):
+                                   gru1_hidden=100, gru2_hidden=10, gru_pool=5, gru_dropout=0.1,
+                                   mlp_hidden_features=500):
     global global_channels, global_points, global_classes, \
         global_spatial_sources, global_conv_pool, global_conv_dropout, global_active_func, \
-        global_gru1_hidden, global_gru2_hidden, global_gru_pool, global_gru_dropout
+        global_gru1_hidden, global_gru2_hidden, global_gru_pool, global_gru_dropout, \
+        global_mlp_hidden_features
     global_channels = channels
     global_points = points
     global_classes = num_classes
@@ -42,6 +46,7 @@ def init_global_network_parameters(channels=204, points=100, num_classes=2,
     global_gru2_hidden = gru2_hidden
     global_gru_pool = gru_pool
     global_gru_dropout = gru_dropout
+    global_mlp_hidden_features = mlp_hidden_features
 
 
 # 初始化基准模型
@@ -63,6 +68,11 @@ def varcnn(channels=204, points=100, num_classes=2, **kwargs):
 def hgrn(channels=204, points=100, num_classes=2, **kwargs):
     init_global_network_parameters(channels=channels, points=points, num_classes=num_classes)
     return HGRN()
+
+
+def mlp(channels=204, points=100, num_classes=2, **kwargs):
+    init_global_network_parameters(channels=channels, points=points, num_classes=num_classes)
+    return MLP()
 
 
 # 转换非torch.nn类型操作，以适应Sequential
@@ -187,3 +197,22 @@ class HGRN(nn.Module):
         if is_training_data:
             return out, 0.0
         return out
+
+
+class MLP(nn.Sequential):
+    def __init__(self):
+        super().__init__(
+            TensorView(),
+            nn.Linear(global_channels * global_points, global_mlp_hidden_features),
+            nn.BatchNorm1d(500),
+            nn.Dropout(0.1),
+            nn.ReLU(),
+            nn.Linear(global_mlp_hidden_features, global_mlp_hidden_features),
+            nn.BatchNorm1d(global_mlp_hidden_features),
+            nn.Dropout(0.2),
+            nn.ReLU(),
+            nn.Linear(global_mlp_hidden_features, global_classes),
+            nn.BatchNorm1d(global_classes),
+            nn.Dropout(0.2),
+            nn.Sigmoid()
+        )
