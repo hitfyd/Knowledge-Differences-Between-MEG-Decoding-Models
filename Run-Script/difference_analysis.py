@@ -154,7 +154,7 @@ if __name__ == "__main__":
         if explainer_type in ["Logit"]:
             test_metrics = explainer.metrics(x_test, output_A_test, output_B_test)
         else:
-            test_metrics = explainer.metrics(x_test, pred_target_A_test, pred_target_A_test)
+            test_metrics = explainer.metrics(x_test, pred_target_A_test, pred_target_B_test)
 
         print("skf_id", skf_id, "Explainer", explainer_type, "max_depth", max_depth, "min_samples_leaf", min_samples_leaf)
         print("Train set", train_metrics)

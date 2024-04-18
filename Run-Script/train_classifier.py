@@ -73,7 +73,7 @@ with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 criterion = nn.CrossEntropyLoss()
 batch_size = 512
-learn_rate = 0.0001
+learn_rate = 0.00003
 learn_rate_decay = 0.1
 MAX_TRAIN_EPOCHS = 200
 decay_epochs = [300]    # 学习率衰减

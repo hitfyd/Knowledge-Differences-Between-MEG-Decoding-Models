@@ -10,13 +10,13 @@ DATASET:
   NUM_SPLITS: 3
 MODELS:
   A: "DecMeg2014_hgrn"
-  B: "DecMeg2014_std"
+  B: "DecMeg2014_sdt"
 AUGMENTATION:
-  TYPE: "BASE"
+  TYPE: "NONE"
 SELECTION:
-  TYPE: "LR"
+  TYPE: "DiffShapley"
   RATE: 0.01
 EXPLAINER:
-  TYPE: "Logit"
+  TYPE: "Delta"
   MAX_DEPTH: 5
   MIN_SAMPLES_LEAF: 2
