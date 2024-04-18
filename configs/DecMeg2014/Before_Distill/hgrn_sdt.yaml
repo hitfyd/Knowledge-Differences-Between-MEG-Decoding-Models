@@ -10,7 +10,7 @@ DATASET:
   NUM_SPLITS: 3
 MODELS:
   A: "DecMeg2014_hgrn"
-  B: "DecMeg2014_mlp"
+  B: "DecMeg2014_std"
 AUGMENTATION:
   TYPE: "BASE"
 SELECTION:

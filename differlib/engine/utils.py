@@ -134,8 +134,10 @@ def predict_output(model: torch.nn, data: np.ndarray, softmax=True):
     _, pred_target = output.topk(1, 1, True, True)
     output = output.cpu().detach().numpy()
     pred_target = pred_target.squeeze().cpu().detach().numpy()
-    if softmax and model.__class__.__name__ in ["LFCNN", "VARCNN", "HGRN"]:
+    if softmax and model.__class__.__name__ in ["LFCNN", "VARCNN"]:
         output = np.exp(output) / np.sum(np.exp(output), axis=-1, keepdims=True)
+    if softmax and model.__class__.__name__ in ["HGRN", "ATCNet"]:
+        output = np.exp(output)
     return output, pred_target
 
 

@@ -75,6 +75,11 @@ def mlp(channels=204, points=100, num_classes=2, **kwargs):
     return MLP()
 
 
+def linear(channels=204, points=100, num_classes=2, **kwargs):
+    init_global_network_parameters(channels=channels, points=points, num_classes=num_classes)
+    return Linear()
+
+
 # 转换非torch.nn类型操作，以适应Sequential
 # define torch.transpose in torch.nn
 class Transpose(nn.Module):
@@ -204,7 +209,7 @@ class MLP(nn.Sequential):
         super().__init__(
             TensorView(),
             nn.Linear(global_channels * global_points, global_mlp_hidden_features),
-            nn.BatchNorm1d(500),
+            nn.BatchNorm1d(global_mlp_hidden_features),
             nn.Dropout(0.1),
             nn.ReLU(),
             nn.Linear(global_mlp_hidden_features, global_mlp_hidden_features),
@@ -214,5 +219,14 @@ class MLP(nn.Sequential):
             nn.Linear(global_mlp_hidden_features, global_classes),
             nn.BatchNorm1d(global_classes),
             nn.Dropout(0.2),
-            nn.Sigmoid()
+            nn.Softmax()
+        )
+
+
+class Linear(nn.Sequential):
+    def __init__(self):
+        super().__init__(
+            TensorView(),
+            nn.Linear(global_channels * global_points, global_classes),
+            nn.Softmax()
         )

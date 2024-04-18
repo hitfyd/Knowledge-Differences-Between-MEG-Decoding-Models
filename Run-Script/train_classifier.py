@@ -1,0 +1,122 @@
+import os
+from datetime import datetime
+
+import torch
+from torch import nn, optim
+
+from differlib.engine.utils import get_data_labels_from_dataset, save_checkpoint, get_data_loader, setup_seed
+from differlib.models.DNNClassifier import mlp, linear
+from differlib.models.transformer.atcnet import atcnet
+
+
+def train(model, train_loader, epoch, lr=3e-4, l2_penalty=0):
+    model.to(DEVICE)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=l2_penalty)
+    model.train()
+    train_loss = 0
+    correct = 0
+    for batch_idx, (data, target) in enumerate(train_loader):
+        data, target = data.to(DEVICE), target.to(DEVICE)
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        train_loss += loss.item()
+        optimizer.step()
+        pred = output.max(1, keepdim=True)[1]  # 找到概率最大的下标
+        correct += pred.eq(target.view_as(pred)).sum().item()
+
+    train_accuracy = 100. * correct / len(train_loader.dataset)
+    train_loss /= len(train_loader.dataset)
+    print('Training Dataset\tEpoch：{}\tAccuracy: [{}/{} ({:.6f}%)]\tAverage Loss: {:.6f}'.format(
+        epoch, correct, len(train_loader.dataset), train_accuracy, train_loss))
+    return train_accuracy, train_loss
+
+
+def test(model, test_loader, validate=False):
+    model.to(DEVICE)
+    model.eval()
+    test_loss = 0
+    correct = 0
+    with torch.no_grad():
+        for data, target in test_loader:
+            data, target = data.to(DEVICE), target.to(DEVICE)
+            data = data.float()
+            output = model(data)
+            test_loss += criterion(output, target).item()  # 将一批的损失相加
+            pred = output.max(1, keepdim=True)[1]  # 找到概率最大的下标
+            correct += pred.eq(target.view_as(pred)).sum().item()
+
+    test_accuracy = 100. * correct / len(test_loader.dataset)
+    test_loss /= len(test_loader.dataset)
+    if validate:
+        print('Validation Dataset\tAccuracy: {}/{} ({:.6f}%)\tAverage loss: {:.6f}'.format(
+            correct, len(test_loader.dataset), test_accuracy, test_loss))
+    else:
+        print('Test Dataset\tAccuracy: {}/{} ({:.6f}%)\tAverage loss: {:.6f}'.format(
+            correct, len(test_loader.dataset), test_accuracy, test_loss))
+    # 返回测试集精度，损失
+    return test_accuracy, test_loss
+
+
+# setup the random number seed
+setup_seed(0)
+
+# log config
+log_path = "./output/Train_Classifier_Logs/"
+if not os.path.exists(log_path):
+    os.makedirs(log_path)
+with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+    writer.write("Run time: {}\n".format(datetime.now()))
+
+# train hyperparameters
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+criterion = nn.CrossEntropyLoss()
+batch_size = 512
+learn_rate = 0.0001
+learn_rate_decay = 0.1
+MAX_TRAIN_EPOCHS = 200
+decay_epochs = [300]    # 学习率衰减
+
+# init dataset & models
+for dataset in ["CamCAN", "DecMeg2014"]:  # "CamCAN", "DecMeg2014"
+    data, labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
+    data_test, labels_test = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
+    _, channels, points = data.shape
+    classes = len(set(labels_test))
+
+    train_loader = get_data_loader(data, labels, batch_size=batch_size, shuffle=True)
+    test_loader = get_data_loader(data_test, labels_test)
+
+    # linear(channels, points, classes), mlp(channels, points, classes), atcnet(channels, points, classes)
+    for model in [linear(channels, points, classes), mlp(channels, points, classes), atcnet(channels, points, classes)]:
+        model_name = model.__class__.__name__
+        print(f"Dataset: {dataset}\tModel: {model_name}")
+        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+            writer.write(f"Dataset: {dataset}\tModel: {model_name}\n")
+
+        best_test_accuracy = 0.0
+        best_checkpoint_path = f"../checkpoint/Models_Train/{dataset}_{model_name}_best_checkpoint.pt"
+        for epoch in range(MAX_TRAIN_EPOCHS):
+            if epoch in decay_epochs:
+                learn_rate = learn_rate * learn_rate_decay
+
+            train_accuracy, train_loss = train(model, train_loader, epoch, learn_rate)
+            test_accuracy, test_loss = test(model, test_loader)
+
+            with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                writer.write(f"epoch: {epoch}\tlearn_rate: {learn_rate}\t"
+                             f"train_accuracy: {train_accuracy:.6f}\ttrain_loss: {train_loss:.6f}\t"
+                             f"test_accuracy: {test_accuracy:.6f}\ttest_loss: {test_loss:.6f}\n")
+
+            if test_accuracy > best_test_accuracy:
+                print(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}')
+                with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                    writer.write(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}\n')
+                best_test_accuracy = test_accuracy
+                save_checkpoint(model.state_dict(), best_checkpoint_path)
+        print(f'Dataset: {dataset}\tModel: {model_name}\tBest Test Accuracy: {best_test_accuracy:.6f}\t'
+              f'Checkpoint: {best_checkpoint_path}')
+        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+            writer.write(f'Dataset: {dataset}\tModel: {model_name}\tBest Test Accuracy: {best_test_accuracy:.6f}\t'
+                         f'Checkpoint: {best_checkpoint_path}\n')

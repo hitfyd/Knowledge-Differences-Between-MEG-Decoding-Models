@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     # log config
     with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-        writer.write("Run time: {}".format(datetime.now()))
+        writer.write("Run time: {}\n".format(datetime.now()))
         writer.write("CONFIG:\n{}".format(cfg.dump()))
 
     # models predict differences
