@@ -59,24 +59,31 @@ def test(model, test_loader, validate=False):
     return test_accuracy, test_loss
 
 
+# run time
+run_time = datetime.now().strftime("%Y%m%d%H%M%S")
+
 # setup the random number seed
-setup_seed(0)
+seed = 0
+setup_seed(seed)
+
+# trainer hyperparameters
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+criterion = nn.CrossEntropyLoss()
+# train hyperparameters
+batch_size = 512
+learn_rate = 3e-3
+MAX_TRAIN_EPOCHS = 200
+learn_rate_decay = 0.1
+decay_epochs = [25, 100]
 
 # log config
-log_path = "./output/Train_Classifier_Logs/"
+log_path = f"./output/Train_Classifier_{run_time}/"
 if not os.path.exists(log_path):
     os.makedirs(log_path)
 with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-    writer.write("Run time: {}\n".format(datetime.now()))
-
-# train hyperparameters
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-criterion = nn.CrossEntropyLoss()
-batch_size = 512
-learn_rate = 0.00003
-learn_rate_decay = 0.1
-MAX_TRAIN_EPOCHS = 200
-decay_epochs = [300]    # 学习率衰减
+    writer.write(f"Run time: {run_time}\t Seed: {seed}\n")
+    writer.write(f"batch size: {batch_size}\tlearn rate: {learn_rate}\tMAX TRAIN EPOCHS: {MAX_TRAIN_EPOCHS}\t"
+                 f"learn rate decay: {learn_rate_decay}\tdecay epochs: {decay_epochs}\n")
 
 # init dataset & models
 for dataset in ["CamCAN", "DecMeg2014"]:  # "CamCAN", "DecMeg2014"
@@ -96,7 +103,7 @@ for dataset in ["CamCAN", "DecMeg2014"]:  # "CamCAN", "DecMeg2014"
             writer.write(f"Dataset: {dataset}\tModel: {model_name}\n")
 
         best_test_accuracy = 0.0
-        best_checkpoint_path = f"../checkpoint/Models_Train/{dataset}_{model_name}_best_checkpoint.pt"
+        best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{run_time}_checkpoint.pt")
         for epoch in range(MAX_TRAIN_EPOCHS):
             if epoch in decay_epochs:
                 learn_rate = learn_rate * learn_rate_decay
