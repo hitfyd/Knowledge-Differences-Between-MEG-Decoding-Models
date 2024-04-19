@@ -6,7 +6,7 @@ from torch import nn, optim
 
 from differlib.engine.utils import get_data_labels_from_dataset, save_checkpoint, get_data_loader, setup_seed
 from differlib.models.DNNClassifier import mlp, linear
-from differlib.models.transformer.atcnet import atcnet
+from differlib.models.atcnet.atcnet import atcnet
 
 
 def train(model, train_loader, epoch, lr=3e-4, l2_penalty=0):
@@ -70,11 +70,11 @@ setup_seed(seed)
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 criterion = nn.CrossEntropyLoss()
 # train hyperparameters
-batch_size = 512
-learn_rate = 3e-3
-MAX_TRAIN_EPOCHS = 200
+batch_size = 64
+learn_rate = 3e-4
+MAX_TRAIN_EPOCHS = 100
 learn_rate_decay = 0.1
-decay_epochs = [25, 100]
+decay_epochs = [200]
 
 # log config
 log_path = f"./output/Train_Classifier_{run_time}/"
@@ -93,7 +93,7 @@ for dataset in ["CamCAN", "DecMeg2014"]:  # "CamCAN", "DecMeg2014"
     classes = len(set(labels_test))
 
     train_loader = get_data_loader(data, labels, batch_size=batch_size, shuffle=True)
-    test_loader = get_data_loader(data_test, labels_test)
+    test_loader = get_data_loader(data_test, labels_test, batch_size=batch_size)
 
     # linear(channels, points, classes), mlp(channels, points, classes), atcnet(channels, points, classes)
     for model in [linear(channels, points, classes), mlp(channels, points, classes), atcnet(channels, points, classes)]:
