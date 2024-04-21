@@ -9,7 +9,14 @@ from differlib.models.DNNClassifier import mlp, linear
 from differlib.models.atcnet.atcnet import atcnet
 
 
-def train(model, train_loader, epoch, lr=3e-4, l2_penalty=0):
+def __l1_regularization__(model, l1_penalty=3e-4):
+    regularization_loss = 0
+    for param in model.parameters():
+        regularization_loss += torch.sum(abs(param))  # torch.norm(param, p=1)
+    return l1_penalty * regularization_loss
+
+
+def train(model, train_loader, epoch, lr=3e-4, l1_penalty=0, l2_penalty=0):
     model.to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=l2_penalty)
     model.train()
@@ -19,7 +26,7 @@ def train(model, train_loader, epoch, lr=3e-4, l2_penalty=0):
         data, target = data.to(DEVICE), target.to(DEVICE)
         optimizer.zero_grad()
         output = model(data)
-        loss = criterion(output, target)
+        loss = criterion(output, target) + __l1_regularization__(model, l1_penalty)
         loss.backward()
         train_loss += loss.item()
         optimizer.step()
@@ -63,7 +70,7 @@ def test(model, test_loader, validate=False):
 run_time = datetime.now().strftime("%Y%m%d%H%M%S")
 
 # setup the random number seed
-seed = 0
+seed = 2024
 setup_seed(seed)
 
 # trainer hyperparameters
@@ -71,7 +78,7 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 criterion = nn.CrossEntropyLoss()
 # train hyperparameters
 batch_size = 64
-learn_rate = 3e-4
+learn_rate = 1e-3
 MAX_TRAIN_EPOCHS = 100
 learn_rate_decay = 0.1
 decay_epochs = [200]
@@ -86,7 +93,7 @@ with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
                  f"learn rate decay: {learn_rate_decay}\tdecay epochs: {decay_epochs}\n")
 
 # init dataset & models
-for dataset in ["CamCAN", "DecMeg2014"]:  # "CamCAN", "DecMeg2014"
+for dataset in ["DecMeg2014", "CamCAN"]:
     data, labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
     data_test, labels_test = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
     _, channels, points = data.shape
@@ -95,8 +102,7 @@ for dataset in ["CamCAN", "DecMeg2014"]:  # "CamCAN", "DecMeg2014"
     train_loader = get_data_loader(data, labels, batch_size=batch_size, shuffle=True)
     test_loader = get_data_loader(data_test, labels_test, batch_size=batch_size)
 
-    # linear(channels, points, classes), mlp(channels, points, classes), atcnet(channels, points, classes)
-    for model in [linear(channels, points, classes), mlp(channels, points, classes), atcnet(channels, points, classes)]:
+    for model in [atcnet(channels, points, classes), mlp(channels, points, classes), linear(channels, points, classes)]:
         model_name = model.__class__.__name__
         print(f"Dataset: {dataset}\tModel: {model_name}")
         with open(os.path.join(log_path, "worklog.txt"), "a") as writer:

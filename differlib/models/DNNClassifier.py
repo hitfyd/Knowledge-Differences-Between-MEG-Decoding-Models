@@ -24,17 +24,18 @@ global_gru_pool = 5
 global_gru_dropout = 0.1
 
 global_mlp_hidden_features = 500
+global_mlp_dropout = 0.2
 
 
 # init/reset global network parameters
 def init_global_network_parameters(channels=204, points=100, num_classes=2,
                                    spatial_sources=32, conv_pool=2, conv_dropout=0.5, active_func=nn.ReLU(),
                                    gru1_hidden=100, gru2_hidden=10, gru_pool=5, gru_dropout=0.1,
-                                   mlp_hidden_features=500):
+                                   mlp_hidden_features=500, mlp_dropout=0.2):
     global global_channels, global_points, global_classes, \
         global_spatial_sources, global_conv_pool, global_conv_dropout, global_active_func, \
         global_gru1_hidden, global_gru2_hidden, global_gru_pool, global_gru_dropout, \
-        global_mlp_hidden_features
+        global_mlp_hidden_features, global_mlp_dropout
     global_channels = channels
     global_points = points
     global_classes = num_classes
@@ -47,6 +48,7 @@ def init_global_network_parameters(channels=204, points=100, num_classes=2,
     global_gru_pool = gru_pool
     global_gru_dropout = gru_dropout
     global_mlp_hidden_features = mlp_hidden_features
+    global_mlp_dropout = mlp_dropout
 
 
 # 初始化基准模型
@@ -210,15 +212,15 @@ class MLP(nn.Sequential):
             TensorView(),
             nn.Linear(global_channels * global_points, global_mlp_hidden_features),
             nn.BatchNorm1d(global_mlp_hidden_features),
-            nn.Dropout(0.1),
+            nn.Dropout(global_mlp_dropout),
             nn.ReLU(),
             nn.Linear(global_mlp_hidden_features, global_mlp_hidden_features),
             nn.BatchNorm1d(global_mlp_hidden_features),
-            nn.Dropout(0.2),
+            nn.Dropout(global_mlp_dropout),
             nn.ReLU(),
             nn.Linear(global_mlp_hidden_features, global_classes),
             nn.BatchNorm1d(global_classes),
-            nn.Dropout(0.2),
+            nn.Dropout(global_mlp_dropout),
             nn.Softmax()
         )
 

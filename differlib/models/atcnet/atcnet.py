@@ -14,7 +14,13 @@ from .base import EEGModuleMixin, deprecated_args
 
 def atcnet(channels=204, points=100, num_classes=2, **kwargs):
     # 适应性调整，n_windows设置为了每次滑动占两个卷积块
-    conv_block_pool_size_1 = conv_block_pool_size_2 = 5
+    if points == 100:   # CamCAN Dataset
+        conv_block_pool_size_1 = conv_block_pool_size_2 = 5
+    elif points == 250:   # DecMeg2014 Dataset
+        conv_block_pool_size_1 = 5
+        conv_block_pool_size_2 = 5
+    else:
+        conv_block_pool_size_1 = conv_block_pool_size_2 = 5
     n_windows = int(points / (conv_block_pool_size_1 * conv_block_pool_size_2) - 1)
     return ATCNet(n_outputs=num_classes, n_chans=channels, n_times=points,
                   conv_block_pool_size_1=conv_block_pool_size_1, conv_block_pool_size_2=conv_block_pool_size_2,
