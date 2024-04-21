@@ -77,8 +77,8 @@ setup_seed(seed)
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 criterion = nn.CrossEntropyLoss()
 # train hyperparameters
-batch_size = 64
-learn_rate = 1e-3
+batch_size_list = [64, 128]
+learn_rate_list = [3e-4, 1e-3, 3e-3]
 MAX_TRAIN_EPOCHS = 50
 learn_rate_decay = 0.1
 decay_epochs = [200]
@@ -93,8 +93,10 @@ if not os.path.exists(log_path):
     os.makedirs(log_path)
 with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
     writer.write(f"Run time: {run_time}\t Seed: {seed}\n")
-    writer.write(f"batch size: {batch_size}\tlearn rate: {learn_rate}\tMAX TRAIN EPOCHS: {MAX_TRAIN_EPOCHS}\t"
-                 f"learn rate decay: {learn_rate_decay}\tdecay epochs: {decay_epochs}\n")
+    writer.write(f"batch_size_list: {batch_size_list}\tlearn_rate_list: {learn_rate_list}\t"
+                 f"MAX_TRAIN_EPOCHS: {MAX_TRAIN_EPOCHS}\t"
+                 f"learn_rate_decay: {learn_rate_decay}\tdecay_epochs: {decay_epochs}\t"
+                 f"datasets: {datasets}\tmodels: {models}\n")
 
 # init dataset & models
 for dataset in datasets:
@@ -103,38 +105,44 @@ for dataset in datasets:
     _, channels, points = data.shape
     classes = len(set(labels_test))
 
-    train_loader = get_data_loader(data, labels, batch_size=batch_size, shuffle=True)
-    test_loader = get_data_loader(data_test, labels_test, batch_size=batch_size)
-
-    for model in models:
-        model = model(channels=channels, points=points, classes=classes)
-        model_name = model.__class__.__name__
-        print(f"Dataset: {dataset}\tModel: {model_name}")
-        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-            writer.write(f"Dataset: {dataset}\tModel: {model_name}\n")
-
-        best_test_accuracy = 0.0
-        best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{run_time}_checkpoint.pt")
-        for epoch in range(MAX_TRAIN_EPOCHS):
-            if epoch in decay_epochs:
-                learn_rate = learn_rate * learn_rate_decay
-
-            train_accuracy, train_loss = train(model, train_loader, epoch, learn_rate)
-            test_accuracy, test_loss = test(model, test_loader)
-
-            with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                writer.write(f"epoch: {epoch}\tlearn_rate: {learn_rate}\t"
-                             f"train_accuracy: {train_accuracy:.6f}\ttrain_loss: {train_loss:.6f}\t"
-                             f"test_accuracy: {test_accuracy:.6f}\ttest_loss: {test_loss:.6f}\n")
-
-            if test_accuracy > best_test_accuracy:
-                print(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}')
+    for model_ in models:
+        for batch_size in batch_size_list:
+            for learn_rate in learn_rate_list:
+                setup_seed(seed)
+                train_loader = get_data_loader(data, labels, batch_size=batch_size, shuffle=True)
+                test_loader = get_data_loader(data_test, labels_test)
+                model = model_(channels=channels, points=points, classes=classes)
+                model_name = model.__class__.__name__
+                print(f"Dataset: {dataset}\tModel: {model_name}\tLearning Rate: {learn_rate}\tBatch Size: {batch_size}")
                 with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                    writer.write(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}\n')
-                best_test_accuracy = test_accuracy
-                save_checkpoint(model.state_dict(), best_checkpoint_path)
-        print(f'Dataset: {dataset}\tModel: {model_name}\tBest Test Accuracy: {best_test_accuracy:.6f}\t'
-              f'Checkpoint: {best_checkpoint_path}')
-        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-            writer.write(f'Dataset: {dataset}\tModel: {model_name}\tBest Test Accuracy: {best_test_accuracy:.6f}\t'
-                         f'Checkpoint: {best_checkpoint_path}\n')
+                    writer.write(f"Dataset: {dataset}\tModel: {model_name}\t"
+                                 f"Learning Rate: {learn_rate}\tBatch Size: {batch_size}\n")
+
+                best_test_accuracy = 0.0
+                best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_"
+                                                              f"{run_time}_checkpoint.pt")
+                for epoch in range(MAX_TRAIN_EPOCHS):
+                    if epoch in decay_epochs:
+                        learn_rate = learn_rate * learn_rate_decay
+
+                    train_accuracy, train_loss = train(model, train_loader, epoch, learn_rate)
+                    test_accuracy, test_loss = test(model, test_loader)
+
+                    with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                        writer.write(f"epoch: {epoch}\tlearn_rate: {learn_rate}\t"
+                                     f"train_accuracy: {train_accuracy:.6f}\ttrain_loss: {train_loss:.6f}\t"
+                                     f"test_accuracy: {test_accuracy:.6f}\ttest_loss: {test_loss:.6f}\n")
+
+                    if test_accuracy > best_test_accuracy:
+                        print(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}')
+                        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                            writer.write(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}\n')
+                        best_test_accuracy = test_accuracy
+                        save_checkpoint(model.state_dict(), best_checkpoint_path)
+                print(f'Dataset: {dataset}\tModel: {model_name}\t'
+                      f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
+                      f'Best Test Accuracy: {best_test_accuracy:.6f}\tCheckpoint: {best_checkpoint_path}')
+                with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                    writer.write(f'Dataset: {dataset}\tModel: {model_name}\t'
+                                 f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
+                                 f'Best Test Accuracy: {best_test_accuracy:.6f}\tCheckpoint: {best_checkpoint_path}\n')
