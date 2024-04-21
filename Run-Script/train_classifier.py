@@ -79,9 +79,13 @@ criterion = nn.CrossEntropyLoss()
 # train hyperparameters
 batch_size = 64
 learn_rate = 1e-3
-MAX_TRAIN_EPOCHS = 100
+MAX_TRAIN_EPOCHS = 50
 learn_rate_decay = 0.1
 decay_epochs = [200]
+
+# datasets
+datasets = ["DecMeg2014", "CamCAN"]
+models = [atcnet, mlp, linear]
 
 # log config
 log_path = f"./output/Train_Classifier_{run_time}/"
@@ -93,7 +97,7 @@ with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
                  f"learn rate decay: {learn_rate_decay}\tdecay epochs: {decay_epochs}\n")
 
 # init dataset & models
-for dataset in ["DecMeg2014", "CamCAN"]:
+for dataset in datasets:
     data, labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
     data_test, labels_test = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
     _, channels, points = data.shape
@@ -102,7 +106,8 @@ for dataset in ["DecMeg2014", "CamCAN"]:
     train_loader = get_data_loader(data, labels, batch_size=batch_size, shuffle=True)
     test_loader = get_data_loader(data_test, labels_test, batch_size=batch_size)
 
-    for model in [atcnet(channels, points, classes), mlp(channels, points, classes), linear(channels, points, classes)]:
+    for model in models:
+        model = model(channels=channels, points=points, classes=classes)
         model_name = model.__class__.__name__
         print(f"Dataset: {dataset}\tModel: {model_name}")
         with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
