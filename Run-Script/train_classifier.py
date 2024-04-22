@@ -5,7 +5,8 @@ import torch
 from torch import nn, optim
 
 from differlib.engine.utils import get_data_labels_from_dataset, save_checkpoint, get_data_loader, setup_seed
-from differlib.models.DNNClassifier import mlp, linear
+from differlib.models import sdt
+from differlib.models.DNNClassifier import mlp, linear, lfcnn, varcnn, hgrn
 from differlib.models.atcnet.atcnet import atcnet
 
 
@@ -85,7 +86,8 @@ decay_epochs = [200]
 
 # datasets
 datasets = ["DecMeg2014", "CamCAN"]
-models = [atcnet, mlp, linear]
+# models = [atcnet, mlp, linear]
+models = [sdt, lfcnn, varcnn, hgrn]
 
 # log config
 log_path = f"./output/Train_Classifier_{run_time}/"
@@ -103,7 +105,7 @@ for dataset in datasets:
     data, labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
     data_test, labels_test = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
     _, channels, points = data.shape
-    classes = len(set(labels_test))
+    num_classes = len(set(labels_test))
 
     for model_ in models:
         for batch_size in batch_size_list:
@@ -111,7 +113,7 @@ for dataset in datasets:
                 setup_seed(seed)
                 train_loader = get_data_loader(data, labels, batch_size=batch_size, shuffle=True)
                 test_loader = get_data_loader(data_test, labels_test)
-                model = model_(channels=channels, points=points, classes=classes)
+                model = model_(channels=channels, points=points, num_classes=num_classes)
                 model_name = model.__class__.__name__
                 print(f"Dataset: {dataset}\tModel: {model_name}\tLearning Rate: {learn_rate}\tBatch Size: {batch_size}")
                 with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
