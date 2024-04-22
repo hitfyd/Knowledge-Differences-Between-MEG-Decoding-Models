@@ -86,8 +86,8 @@ decay_epochs = [200]
 
 # datasets
 datasets = ["DecMeg2014", "CamCAN"]
-# models = [atcnet, mlp, linear]
-models = [sdt, lfcnn, varcnn, hgrn]
+models = [atcnet, mlp, linear]
+# models = [sdt, lfcnn, varcnn, hgrn]
 
 # log config
 log_path = f"./output/Train_Classifier_{run_time}/"

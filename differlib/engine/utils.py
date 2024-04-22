@@ -126,6 +126,22 @@ def predict(model, data, num_classes=2, batch_size=4096, eval=False):
     return output
 
 
+def model_eval(model, data_loader):
+    model.cuda()
+    model.eval()
+    correct = 0
+    with torch.no_grad():
+        for data, target in data_loader:
+            data, target = data.cuda(), target.cuda()
+            data = data.float()
+            output = model(data)
+            pred = output.max(1, keepdim=True)[1]  # 找到概率最大的下标
+            correct += pred.eq(target.view_as(pred)).sum().item()
+
+    accuracy = 100. * correct / len(data_loader.dataset)
+    return accuracy
+
+
 def predict_output(model: torch.nn, data: np.ndarray, softmax=True):
     data_torch = torch.from_numpy(data).float().cuda()
     model.eval()

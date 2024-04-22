@@ -10,11 +10,12 @@ from sklearn.model_selection import StratifiedKFold
 
 from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
-from differlib.engine.utils import log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, save_checkpoint, \
-    predict_output
+from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, get_data_loader,
+                                    save_checkpoint, predict_output, model_eval)
 from differlib.explainer import explainer_dict
 from differlib.feature_selection import fsm_dict
 from differlib.models import model_dict
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
@@ -44,8 +45,11 @@ if __name__ == "__main__":
     setup_seed(cfg.EXPERIMENT.SEED)
 
     # init dataset & models
-    data, labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
-    # data, labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(cfg.DATASET.TYPE))
+    test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
+    train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(cfg.DATASET.TYPE))
+    train_loader = get_data_loader(train_data, train_labels)
+    test_loader = get_data_loader(test_data, test_labels)
+    data, labels = test_data, test_labels
     dataset = cfg.DATASET.TYPE
     n_samples, channels, points = data.shape
     n_classes = len(set(labels))
@@ -61,6 +65,10 @@ if __name__ == "__main__":
         channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
     model_A.load_state_dict(load_checkpoint(model_A_pretrain_path))
     model_A = model_A.cuda()
+    train_accuracy = model_eval(model_A, train_loader)
+    test_accuracy = model_eval(model_A, test_loader)
+    print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
+    print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
 
     print(log_msg("Loading model B {}".format(cfg.MODELS.B), "INFO"))
     model_B_type, model_B_pretrain_path = model_dict[cfg.MODELS.B]
@@ -69,6 +77,10 @@ if __name__ == "__main__":
         channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
     model_B.load_state_dict(load_checkpoint(model_B_pretrain_path))
     model_B = model_B.cuda()
+    train_accuracy = model_eval(model_B, train_loader)
+    test_accuracy = model_eval(model_B, test_loader)
+    print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
+    print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
 
     # init data augmentation
     augmentation_type = cfg.AUGMENTATION.TYPE

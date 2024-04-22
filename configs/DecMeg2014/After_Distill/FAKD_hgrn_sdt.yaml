@@ -12,10 +12,10 @@ MODELS:
   A: "DecMeg2014_sdt_hgrn_fakd"
   B: "DecMeg2014_sdt"
 AUGMENTATION:
-  TYPE: "SMOTE"
+  TYPE: "BASE"
 SELECTION:
-  TYPE: "LR"
-  RATE: 0.01
+  TYPE: "DiffShapley"
+  RATE: 0.1
 EXPLAINER:
   TYPE: "Logit"
   MAX_DEPTH: 5
