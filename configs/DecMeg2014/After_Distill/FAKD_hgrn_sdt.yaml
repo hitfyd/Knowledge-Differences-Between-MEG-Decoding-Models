@@ -12,9 +12,9 @@ MODELS:
   A: "DecMeg2014_sdt_hgrn_fakd"
   B: "DecMeg2014_sdt"
 AUGMENTATION:
-  TYPE: "BASE"
+  TYPE: "NONE"
 SELECTION:
-  TYPE: "DiffShapley"
+  TYPE: "NONE"
   RATE: 0.1
 EXPLAINER:
   TYPE: "Logit"

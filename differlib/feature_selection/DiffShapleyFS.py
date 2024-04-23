@@ -23,7 +23,7 @@ class DiffShapleyFS(FSMethod):
                          )
         self.method = None
         self.contributions = None
-        self.window_length = 125
+        self.window_length = 250
         self.M = 2
 
     def fit(self, x: np.ndarray, model1, model2, *args, channels=204, points=250, **kwargs):

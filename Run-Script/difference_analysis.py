@@ -13,6 +13,7 @@ from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, get_data_loader,
                                     save_checkpoint, predict_output, model_eval)
 from differlib.explainer import explainer_dict
+from differlib.feature_extraction import feature_extraction
 from differlib.feature_selection import fsm_dict
 from differlib.models import model_dict
 
@@ -122,7 +123,7 @@ if __name__ == "__main__":
 
         # selection_method.fit(x_train.reshape((-1, channels * points)), output_A[train_index], output_B[train_index])
 
-        x_test = data[test_index].reshape((-1, channels * points))
+        x_test = data[test_index].reshape((len(test_index), -1))
         output_A_test = output_A[test_index]
         output_B_test = output_B[test_index]
         pred_target_A_test = pred_target_A[test_index]
@@ -137,14 +138,19 @@ if __name__ == "__main__":
         delta_diff = (ydiff != delta_target_aug).astype(int)
         print(f"delta_diffs in X_train = {delta_diff.sum()} / {len(delta_diff)} = {(delta_diff.sum() / len(delta_diff) * 100):.2f}%")
 
-        x_train_aug = x_train_aug.reshape((-1, channels * points))
+        x_train_aug = x_train_aug.reshape((len(x_train_aug), -1))
         if selection_type in ["DiffShapley"]:
             selection_method.fit(x_train_aug, model_A, model_B)
         else:
             selection_method.fit(x_train_aug, output_A_train, output_B_train)
+        x_train_aug = selection_method.transform(x_train_aug, selection_rate)
+        x_test = selection_method.transform(x_test, selection_rate)
 
-        x_train = pd.DataFrame(selection_method.transform(x_train_aug, selection_rate))
-        x_test = pd.DataFrame(selection_method.transform(x_test, selection_rate))
+        x_train_aug = feature_extraction(x_train_aug)
+        x_test = feature_extraction(x_test)
+
+        x_train = pd.DataFrame(x_train_aug)
+        x_test = pd.DataFrame(x_test)
         print(x_train.shape, x_test.shape)
 
         if explainer_type in ["Logit"]:
