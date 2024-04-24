@@ -14,7 +14,7 @@ MODELS:
 AUGMENTATION:
   TYPE: "NONE"
 SELECTION:
-  TYPE: "NONE"
+  TYPE: "DiffShapley"
   RATE: 0.1
 EXPLAINER:
   TYPE: "Logit"
