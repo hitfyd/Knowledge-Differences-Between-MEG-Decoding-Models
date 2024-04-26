@@ -139,15 +139,14 @@ if __name__ == "__main__":
         print(f"delta_diffs in X_train = {delta_diff.sum()} / {len(delta_diff)} = {(delta_diff.sum() / len(delta_diff) * 100):.2f}%")
 
         x_train_aug = x_train_aug.reshape((len(x_train_aug), -1))
+        x_train_aug = feature_extraction(x_train_aug)
+        x_test = feature_extraction(x_test)
         if selection_type in ["DiffShapley"]:
             selection_method.fit(x_train_aug, model_A, model_B)
         else:
             selection_method.fit(x_train_aug, output_A_train, output_B_train)
         x_train_aug = selection_method.transform(x_train_aug, selection_rate)
         x_test = selection_method.transform(x_test, selection_rate)
-
-        x_train_aug = feature_extraction(x_train_aug)
-        x_test = feature_extraction(x_test)
 
         x_train = pd.DataFrame(x_train_aug)
         x_test = pd.DataFrame(x_test)

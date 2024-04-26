@@ -52,6 +52,7 @@ def feature_extraction(x: np.ndarray, window_length=50):
             # sample_features.extend(theta_power)
             sample_features.extend(alpha_power)
             sample_features.extend(beta_power)
+            sample_features.extend(alpha_power / beta_power)
             # sample_features.extend(gamma_power)
         x_features.append(sample_features)
     return np.array(x_features)
