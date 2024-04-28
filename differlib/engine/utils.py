@@ -49,6 +49,13 @@ def get_data_loader_from_dataset(dataset_path, batch_size=256, shuffle=True):
     return get_data_loader(data, labels, batch_size, shuffle)
 
 
+def sample_normalize(data):
+    mu = np.mean(data, axis=0)
+    std = np.std(data, axis=0)
+    return (data - mu)/std
+
+
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
 

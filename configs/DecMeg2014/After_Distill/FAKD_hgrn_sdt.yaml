@@ -13,8 +13,12 @@ MODELS:
   B: "DecMeg2014_sdt"
 AUGMENTATION:
   TYPE: "NONE"
+NORMALIZATION:
+  FLAG: False
+EXTRACTION:
+  FLAG: False
 SELECTION:
-  TYPE: "LR"
+  TYPE: "DiffShapley"
   RATE: 0.01
 EXPLAINER:
   TYPE: "Logit"

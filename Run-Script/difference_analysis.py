@@ -11,7 +11,7 @@ from sklearn.model_selection import StratifiedKFold
 from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, get_data_loader,
-                                    save_checkpoint, predict_output, model_eval)
+                                    save_checkpoint, predict_output, model_eval, sample_normalize)
 from differlib.explainer import explainer_dict
 from differlib.feature_extraction import feature_extraction
 from differlib.feature_selection import fsm_dict
@@ -87,6 +87,12 @@ if __name__ == "__main__":
     augmentation_type = cfg.AUGMENTATION.TYPE
     augmentation_method = am_dict[augmentation_type]()
 
+    # Normalization
+    normalize = cfg.NORMALIZATION.FLAG
+
+    # Extraction
+    extract = cfg.EXTRACTION.FLAG
+
     # init feature selection
     selection_type = cfg.SELECTION.TYPE
     selection_method = fsm_dict[selection_type]()
@@ -123,7 +129,7 @@ if __name__ == "__main__":
 
         # selection_method.fit(x_train.reshape((-1, channels * points)), output_A[train_index], output_B[train_index])
 
-        x_test = data[test_index].reshape((len(test_index), -1))
+        x_test = data[test_index]
         output_A_test = output_A[test_index]
         output_B_test = output_B[test_index]
         pred_target_A_test = pred_target_A[test_index]
@@ -139,8 +145,19 @@ if __name__ == "__main__":
         print(f"delta_diffs in X_train = {delta_diff.sum()} / {len(delta_diff)} = {(delta_diff.sum() / len(delta_diff) * 100):.2f}%")
 
         x_train_aug = x_train_aug.reshape((len(x_train_aug), -1))
-        x_train_aug = feature_extraction(x_train_aug)
-        x_test = feature_extraction(x_test)
+        x_test = x_test.reshape((len(test_index), -1))
+        # 之后数据形状均为（n_samples, channels*points）
+
+        # Normalization
+        if normalize:
+            x_train_aug = sample_normalize(x_train_aug)
+            x_test = sample_normalize(x_test)
+
+        # Feature Extraction
+        if extract:
+            x_train_aug = feature_extraction(x_train_aug)
+            x_test = feature_extraction(x_test)
+
         if selection_type in ["DiffShapley"]:
             selection_method.fit(x_train_aug, model_A, model_B)
         else:
