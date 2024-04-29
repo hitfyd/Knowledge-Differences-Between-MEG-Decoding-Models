@@ -108,7 +108,7 @@ def validate(val_loader, distiller):
     return top1.avg, losses.avg
 
 
-def predict(model, data, num_classes=2, batch_size=4096, eval=False):
+def predict(model, data, num_classes=2, batch_size=4096, eval=False, softmax=True):
     model.cuda()
     data = torch.from_numpy(data)
     data_split = torch.split(data, batch_size, dim=0)
@@ -130,6 +130,11 @@ def predict(model, data, num_classes=2, batch_size=4096, eval=False):
             output[start:start + len(batch_data)] = model(batch_data)
             start += len(batch_data)
     model.train()
+    if softmax:
+        if model.__class__.__name__ in ["LFCNN", "VARCNN"]:
+            output = torch.exp(output) / torch.sum(torch.exp(output), dim=-1, keepdim=True)
+        if model.__class__.__name__ in ["HGRN", "ATCNet"]:
+            output = torch.exp(output)
     return output
 
 
@@ -157,16 +162,17 @@ def predict_output(model: torch.nn, data: np.ndarray, softmax=True):
     _, pred_target = output.topk(1, 1, True, True)
     output = output.cpu().detach().numpy()
     pred_target = pred_target.squeeze().cpu().detach().numpy()
-    if softmax and model.__class__.__name__ in ["LFCNN", "VARCNN"]:
-        output = np.exp(output) / np.sum(np.exp(output), axis=-1, keepdims=True)
-    if softmax and model.__class__.__name__ in ["HGRN", "ATCNet"]:
-        output = np.exp(output)
+    if softmax:
+        if model.__class__.__name__ in ["LFCNN", "VARCNN"]:
+            output = np.exp(output) / np.sum(np.exp(output), axis=-1, keepdims=True)
+        if model.__class__.__name__ in ["HGRN", "ATCNet"]:
+            output = np.exp(output)
     return output, pred_target
 
 
-def individual_predict(model, individual_data, eval=True):
-    pred = predict(model, np.expand_dims(individual_data, 0), eval=eval)
-    return pred[0]
+# def individual_predict(model, individual_data, eval=True):
+#     pred = predict(model, np.expand_dims(individual_data, 0), eval=eval)
+#     return pred[0]
 
 
 def log_msg(msg, mode="INFO"):

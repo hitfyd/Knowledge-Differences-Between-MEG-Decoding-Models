@@ -153,17 +153,17 @@ if __name__ == "__main__":
             x_train_aug = sample_normalize(x_train_aug)
             x_test = sample_normalize(x_test)
 
-        # Feature Extraction
-        if extract:
-            x_train_aug = feature_extraction(x_train_aug)
-            x_test = feature_extraction(x_test)
-
         if selection_type in ["DiffShapley"]:
             selection_method.fit(x_train_aug, model_A, model_B)
         else:
             selection_method.fit(x_train_aug, output_A_train, output_B_train)
         x_train_aug = selection_method.transform(x_train_aug, selection_rate)
         x_test = selection_method.transform(x_test, selection_rate)
+
+        # Feature Extraction
+        if extract:
+            x_train_aug = feature_extraction(x_train_aug)
+            x_test = feature_extraction(x_test)
 
         x_train = pd.DataFrame(x_train_aug)
         x_test = pd.DataFrame(x_test)

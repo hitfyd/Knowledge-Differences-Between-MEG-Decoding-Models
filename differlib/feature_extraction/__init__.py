@@ -44,16 +44,18 @@ def feature_extraction(x: np.ndarray, window_length=50):
 
             # 按频带范围求平均能量
             # delta_power = np.mean(power[np.where((frequencies >= 0.5) & (frequencies < 4))[0], :], axis=0)
-            # theta_power = np.mean(power[np.where((frequencies >= 4) & (frequencies < 8))[0], :], axis=0)
+            theta_power = np.mean(power[np.where((frequencies >= 4) & (frequencies < 8))[0], :], axis=0)
             alpha_power = np.mean(power[np.where((frequencies >= 8) & (frequencies < 12))[0], :], axis=0)
             beta_power = np.mean(power[np.where((frequencies >= 12) & (frequencies < 30))[0], :], axis=0)
-            # gamma_power = np.mean(power[np.where((frequencies >= 30) & (frequencies <= 50))[0], :], axis=0)
-            # sample_features.extend(delta_power)
-            # sample_features.extend(theta_power)
+            gamma_power = np.mean(power[np.where((frequencies >= 30) & (frequencies <= 50))[0], :], axis=0)
+            # sample_features.extend(delta_power)   # 容易为nan
+            sample_features.extend(theta_power)
             sample_features.extend(alpha_power)
             sample_features.extend(beta_power)
             sample_features.extend(alpha_power / beta_power)
-            # sample_features.extend(gamma_power)
+            sample_features.extend(gamma_power)
+
+            # sample_features.extend(power.reshape(-1))
         x_features.append(sample_features)
     return np.array(x_features)
 

@@ -8,7 +8,7 @@ from ..engine.utils import predict
 
 
 class DiffShapleyFS(FSMethod):
-    def __init__(self, parallel=False, n_jobs=64):
+    def __init__(self, parallel=True, n_jobs=32):
         super(DiffShapleyFS, self).__init__()
         self.parallel = parallel
         self.n_jobs = n_jobs
@@ -94,6 +94,35 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES):
     features = (S1_preds.view(n_samples, features_num, M, -1) -
                 S2_preds.view(n_samples, features_num, M, -1)).sum(axis=2) / M
     return features.cpu().detach().numpy()
+
+
+def diff_shapley_feature(data, model1, model2, window_length, M, NUM_CLASSES):
+    n_samples, n_features = data.shape
+
+    S1 = np.zeros((n_samples, n_features, M, n_features), dtype=np.float16)
+    S2 = np.zeros((n_samples, n_features, M, n_features), dtype=np.float16)
+
+    for feature in range(n_features):
+        for m in range(M):
+            # 直接生成0，1数组，最后确保feature位满足要求，并且将数据类型改为Boolean型减少后续矩阵点乘计算量
+            feature_mark = np.random.randint(0, 2, n_features, dtype=np.bool_)  # bool_类型不能改为int8类型
+            feature_mark[feature] = 0
+            for index in range(n_samples):
+                # 随机选择一个参考样本，用于替换不考虑的特征核
+                reference_index = (index + np.random.randint(1, n_samples)) % n_samples
+                assert index != reference_index  # 参考样本不能是样本本身
+                reference_input = data[reference_index]
+                S1[index, feature, m] = S2[index, feature, m] = feature_mark * data[index] + ~feature_mark * reference_input
+                S1[index, feature, m, feature] = data[index, feature]
+
+    # 计算S1和S2的预测差值
+    # S1 = S1.reshape(-1, channels, points)
+    # S2 = S2.reshape(-1, channels, points)
+    # S1_preds = predict(model1, S1, NUM_CLASSES, eval=True) - predict(model2, S1, NUM_CLASSES, eval=True)
+    # S2_preds = predict(model1, S2, NUM_CLASSES, eval=True) - predict(model2, S2, NUM_CLASSES, eval=True)
+    # features = (S1_preds.view(n_samples, features_num, M, -1) -
+    #             S2_preds.view(n_samples, features_num, M, -1)).sum(axis=2) / M
+    # return features.cpu().detach().numpy()
 
 
 def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES):
