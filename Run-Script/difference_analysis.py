@@ -17,7 +17,6 @@ from differlib.feature_extraction import feature_extraction
 from differlib.feature_selection import fsm_dict
 from differlib.models import model_dict
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
     parser.add_argument("--cfg", type=str, default="")
@@ -142,7 +141,8 @@ if __name__ == "__main__":
         ydiff = (pred_target_A_train != pred_target_B_train).astype(int)
         print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
         delta_diff = (ydiff != delta_target_aug).astype(int)
-        print(f"delta_diffs in X_train = {delta_diff.sum()} / {len(delta_diff)} = {(delta_diff.sum() / len(delta_diff) * 100):.2f}%")
+        print(
+            f"delta_diffs in X_train = {delta_diff.sum()} / {len(delta_diff)} = {(delta_diff.sum() / len(delta_diff) * 100):.2f}%")
 
         x_train_aug = x_train_aug.reshape((len(x_train_aug), -1))
         x_test = x_test.reshape((len(test_index), -1))
@@ -172,7 +172,8 @@ if __name__ == "__main__":
         if explainer_type in ["Logit"]:
             explainer.fit(x_train, output_A_train, output_B_train, max_depth, min_samples_leaf=min_samples_leaf)
         else:
-            explainer.fit(x_train, pred_target_A_train, pred_target_B_train, max_depth, min_samples_leaf=min_samples_leaf)
+            explainer.fit(x_train, pred_target_A_train, pred_target_B_train, max_depth,
+                          min_samples_leaf=min_samples_leaf)
 
         diffrules = explainer.explain()
         print(diffrules)
@@ -190,7 +191,8 @@ if __name__ == "__main__":
         else:
             test_metrics = explainer.metrics(x_test, pred_target_A_test, pred_target_B_test)
 
-        print("skf_id", skf_id, "Explainer", explainer_type, "max_depth", max_depth, "min_samples_leaf", min_samples_leaf)
+        print("skf_id", skf_id, "Explainer", explainer_type, "max_depth", max_depth, "min_samples_leaf",
+              min_samples_leaf)
         print("Train set", train_metrics)
         print("Test set", test_metrics)
         with open(os.path.join(log_path, "worklog.txt"), "a") as writer:

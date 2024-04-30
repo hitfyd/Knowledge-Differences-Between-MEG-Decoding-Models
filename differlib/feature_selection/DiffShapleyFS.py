@@ -152,6 +152,7 @@ def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES):
                     data_r[index][channel_list[feature], point_start_list[feature]:point_start_list[feature] + window_length]
         return feature, S1_r, S2_r
 
+    # for index in range(n_samples):  # 改造为依次计算每一个样本的贡献矩阵；然后在样本贡献中并行
     data_ = ray.put(data)
     rs = [run.remote(feature, data_) for feature in range(features_num)]
     rs_list = ray.get(rs)

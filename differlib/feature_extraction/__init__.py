@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def feature_extraction(x: np.ndarray, window_length=50):
+def feature_extraction(x: np.ndarray, window_length=25):
     assert x.ndim == 2
     num_samples, num_times = x.shape
     num_windows = num_times // window_length
@@ -32,30 +32,30 @@ def feature_extraction(x: np.ndarray, window_length=50):
             # Frequency Domain Features：针对平稳信号（静息态）
             pass
 
-        for c in range(channels):
-            # Time-Frequency Domain：针对非平稳信号
-            channel_data = x[i, c*points:(c+1)*points]
-            window_type = 'hann'  # 窗口类型
-            overlap = 0  # 重叠比例
-            from scipy.signal import stft
-            frequencies, time_points, magnitude = stft(channel_data, fs=250, window=window_type, nperseg=window_length,
-                                                       noverlap=overlap)
-            power = np.abs(magnitude) ** 2
-
-            # 按频带范围求平均能量
-            # delta_power = np.mean(power[np.where((frequencies >= 0.5) & (frequencies < 4))[0], :], axis=0)
-            theta_power = np.mean(power[np.where((frequencies >= 4) & (frequencies < 8))[0], :], axis=0)
-            alpha_power = np.mean(power[np.where((frequencies >= 8) & (frequencies < 12))[0], :], axis=0)
-            beta_power = np.mean(power[np.where((frequencies >= 12) & (frequencies < 30))[0], :], axis=0)
-            gamma_power = np.mean(power[np.where((frequencies >= 30) & (frequencies <= 50))[0], :], axis=0)
-            # sample_features.extend(delta_power)   # 容易为nan
-            sample_features.extend(theta_power)
-            sample_features.extend(alpha_power)
-            sample_features.extend(beta_power)
-            sample_features.extend(alpha_power / beta_power)
-            sample_features.extend(gamma_power)
-
-            # sample_features.extend(power.reshape(-1))
+        # for c in range(channels):
+        #     # Time-Frequency Domain：针对非平稳信号
+        #     channel_data = x[i, c*points:(c+1)*points]
+        #     window_type = 'hann'  # 窗口类型
+        #     overlap = 0  # 重叠比例
+        #     from scipy.signal import stft
+        #     frequencies, time_points, magnitude = stft(channel_data, fs=250, window=window_type, nperseg=window_length,
+        #                                                noverlap=overlap)
+        #     power = np.abs(magnitude) ** 2
+        #
+        #     # 按频带范围求平均能量
+        #     # delta_power = np.mean(power[np.where((frequencies >= 0.5) & (frequencies < 4))[0], :], axis=0)
+        #     theta_power = np.mean(power[np.where((frequencies >= 4) & (frequencies < 8))[0], :], axis=0)
+        #     alpha_power = np.mean(power[np.where((frequencies >= 8) & (frequencies < 12))[0], :], axis=0)
+        #     beta_power = np.mean(power[np.where((frequencies >= 12) & (frequencies < 30))[0], :], axis=0)
+        #     gamma_power = np.mean(power[np.where((frequencies >= 30) & (frequencies <= 50))[0], :], axis=0)
+        #     # sample_features.extend(delta_power)   # 容易为nan
+        #     sample_features.extend(theta_power)
+        #     sample_features.extend(alpha_power)
+        #     sample_features.extend(beta_power)
+        #     sample_features.extend(alpha_power / beta_power)
+        #     sample_features.extend(gamma_power)
+        #
+        #     # sample_features.extend(power.reshape(-1))
         x_features.append(sample_features)
     return np.array(x_features)
 
