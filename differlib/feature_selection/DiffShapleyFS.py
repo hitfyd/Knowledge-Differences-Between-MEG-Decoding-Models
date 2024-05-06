@@ -2,13 +2,14 @@ import numpy as np
 import ray
 from boruta import BorutaPy
 from sklearn.ensemble import RandomForestClassifier
+from tqdm import tqdm
 
 from .fsm import FSMethod
 from ..engine.utils import predict
 
 
 class DiffShapleyFS(FSMethod):
-    def __init__(self, parallel=True, n_jobs=32):
+    def __init__(self, parallel=True, n_jobs=64):
         super(DiffShapleyFS, self).__init__()
         self.parallel = parallel
         self.n_jobs = n_jobs
@@ -22,21 +23,28 @@ class DiffShapleyFS(FSMethod):
                          log_to_driver=False,  # 日志记录不配置到driver
                          )
         self.method = None
+        self.all_sample_feature_maps = None
         self.contributions = None
-        self.window_length = 250
-        self.M = 2
+        self.logit_delta = None
+        self.sample_weights = None
 
-    def fit(self, x: np.ndarray, model1, model2, *args, channels=204, points=250, **kwargs):
+    def fit(self, x: np.ndarray, model1, model2, channels, points, n_classes, *args, window_length=None, M=4, **kwargs):
         n_samples, _ = x.shape
+        x = x.reshape((n_samples, channels, points))
+        if window_length is None:
+            window_length = points // 1
+        self.logit_delta = predict(model1, x, n_classes, eval=True) - predict(model2, x, n_classes, eval=True)
+        self.logit_delta = self.logit_delta.cpu().detach().numpy()
+        self.sample_weights = self.logit_delta[:, 0]
         if self.parallel:
-            feature = diff_shapley_parallel(x.reshape((n_samples, channels, points)), model1, model2,
-                                            window_length=self.window_length, M=self.M, NUM_CLASSES=2)
+            self.all_sample_feature_maps = diff_shapley_parallel(x, model1, model2, window_length, M, n_classes)
         else:
-            feature = diff_shapley(x.reshape((n_samples, channels, points)), model1, model2,
-                                   window_length=self.window_length, M=self.M, NUM_CLASSES=2)
-        self.contributions = feature.sum(axis=0) / n_samples
+            self.all_sample_feature_maps = diff_shapley(x, model1, model2, window_length, M, n_classes)
+        # self.contributions = self.all_sample_feature_maps.mean(axis=0)
+        self.contributions = self.all_sample_feature_maps.sum(axis=0) / n_samples
+        self.contributions = np.average(self.all_sample_feature_maps, axis=0, weights=self.sample_weights)
         self.contributions = np.abs(self.contributions[:, 0])
-        self.contributions = np.repeat(self.contributions, self.window_length)
+        self.contributions = np.repeat(self.contributions, window_length)
         print(self.contributions.shape)
         print(self.contributions)
 
@@ -125,46 +133,95 @@ def diff_shapley_feature(data, model1, model2, window_length, M, NUM_CLASSES):
     # return features.cpu().detach().numpy()
 
 
+# def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES):
+#     n_samples, channels, points = data.shape
+#     features_num, channel_list, point_start_list = feature_segment(channels, points, window_length)
+#
+#     S1 = np.zeros((n_samples, features_num, M, channels, points), dtype=np.float16)
+#     S2 = np.zeros((n_samples, features_num, M, channels, points), dtype=np.float16)
+#
+#     @ray.remote
+#     def run(feature, data_r):
+#         S1_r = np.zeros((n_samples, M, channels, points), dtype=np.float16)
+#         S2_r = np.zeros((n_samples, M, channels, points), dtype=np.float16)
+#         for m in range(M):
+#             # 直接生成0，1数组，最后确保feature位满足要求，并且将数据类型改为Boolean型减少后续矩阵点乘计算量
+#             feature_mark = np.random.randint(0, 2, features_num, dtype=np.bool_)    # bool_类型不能改为int8类型
+#             feature_mark[feature] = 0
+#             feature_mark = np.repeat(feature_mark, window_length)
+#             feature_mark = np.reshape(feature_mark, (channels, points))  # reshape是view，resize是copy
+#             for index in range(n_samples):
+#                 # 随机选择一个参考样本，用于替换不考虑的特征核
+#                 reference_index = (index + np.random.randint(1, n_samples)) % n_samples
+#                 assert index != reference_index # 参考样本不能是样本本身
+#                 reference_input = data_r[reference_index]
+#                 S1_r[index, m] = S2_r[index, m] = feature_mark * data_r[index] + ~feature_mark * reference_input
+#                 S1_r[index, m][channel_list[feature], point_start_list[feature]:point_start_list[feature] + window_length] = \
+#                     data_r[index][channel_list[feature], point_start_list[feature]:point_start_list[feature] + window_length]
+#         return feature, S1_r, S2_r
+#
+#     data_ = ray.put(data)
+#     rs = [run.remote(feature, data_) for feature in range(features_num)]
+#     rs_list = ray.get(rs)
+#     for feature, S1_r, S2_r in rs_list:
+#         S1[:, feature] = S1_r
+#         S2[:, feature] = S2_r
+#
+#     # 计算S1和S2的预测差值
+#     S1 = S1.reshape(-1, channels, points)
+#     S2 = S2.reshape(-1, channels, points)
+#     S1_preds = predict(model1, S1, NUM_CLASSES, eval=True) - predict(model2, S1, NUM_CLASSES, eval=True)
+#     S2_preds = predict(model1, S2, NUM_CLASSES, eval=True) - predict(model2, S2, NUM_CLASSES, eval=True)
+#     features = (S1_preds.view(n_samples, features_num, M, -1) -
+#                 S2_preds.view(n_samples, features_num, M, -1)).sum(axis=2) / M
+#     return features.cpu().detach().numpy()
+
+
 def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES):
     n_samples, channels, points = data.shape
     features_num, channel_list, point_start_list = feature_segment(channels, points, window_length)
 
-    S1 = np.zeros((n_samples, features_num, M, channels, points), dtype=np.float16)
-    S2 = np.zeros((n_samples, features_num, M, channels, points), dtype=np.float16)
-
     @ray.remote
-    def run(feature, data_r):
-        S1_r = np.zeros((n_samples, M, channels, points), dtype=np.float16)
-        S2_r = np.zeros((n_samples, M, channels, points), dtype=np.float16)
+    def run(feature, data_sample_, data_ref_):
+        S1_r = np.zeros((M, channels, points), dtype=np.float16)
+        S2_r = np.zeros((M, channels, points), dtype=np.float16)
         for m in range(M):
             # 直接生成0，1数组，最后确保feature位满足要求，并且将数据类型改为Boolean型减少后续矩阵点乘计算量
-            feature_mark = np.random.randint(0, 2, features_num, dtype=np.bool_)    # bool_类型不能改为int8类型
+            feature_mark = np.random.randint(0, 2, features_num, dtype=np.bool_)  # bool_类型不能改为int8类型
             feature_mark[feature] = 0
             feature_mark = np.repeat(feature_mark, window_length)
             feature_mark = np.reshape(feature_mark, (channels, points))  # reshape是view，resize是copy
-            for index in range(n_samples):
-                # 随机选择一个参考样本，用于替换不考虑的特征核
-                reference_index = (index + np.random.randint(1, n_samples)) % n_samples
-                assert index != reference_index # 参考样本不能是样本本身
-                reference_input = data_r[reference_index]
-                S1_r[index, m] = S2_r[index, m] = feature_mark * data_r[index] + ~feature_mark * reference_input
-                S1_r[index, m][channel_list[feature], point_start_list[feature]:point_start_list[feature] + window_length] = \
-                    data_r[index][channel_list[feature], point_start_list[feature]:point_start_list[feature] + window_length]
+
+            S1_r[m] = S2_r[m] = feature_mark * data_sample_ + ~feature_mark * data_ref_
+            S1_r[m][channel_list[feature], point_start_list[feature]:point_start_list[feature] + window_length] = \
+                data_sample_[channel_list[feature], point_start_list[feature]:point_start_list[feature] + window_length]
         return feature, S1_r, S2_r
 
-    # for index in range(n_samples):  # 改造为依次计算每一个样本的贡献矩阵；然后在样本贡献中并行
-    data_ = ray.put(data)
-    rs = [run.remote(feature, data_) for feature in range(features_num)]
-    rs_list = ray.get(rs)
-    for feature, S1_r, S2_r in rs_list:
-        S1[:, feature] = S1_r
-        S2[:, feature] = S2_r
+    all_sample_feature_maps = np.zeros((n_samples, features_num, NUM_CLASSES))
+    for index in tqdm(range(n_samples)):
+        S1 = np.zeros((features_num, M, channels, points), dtype=np.float16)
+        S2 = np.zeros((features_num, M, channels, points), dtype=np.float16)
+        data_sample = data[index]
+        # 随机选择一个参考样本，用于替换不考虑的特征核
+        reference_index = (index + np.random.randint(1, n_samples)) % n_samples
+        assert index != reference_index  # 参考样本不能是样本本身
+        data_ref = data[reference_index]
 
-    # 计算S1和S2的预测差值
-    S1 = S1.reshape(-1, channels, points)
-    S2 = S2.reshape(-1, channels, points)
-    S1_preds = predict(model1, S1, NUM_CLASSES, eval=True) - predict(model2, S1, NUM_CLASSES, eval=True)
-    S2_preds = predict(model1, S2, NUM_CLASSES, eval=True) - predict(model2, S2, NUM_CLASSES, eval=True)
-    features = (S1_preds.view(n_samples, features_num, M, -1) -
-                S2_preds.view(n_samples, features_num, M, -1)).sum(axis=2) / M
-    return features.cpu().detach().numpy()
+        data_sample_ = ray.put(data_sample)
+        data_ref_ = ray.put(data_ref)
+
+        rs = [run.remote(feature, data_sample_, data_ref_) for feature in range(features_num)]
+        rs_list = ray.get(rs)
+        for feature, S1_r, S2_r in rs_list:
+            S1[feature] = S1_r
+            S2[feature] = S2_r
+
+        # 计算S1和S2的预测差值
+        S1 = S1.reshape(-1, channels, points)
+        S2 = S2.reshape(-1, channels, points)
+        S1_preds = predict(model1, S1, NUM_CLASSES, eval=True) - predict(model2, S1, NUM_CLASSES, eval=True)
+        S2_preds = predict(model1, S2, NUM_CLASSES, eval=True) - predict(model2, S2, NUM_CLASSES, eval=True)
+        sample_feature_maps = (S1_preds.view(features_num, M, -1) - S2_preds.view(features_num, M, -1)).sum(axis=1) / M
+
+        all_sample_feature_maps[index] = sample_feature_maps.cpu().detach().numpy()
+    return all_sample_feature_maps

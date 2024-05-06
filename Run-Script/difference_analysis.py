@@ -148,15 +148,18 @@ if __name__ == "__main__":
         x_test = x_test.reshape((len(test_index), -1))
         # 之后数据形状均为（n_samples, channels*points）
 
+        # For Feature Selection to Compute Feature Contributions
+        if selection_type in ["DiffShapley"]:
+            selection_method.fit(x_train_aug, model_A, model_B, channels, points, n_classes)
+        else:
+            selection_method.fit(x_train_aug, output_A_train, output_B_train)
+
         # Normalization
         if normalize:
             x_train_aug = sample_normalize(x_train_aug)
             x_test = sample_normalize(x_test)
 
-        if selection_type in ["DiffShapley"]:
-            selection_method.fit(x_train_aug, model_A, model_B)
-        else:
-            selection_method.fit(x_train_aug, output_A_train, output_B_train)
+        # Execute Feature Selection
         x_train_aug = selection_method.transform(x_train_aug, selection_rate)
         x_test = selection_method.transform(x_test, selection_rate)
 
