@@ -32,7 +32,7 @@ class DiffShapleyFS(FSMethod):
         n_samples, _ = x.shape
         x = x.reshape((n_samples, channels, points))
         if window_length is None:
-            window_length = points // 1
+            window_length = points // 2
         self.logit_delta = predict(model1, x, n_classes, eval=True) - predict(model2, x, n_classes, eval=True)
         self.logit_delta = self.logit_delta.cpu().detach().numpy()
         self.sample_weights = self.logit_delta[:, 0]
