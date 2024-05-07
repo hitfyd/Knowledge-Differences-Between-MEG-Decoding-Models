@@ -13,9 +13,16 @@ MODELS:
   B: "CamCAN_sdt" #"CamCAN_sdt_varcnn_fakd"
 AUGMENTATION:
   TYPE: "NONE"
+NORMALIZATION:
+  FLAG: True
+EXTRACTION:
+  FLAG: False
 SELECTION:
-  TYPE: "NONE"
-  RATE: 0.01
+  TYPE: "DiffShapley"
+  RATE: 0.0625
+  Diff:
+    WINDOW_LENGTH: 25
+    M: 16
 EXPLAINER:
   TYPE: "Delta"
   MAX_DEPTH: 7
