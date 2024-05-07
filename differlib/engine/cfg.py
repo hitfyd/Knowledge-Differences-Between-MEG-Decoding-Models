@@ -22,8 +22,8 @@ CFG.EXPERIMENT.PROJECT = "distill"
 CFG.EXPERIMENT.NAME = ""
 CFG.EXPERIMENT.TAG = "default"
 CFG.EXPERIMENT.SEED = 0  # Random number seed, which is beneficial to the repeatability of the experiment.
-CFG.EXPERIMENT.GPU_IDS = "0, 1"    # List of GPUs used
-CFG.EXPERIMENT.CPU_COUNT = 32
+CFG.EXPERIMENT.GPU_IDS = "0"    # List of GPUs used
+CFG.EXPERIMENT.CPU_COUNT = 8
 
 # Dataset
 CFG.DATASET = CN()

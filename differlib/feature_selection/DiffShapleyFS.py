@@ -178,7 +178,7 @@ def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES):
     data = data.reshape((n_samples, channels * points))
     all_sample_feature_maps = np.zeros((n_samples, features_num, NUM_CLASSES))
 
-    @ray.remote(num_gpus=0.0625)
+    @ray.remote(num_gpus=0.125)
     def run(index, data_r, model1_r, model2_r):
         S1 = np.zeros((features_num, M, channels * points), dtype=np.float16)
         S2 = np.zeros((features_num, M, channels * points), dtype=np.float16)
