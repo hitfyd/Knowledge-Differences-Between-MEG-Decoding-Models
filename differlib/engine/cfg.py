@@ -22,8 +22,8 @@ CFG.EXPERIMENT.PROJECT = "distill"
 CFG.EXPERIMENT.NAME = ""
 CFG.EXPERIMENT.TAG = "default"
 CFG.EXPERIMENT.SEED = 0  # Random number seed, which is beneficial to the repeatability of the experiment.
-CFG.EXPERIMENT.GPU_IDS = "0"    # List of GPUs used
-CFG.EXPERIMENT.CPU_COUNT = 8
+CFG.EXPERIMENT.GPU_IDS = "0, 1"    # List of GPUs used
+CFG.EXPERIMENT.CPU_COUNT = 32
 
 # Dataset
 CFG.DATASET = CN()
@@ -49,6 +49,7 @@ CFG.NORMALIZATION.FLAG = True
 # Feature Extraction
 CFG.EXTRACTION = CN()
 CFG.EXTRACTION.FLAG = True
+CFG.EXTRACTION.WINDOW_LENGTH = 25
 
 # Feature Selection
 CFG.SELECTION = CN()

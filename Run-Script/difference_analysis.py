@@ -174,58 +174,60 @@ if __name__ == "__main__":
 
         # Feature Extraction
         if extract:
-            x_train_aug = feature_extraction(x_train_aug)
-            x_test = feature_extraction(x_test)
+            x_train_aug = feature_extraction(x_train_aug, cfg.EXTRACTION.WINDOW_LENGTH)
+            x_test = feature_extraction(x_test, cfg.EXTRACTION.WINDOW_LENGTH)
 
         x_train = pd.DataFrame(x_train_aug)
         x_test = pd.DataFrame(x_test)
         print(x_train.shape, x_test.shape)
 
-        if explainer_type in ["Logit"]:
-            explainer.fit(x_train, output_A_train, output_B_train, max_depth, min_samples_leaf=min_samples_leaf)
-        else:
-            explainer.fit(x_train, pred_target_A_train, pred_target_B_train, max_depth,
-                          min_samples_leaf=min_samples_leaf)
+        for explainer_type in ["Logit", "Delta", "IMD"]:
+            explainer = explainer_dict[explainer_type]()
+            if explainer_type in ["Logit"]:
+                explainer.fit(x_train, output_A_train, output_B_train, max_depth, min_samples_leaf=min_samples_leaf)
+            else:
+                explainer.fit(x_train, pred_target_A_train, pred_target_B_train, max_depth,
+                              min_samples_leaf=min_samples_leaf)
 
-        diffrules = explainer.explain()
-        print(diffrules)
+            diffrules = explainer.explain()
+            print(diffrules)
 
-        # Computation of metrics
-        # on train set
-        if explainer_type in ["Logit"]:
-            train_metrics = explainer.metrics(x_train, output_A_train, output_B_train, name="train")
-        else:
-            train_metrics = explainer.metrics(x_train, pred_target_A_train, pred_target_B_train, name="train")
+            # Computation of metrics
+            # on train set
+            if explainer_type in ["Logit"]:
+                train_metrics = explainer.metrics(x_train, output_A_train, output_B_train, name="train")
+            else:
+                train_metrics = explainer.metrics(x_train, pred_target_A_train, pred_target_B_train, name="train")
 
-        # on train set
-        if explainer_type in ["Logit"]:
-            test_metrics = explainer.metrics(x_test, output_A_test, output_B_test)
-        else:
-            test_metrics = explainer.metrics(x_test, pred_target_A_test, pred_target_B_test)
+            # on train set
+            if explainer_type in ["Logit"]:
+                test_metrics = explainer.metrics(x_test, output_A_test, output_B_test)
+            else:
+                test_metrics = explainer.metrics(x_test, pred_target_A_test, pred_target_B_test)
 
-        print("skf_id", skf_id, "Explainer", explainer_type, "max_depth", max_depth, "min_samples_leaf",
-              min_samples_leaf)
-        print("Train set", train_metrics)
-        print("Test set", test_metrics)
-        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-            writer.write("skf_id {} Explainer {} max_depth {} min_samples_leaf {}\n".format(
-                skf_id, explainer_type, max_depth, min_samples_leaf))
-            writer.write("Train {}\n".format(train_metrics))
-            writer.write("Test {}\n".format(test_metrics))
-            # writer.write("train_index {}\n".format(train_index))
-            writer.write("test_index {}\n".format(test_index))
+            print("skf_id", skf_id, "Explainer", explainer_type, "max_depth", max_depth, "min_samples_leaf",
+                  min_samples_leaf)
+            print("Train set", train_metrics)
+            print("Test set", test_metrics)
+            with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                writer.write("skf_id {} Explainer {} max_depth {} min_samples_leaf {}\n".format(
+                    skf_id, explainer_type, max_depth, min_samples_leaf))
+                writer.write("Train {}\n".format(train_metrics))
+                writer.write("Test {}\n".format(test_metrics))
+                # writer.write("train_index {}\n".format(train_index))
+                writer.write("test_index {}\n".format(test_index))
 
-        precision_l.append(test_metrics["test-precision"])
-        recall_l.append(test_metrics["test-recall"])
-        f1_l.append(test_metrics["test-f1"])
-        num_rules_l.append(test_metrics["num-rules"])
-        average_num_rule_preds_l.append(test_metrics["average-num-rule-preds"])
-        num_unique_preds_l.append(test_metrics["num-unique-preds"])
+            precision_l.append(test_metrics["test-precision"])
+            recall_l.append(test_metrics["test-recall"])
+            f1_l.append(test_metrics["test-f1"])
+            num_rules_l.append(test_metrics["num-rules"])
+            average_num_rule_preds_l.append(test_metrics["average-num-rule-preds"])
+            num_unique_preds_l.append(test_metrics["num-unique-preds"])
 
-        save_checkpoint(explainer, os.path.join(log_path, "{}_{}-{}".format(skf_id, explainer_type, max_depth)))
-        save_checkpoint(diffrules, os.path.join(log_path, "{}_diffrules".format(skf_id)))
-        save_checkpoint(test_index, os.path.join(log_path, "{}_test_index".format(skf_id)))
-        save_checkpoint(test_metrics, os.path.join(log_path, "{}_test_metrics".format(skf_id)))
+            save_checkpoint(explainer, os.path.join(log_path, "{}_{}-{}".format(skf_id, explainer_type, max_depth)))
+            save_checkpoint(diffrules, os.path.join(log_path, "{}_diffrules".format(skf_id)))
+            save_checkpoint(test_index, os.path.join(log_path, "{}_test_index".format(skf_id)))
+            save_checkpoint(test_metrics, os.path.join(log_path, "{}_test_metrics".format(skf_id)))
 
         skf_id += 1
 

@@ -18,12 +18,12 @@ NORMALIZATION:
 EXTRACTION:
   FLAG: False
 SELECTION:
-  TYPE: "DiffShapley"
-  RATE: 0.1
+  TYPE: "NONE"
+  RATE: 0.125
   Diff:
     WINDOW_LENGTH: 125
     M: 4
 EXPLAINER:
-  TYPE: "Logit"
+  TYPE: "Delta"
   MAX_DEPTH: 5
   MIN_SAMPLES_LEAF: 2

@@ -104,7 +104,7 @@ class DeltaExplainer(DISExplainer):
         if not isinstance(Y2, np.ndarray):
             Y2 = Y2.to_numpy()
 
-        assert len(Y1.shape) == len(Y2.shape) == 1 and Y1.shape[0] == Y2.shape[0], "Y1 and Y2 must have the same"
+        assert Y1.shape == Y2.shape, "Y1 and Y2 must have the same"
 
         ydiff = (Y1 != Y2).astype(int)
         if verbose:
