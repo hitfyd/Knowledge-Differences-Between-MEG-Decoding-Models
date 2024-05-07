@@ -20,6 +20,9 @@ EXTRACTION:
 SELECTION:
   TYPE: "DiffShapley"
   RATE: 0.1
+  Diff:
+    WINDOW_LENGTH: 125
+    M: 4
 EXPLAINER:
   TYPE: "Logit"
   MAX_DEPTH: 5

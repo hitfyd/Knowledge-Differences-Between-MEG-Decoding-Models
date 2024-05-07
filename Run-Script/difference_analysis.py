@@ -1,5 +1,6 @@
 import argparse
 import os
+import time
 from datetime import datetime
 from statistics import mean, pstdev
 
@@ -41,6 +42,8 @@ if __name__ == "__main__":
         os.makedirs(log_path)
 
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.EXPERIMENT.GPU_IDS
+    num_gpus = torch.cuda.device_count()
+    num_cpus = cfg.EXPERIMENT.CPU_COUNT
     # set the random number seed
     setup_seed(cfg.EXPERIMENT.SEED)
 
@@ -149,10 +152,16 @@ if __name__ == "__main__":
         # 之后数据形状均为（n_samples, channels*points）
 
         # For Feature Selection to Compute Feature Contributions
+        time_start = time.perf_counter()
         if selection_type in ["DiffShapley"]:
-            selection_method.fit(x_train_aug, model_A, model_B, channels, points, n_classes)
+            window_length, M = cfg.SELECTION.Diff.WINDOW_LENGTH, cfg.SELECTION.Diff.M
+            selection_method.fit(x_train_aug, model_A, model_B, channels, points, n_classes, window_length, M,
+                                 num_gpus=num_gpus, num_cpus=num_cpus)
         else:
             selection_method.fit(x_train_aug, output_A_train, output_B_train)
+        time_end = time.perf_counter()  # 记录结束时间
+        run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
+        print("Feature Selection Run Time: {}".format(run_time))
 
         # Normalization
         if normalize:
