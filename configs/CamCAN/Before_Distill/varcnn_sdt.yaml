@@ -22,8 +22,8 @@ SELECTION:
   RATE: 0.0625
   Diff:
     WINDOW_LENGTH: 25
-    M: 16
+    M: 4
 EXPLAINER:
   TYPE: "Delta"
-  MAX_DEPTH: 7
+  MAX_DEPTH: 5
   MIN_SAMPLES_LEAF: 2

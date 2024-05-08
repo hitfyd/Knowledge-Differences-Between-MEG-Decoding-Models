@@ -11,7 +11,19 @@ DATASET:
 MODELS:
   A: "DecMeg2014_sdt_hgrn_fakd"
   B: "DecMeg2014_hgrn"
+AUGMENTATION:
+  TYPE: "BASE"
+NORMALIZATION:
+  FLAG: True
+EXTRACTION:
+  FLAG: False
+SELECTION:
+  TYPE: "NONE"
+  RATE: 0.05
+  Diff:
+    WINDOW_LENGTH: 25
+    M: 4
 EXPLAINER:
-  TYPE: "LogitDeltaRule"
-  MAX_DEPTH: 7
+  TYPE: "Logit"
+  MAX_DEPTH: 5
   MIN_SAMPLES_LEAF: 2

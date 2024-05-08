@@ -115,7 +115,7 @@ class LogitDeltaRule(DISExplainer):
         delta_output = Y1 - Y2
 
         self.delta_tree = DecisionTreeRegressor(max_depth=max_depth, min_samples_leaf=min_samples_leaf)
-        self.delta_tree.fit(X_train, delta_output)
+        self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
         self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
         # print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
         # plot_tree(self.delta_tree)

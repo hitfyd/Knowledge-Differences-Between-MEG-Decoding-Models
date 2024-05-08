@@ -181,7 +181,7 @@ if __name__ == "__main__":
         x_test = pd.DataFrame(x_test)
         print(x_train.shape, x_test.shape)
 
-        for explainer_type in ["Logit", "Delta", "IMD", "SS"]:
+        for explainer_type in ["Logit"]:  # "Logit", "Delta", "IMD", "SS"
             explainer = explainer_dict[explainer_type]()
             if explainer_type in ["Logit"]:
                 explainer.fit(x_train, output_A_train, output_B_train, max_depth, min_samples_leaf=min_samples_leaf)

@@ -169,8 +169,11 @@ class IMDExplainer(DISExplainer):
 
         metrics[name + "-precision"] = round(diff_samples_inside_diff_region / samples_in_region, 6)
         metrics[name + "-recall"] = round(diff_samples_inside_diff_region / total_number_diff_samples, 6)
-        metrics[name + "-f1"] = round(2 * metrics[name + "-precision"] * metrics[name + "-recall"] /
-                                      (metrics[name + "-precision"]+metrics[name + "-recall"]), 6)
+        if metrics[name + "-recall"] == metrics[name + "-precision"] == 0:
+            metrics[name + "-f1"] = 0
+        else:
+            metrics[name + "-f1"] = round(2 * metrics[name + "-precision"] * metrics[name + "-recall"] /
+                                          (metrics[name + "-precision"]+metrics[name + "-recall"]), 6)
         metrics["num-rules"] = len(self.diffregions)
 
         preds = []

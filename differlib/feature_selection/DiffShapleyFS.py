@@ -32,7 +32,8 @@ class DiffShapleyFS(FSMethod):
                          configure_logging=False,  # 不配置日志
                          log_to_driver=False,  # 日志记录不配置到driver
                          )
-            self.all_sample_feature_maps = diff_shapley_parallel(x, model1, model2, window_length, M, n_classes)
+            self.all_sample_feature_maps = diff_shapley_parallel(x, model1, model2, window_length, M, n_classes,
+                                                                 num_gpus=num_gpus/num_cpus)
         else:
             self.all_sample_feature_maps = diff_shapley(x, model1, model2, window_length, M, n_classes)
         # self.contributions = self.all_sample_feature_maps.mean(axis=0)
@@ -172,13 +173,13 @@ def diff_shapley_feature(data, model1, model2, window_length, M, NUM_CLASSES):
 #     return features.cpu().detach().numpy()
 
 
-def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES):
+def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES, num_gpus=0.125):
     n_samples, channels, points = data.shape
     features_num = (channels * points) // window_length
     data = data.reshape((n_samples, channels * points))
     all_sample_feature_maps = np.zeros((n_samples, features_num, NUM_CLASSES))
 
-    @ray.remote(num_gpus=0.0625, num_cpus=1)
+    @ray.remote(num_gpus=num_gpus)
     def run(index, data_r, model1_r, model2_r):
         S1 = np.zeros((features_num, M, channels * points), dtype=np.float16)
         S2 = np.zeros((features_num, M, channels * points), dtype=np.float16)
