@@ -154,20 +154,20 @@ def model_eval(model, data_loader):
     return accuracy
 
 
-def predict_output(model: torch.nn, data: np.ndarray, softmax=True):
+def output_predict_targets(model: torch.nn, data: np.ndarray, softmax=True):
     data_torch = torch.from_numpy(data).float().cuda()
     model.eval()
     with torch.no_grad():
         output = model(data_torch)
-    _, pred_target = output.topk(1, 1, True, True)
+    _, predict_targets = output.topk(1, 1, True, True)
     output = output.cpu().detach().numpy()
-    pred_target = pred_target.squeeze().cpu().detach().numpy()
+    predict_targets = predict_targets.squeeze().cpu().detach().numpy()
     if softmax:
         if model.__class__.__name__ in ["LFCNN", "VARCNN"]:
             output = np.exp(output) / np.sum(np.exp(output), axis=-1, keepdims=True)
         if model.__class__.__name__ in ["HGRN", "ATCNet"]:
             output = np.exp(output)
-    return output, pred_target
+    return output, predict_targets
 
 
 # def individual_predict(model, individual_data, eval=True):

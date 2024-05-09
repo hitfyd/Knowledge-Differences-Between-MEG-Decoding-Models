@@ -41,25 +41,26 @@ if __name__ == "__main__":
     if not os.path.exists(log_path):
         os.makedirs(log_path)
 
+    # set the random number seed
+    setup_seed(cfg.EXPERIMENT.SEED)
+    n_repetitions = cfg.EXPERIMENT.NUM_REPETITIONS
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.EXPERIMENT.GPU_IDS
     num_gpus = torch.cuda.device_count()
     num_cpus = cfg.EXPERIMENT.CPU_COUNT
-    # set the random number seed
-    setup_seed(cfg.EXPERIMENT.SEED)
 
     # init dataset & models
-    test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
     train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(cfg.DATASET.TYPE))
+    test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
     train_loader = get_data_loader(train_data, train_labels)
     test_loader = get_data_loader(test_data, test_labels)
-    data, labels = test_data, test_labels
+
     dataset = cfg.DATASET.TYPE
-    n_samples, channels, points = data.shape
-    n_classes = len(set(labels))
+    n_samples, channels, points = train_data.shape
+    n_classes = len(set(train_labels))
     assert channels == cfg.DATASET.CHANNELS
     assert points == cfg.DATASET.POINTS
     assert n_classes == cfg.DATASET.NUM_CLASSES
-    n_splits = cfg.DATASET.NUM_SPLITS
+    # n_splits = cfg.DATASET.NUM_SPLITS
 
     print(log_msg("Loading model A {}".format(cfg.MODELS.A), "INFO"))
     model_A_type, model_A_pretrain_path = model_dict[cfg.MODELS.A]
@@ -112,43 +113,33 @@ if __name__ == "__main__":
         writer.write("Run time: {}\n".format(datetime.now()))
         writer.write("CONFIG:\n{}".format(cfg.dump()))
 
-    # models predict differences
-    output_A, pred_target_A = output_predict_targets(model_A, data)
-    output_B, pred_target_B = output_predict_targets(model_B, data)
-    delta_target = (pred_target_A != pred_target_B).astype(int)
+    # models predict differences for training
+    train_output_A, train_predict_targets_A = output_predict_targets(model_A, train_data)
+    train_output_B, train_predict_targets_B = output_predict_targets(model_B, train_data)
+    train_delta_target = np.array(train_predict_targets_A != train_predict_targets_B).astype(int)
 
-    # K-Fold evaluation
-    skf = StratifiedKFold(n_splits=n_splits)
-    skf_id = 0
+    # models predict differences for test
+    test_output_A, test_predict_targets_A = output_predict_targets(model_A, test_data)
+    test_output_B, test_predict_targets_B = output_predict_targets(model_B, test_data)
+    test_delta_target = np.array(test_predict_targets_A != test_predict_targets_B).astype(int)
+
     # record metrics of i-th Fold
     precision_l, recall_l, f1_l, num_rules_l, average_num_rule_preds_l, num_unique_preds_l = [], [], [], [], [], []
-    for train_index, test_index in skf.split(data, delta_target):
-        x_train = data[train_index]
-        output_A_train = output_A[train_index]
-        output_B_train = output_B[train_index]
-        pred_target_A_train = pred_target_A[train_index]
-        pred_target_B_train = pred_target_B[train_index]
+    for repetition_id in range(n_repetitions):
 
-        # selection_method.fit(x_train.reshape((-1, channels * points)), output_A[train_index], output_B[train_index])
+        # TODO: augmentation_method.augment(train_data, model_A, model_B)
+        train_data_aug, train_delta_target_aug = augmentation_method.augment(train_data, train_delta_target)
+        train_output_A, train_predict_targets_A = output_predict_targets(model_A, train_data_aug)
+        train_output_B, train_predict_targets_B = output_predict_targets(model_B, train_data_aug)
 
-        x_test = data[test_index]
-        output_A_test = output_A[test_index]
-        output_B_test = output_B[test_index]
-        pred_target_A_test = pred_target_A[test_index]
-        pred_target_B_test = pred_target_B[test_index]
-
-        x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index])
-        output_A_train, pred_target_A_train = output_predict_targets(model_A, x_train_aug)
-        output_B_train, pred_target_B_train = output_predict_targets(model_B, x_train_aug)
-
-        ydiff = (pred_target_A_train != pred_target_B_train).astype(int)
+        ydiff = np.array(train_predict_targets_A != train_predict_targets_B).astype(int)
         print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
-        delta_diff = (ydiff != delta_target_aug).astype(int)
+        delta_diff = np.array(ydiff != train_delta_target_aug).astype(int)
         print(
             f"delta_diffs in X_train = {delta_diff.sum()} / {len(delta_diff)} = {(delta_diff.sum() / len(delta_diff) * 100):.2f}%")
 
-        x_train_aug = x_train_aug.reshape((len(x_train_aug), -1))
-        x_test = x_test.reshape((len(test_index), -1))
+        x_train_aug = train_data_aug.reshape((len(train_data_aug), -1))
+        x_test = test_data.reshape((len(test_data), -1))
         # 之后数据形状均为（n_samples, channels*points）
 
         # For Feature Selection to Compute Feature Contributions
@@ -158,7 +149,7 @@ if __name__ == "__main__":
             selection_method.fit(x_train_aug, model_A, model_B, channels, points, n_classes, window_length, M,
                                  num_gpus=num_gpus, num_cpus=num_cpus)
         else:
-            selection_method.fit(x_train_aug, output_A_train, output_B_train)
+            selection_method.fit(x_train_aug, train_output_A, train_output_B)
         time_end = time.perf_counter()  # 记录结束时间
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
         print("Feature Selection Run Time: {}".format(run_time))
@@ -168,7 +159,7 @@ if __name__ == "__main__":
             x_train_aug = sample_normalize(x_train_aug)
             x_test = sample_normalize(x_test)
 
-        # Execute Feature Selection
+        # Execute Feature Selection, 和Normalization二选一
         x_train_aug = selection_method.transform(x_train_aug, selection_rate)
         x_test = selection_method.transform(x_test, selection_rate)
 
@@ -181,50 +172,46 @@ if __name__ == "__main__":
         x_test = pd.DataFrame(x_test)
         print(x_train.shape, x_test.shape)
 
+        for explainer_type in ["Logit", "Delta", "IMD", "SS"]:  # "Logit", "Delta", "IMD", "SS"
+            explainer = explainer_dict[explainer_type]()
+            if explainer_type in ["Logit"]:
+                explainer.fit(x_train, train_output_A, train_output_B,
+                              max_depth, min_samples_leaf=min_samples_leaf)
+            else:
+                explainer.fit(x_train, train_predict_targets_A, train_predict_targets_B,
+                              max_depth, min_samples_leaf=min_samples_leaf)
 
-        if explainer_type in ["Logit"]:
-            explainer.fit(x_train, output_A_train, output_B_train,
-                          max_depth, min_samples_leaf=min_samples_leaf)
-        else:
-            explainer.fit(x_train, pred_target_A_train, pred_target_B_train,
-                          max_depth, min_samples_leaf=min_samples_leaf)
+            diffrules = explainer.explain()
+            print(diffrules)
 
-        diffrules = explainer.explain()
-        print(diffrules)
+            # Computation of metrics
+            if explainer_type in ["Logit"]:
+                train_metrics = explainer.metrics(x_train, train_output_A, train_output_B, name="train")
+                test_metrics = explainer.metrics(x_test, test_output_A, test_output_B)
+            else:
+                train_metrics = explainer.metrics(x_train, train_predict_targets_A, train_predict_targets_B, name="train")
+                test_metrics = explainer.metrics(x_test, test_predict_targets_A, test_predict_targets_B)
 
-        # Computation of metrics on train and test set
-        if explainer_type in ["Logit"]:
-            train_metrics = explainer.metrics(x_train, output_A_train, output_B_train, name="train")
-            test_metrics = explainer.metrics(x_test, output_A_test, output_B_test)
-        else:
-            train_metrics = explainer.metrics(x_train, pred_target_A_train, pred_target_B_train, name="train")
-            test_metrics = explainer.metrics(x_test, pred_target_A_test, pred_target_B_test)
+            print("repetition_id", repetition_id, "Explainer", explainer_type,
+                  "max_depth", max_depth, "min_samples_leaf", min_samples_leaf)
+            print("Train set", train_metrics)
+            print("Test set", test_metrics)
+            with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                writer.write("repetition_id {} Explainer {} max_depth {} min_samples_leaf {}\n".format(
+                    repetition_id, explainer_type, max_depth, min_samples_leaf))
+                writer.write("Train {}\n".format(train_metrics))
+                writer.write("Test {}\n".format(test_metrics))
 
-        print("skf_id", skf_id, "Explainer", explainer_type, "max_depth", max_depth, "min_samples_leaf",
-              min_samples_leaf)
-        print("Train set", train_metrics)
-        print("Test set", test_metrics)
-        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-            writer.write("skf_id {} Explainer {} max_depth {} min_samples_leaf {}\n".format(
-                skf_id, explainer_type, max_depth, min_samples_leaf))
-            writer.write("Train {}\n".format(train_metrics))
-            writer.write("Test {}\n".format(test_metrics))
-            # writer.write("train_index {}\n".format(train_index))
-            writer.write("test_index {}\n".format(test_index))
+            precision_l.append(test_metrics["test-precision"])
+            recall_l.append(test_metrics["test-recall"])
+            f1_l.append(test_metrics["test-f1"])
+            num_rules_l.append(test_metrics["num-rules"])
+            average_num_rule_preds_l.append(test_metrics["average-num-rule-preds"])
+            num_unique_preds_l.append(test_metrics["num-unique-preds"])
 
-        precision_l.append(test_metrics["test-precision"])
-        recall_l.append(test_metrics["test-recall"])
-        f1_l.append(test_metrics["test-f1"])
-        num_rules_l.append(test_metrics["num-rules"])
-        average_num_rule_preds_l.append(test_metrics["average-num-rule-preds"])
-        num_unique_preds_l.append(test_metrics["num-unique-preds"])
-
-        save_checkpoint(explainer, os.path.join(log_path, "{}_{}-{}".format(skf_id, explainer_type, max_depth)))
-        save_checkpoint(diffrules, os.path.join(log_path, "{}_diffrules".format(skf_id)))
-        save_checkpoint(test_index, os.path.join(log_path, "{}_test_index".format(skf_id)))
-        save_checkpoint(test_metrics, os.path.join(log_path, "{}_test_metrics".format(skf_id)))
-
-        skf_id += 1
+            save_checkpoint(explainer, os.path.join(log_path, f"{repetition_id}_{explainer_type}-{max_depth}"))
+            save_checkpoint(diffrules, os.path.join(log_path, f"{repetition_id}_{explainer_type}_diffrules"))
+            save_checkpoint(test_metrics, os.path.join(log_path, f"{repetition_id}_{explainer_type}_test_metrics"))
 
     print("test-precision(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
         mean(precision_l), pstdev(precision_l), precision_l))
