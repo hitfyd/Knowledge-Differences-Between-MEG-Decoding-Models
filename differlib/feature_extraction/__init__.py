@@ -1,33 +1,34 @@
 import numpy as np
+from tqdm import tqdm
 
 
-def feature_extraction(x: np.ndarray, window_length=25):
+def feature_extraction(x: np.ndarray, window_length=10):
     assert x.ndim == 2
     num_samples, num_times = x.shape
     num_windows = num_times // window_length
     points = 250
     channels = num_times // points
     x_features = []
-    for i in range(num_samples):
+    for i in tqdm(range(num_samples)):
         sample_features = []
-        for j in range(num_windows):
-            window = x[i, j * window_length:(j + 1) * window_length]
+        for window in np.array_split(x[i], window_length):
             # Time Domain Features
             # maximum, minimum, mean, standard deviation
             maximum = np.max(window)
             minimum = np.min(window)
             mean = np.mean(window)
             standard_deviation = np.std(window)
-            diff = np.diff(window)
-            first_difference = np.mean(diff)
-            norm_first_difference = first_difference / standard_deviation
-            second_diff = window[2:] - window[:-2]
-            second_difference = np.mean(second_diff)
-            norm_second_difference = second_difference / standard_deviation
+            # diff = np.diff(window)
+            # first_difference = np.mean(diff)
+            # norm_first_difference = first_difference / standard_deviation
+            # second_diff = window[2:] - window[:-2]
+            # second_difference = np.mean(second_diff)
+            # norm_second_difference = second_difference / standard_deviation
 
-            time_features = [maximum, minimum, mean, standard_deviation,
-                             first_difference, norm_first_difference, second_difference, norm_second_difference]
+            time_features = [maximum, minimum, mean, standard_deviation,]
+                             # first_difference, norm_first_difference, second_difference, norm_second_difference]
             sample_features.extend(time_features)
+            sample_features.extend(window)
 
             # Frequency Domain Features：针对平稳信号（静息态）
             pass

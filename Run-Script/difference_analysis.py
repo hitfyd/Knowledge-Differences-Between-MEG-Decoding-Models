@@ -16,6 +16,7 @@ from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_da
 from differlib.explainer import explainer_dict
 from differlib.feature_extraction import feature_extraction
 from differlib.feature_selection import fsm_dict
+from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature_maps
 from differlib.models import model_dict
 
 if __name__ == "__main__":
@@ -99,6 +100,16 @@ if __name__ == "__main__":
     selection_type = cfg.SELECTION.TYPE
     selection_method = fsm_dict[selection_type]()
     selection_rate = cfg.SELECTION.RATE
+    # 预先计算所有样本的特征归因图，训练时只使用训练集样本的特征归因图
+    if selection_type in ["DiffShapley"]:
+        time_start = time.perf_counter()
+        window_length, M = cfg.SELECTION.Diff.WINDOW_LENGTH, cfg.SELECTION.Diff.M
+        all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B,
+                                                                  n_classes, window_length, M,
+                                                                  num_gpus=num_gpus, num_cpus=num_cpus)
+        time_end = time.perf_counter()  # 记录结束时间
+        run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
+        print("Feature Selection Run Time: {}".format(run_time))
 
     # init explainer
     explainer_type = cfg.EXPLAINER.TYPE
@@ -155,7 +166,7 @@ if __name__ == "__main__":
         time_start = time.perf_counter()
         if selection_type in ["DiffShapley"]:
             window_length, M = cfg.SELECTION.Diff.WINDOW_LENGTH, cfg.SELECTION.Diff.M
-            selection_method.fit(x_train_aug, model_A, model_B, channels, points, n_classes, window_length, M,
+            selection_method.fit(x_train, model_A, model_B, channels, points, n_classes, window_length, M, all_sample_feature_maps[train_index],
                                  num_gpus=num_gpus, num_cpus=num_cpus)
         else:
             selection_method.fit(x_train_aug, output_A_train, output_B_train)

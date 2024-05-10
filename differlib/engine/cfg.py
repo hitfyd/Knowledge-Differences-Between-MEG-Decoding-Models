@@ -23,8 +23,8 @@ CFG.EXPERIMENT.NAME = ""
 CFG.EXPERIMENT.TAG = "default"
 CFG.EXPERIMENT.SEED = 0  # Random number seed, which is beneficial to the repeatability of the experiment.
 CFG.EXPERIMENT.NUM_REPETITIONS = 5
-CFG.EXPERIMENT.GPU_IDS = "1"    # List of GPUs used
-CFG.EXPERIMENT.CPU_COUNT = 8
+CFG.EXPERIMENT.GPU_IDS = "0, 1"    # List of GPUs used
+CFG.EXPERIMENT.CPU_COUNT = 16
 
 # Dataset
 CFG.DATASET = CN()

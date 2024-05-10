@@ -1,9 +1,41 @@
+import os
+
 import numpy as np
 import ray
+import torch
 from tqdm import tqdm
 
 from .fsm import FSMethod
-from ..engine.utils import predict
+from ..engine.utils import predict, save_checkpoint, load_checkpoint
+
+
+def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torch.nn, model2: torch.nn,
+                                    n_classes, window_length, M,
+                                    *args, parallel=True, num_gpus=1, num_cpus=8, **kwargs):
+    save_path = "./feature_maps/"
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    save_file = os.path.join(save_path, f"{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_{window_length}_{M}")
+
+    if not os.path.exists(save_file):
+        if parallel:
+            if not ray.is_initialized():
+                ray.init(num_gpus=num_gpus, num_cpus=num_cpus,  # 计算资源
+                         local_mode=False,  # 是否启动串行模型，用于调试
+                         ignore_reinit_error=True,  # 重复启动不视为错误
+                         include_dashboard=False,  # 是否启动仪表盘
+                         configure_logging=False,  # 不配置日志
+                         log_to_driver=False,  # 日志记录不配置到driver
+                         )
+            all_sample_feature_maps = diff_shapley_parallel(data, model1, model2, window_length, M, n_classes,
+                                                            num_gpus=num_gpus/num_cpus)
+        else:
+            all_sample_feature_maps = diff_shapley(data, model1, model2, window_length, M, n_classes)
+        save_checkpoint(all_sample_feature_maps, save_file)
+    else:
+        all_sample_feature_maps = load_checkpoint(save_file)
+    return all_sample_feature_maps
 
 
 class DiffShapleyFS(FSMethod):
@@ -15,29 +47,30 @@ class DiffShapleyFS(FSMethod):
         self.logit_delta = None
         self.sample_weights = None
 
-    def fit(self, x: np.ndarray, model1, model2, channels, points, n_classes, window_length, M, *args,
+    def fit(self, x: np.ndarray, model1, model2, channels, points, n_classes, window_length, M, all_sample_feature_maps, *args,
             parallel=True, num_gpus=1, num_cpus=16, **kwargs):
-        n_samples, _ = x.shape
-        x = x.reshape((n_samples, channels, points))
+        n_samples, channels, points = x.shape
+        # x = x.reshape((n_samples, channels, points))
         assert points % window_length == 0
         self.logit_delta = predict(model1, x, n_classes, eval=True) - predict(model2, x, n_classes, eval=True)
         self.logit_delta = self.logit_delta.cpu().detach().numpy()
         self.sample_weights = self.logit_delta[:, 0]
-        if parallel:
-            if not ray.is_initialized():
-                ray.init(num_gpus=num_gpus, num_cpus=num_cpus,  # 计算资源
-                         local_mode=False,  # 是否启动串行模型，用于调试
-                         ignore_reinit_error=True,  # 重复启动不视为错误
-                         include_dashboard=False,  # 是否启动仪表盘
-                         configure_logging=False,  # 不配置日志
-                         log_to_driver=False,  # 日志记录不配置到driver
-                         )
-            self.all_sample_feature_maps = diff_shapley_parallel(x, model1, model2, window_length, M, n_classes,
-                                                                 num_gpus=num_gpus/num_cpus)
-        else:
-            self.all_sample_feature_maps = diff_shapley(x, model1, model2, window_length, M, n_classes)
+        # if parallel:
+        #     if not ray.is_initialized():
+        #         ray.init(num_gpus=num_gpus, num_cpus=num_cpus,  # 计算资源
+        #                  local_mode=False,  # 是否启动串行模型，用于调试
+        #                  ignore_reinit_error=True,  # 重复启动不视为错误
+        #                  include_dashboard=False,  # 是否启动仪表盘
+        #                  configure_logging=False,  # 不配置日志
+        #                  log_to_driver=False,  # 日志记录不配置到driver
+        #                  )
+        #     self.all_sample_feature_maps = diff_shapley_parallel(x, model1, model2, window_length, M, n_classes,
+        #                                                          num_gpus=num_gpus/num_cpus)
+        # else:
+        #     self.all_sample_feature_maps = diff_shapley(x, model1, model2, window_length, M, n_classes)
+        self.all_sample_feature_maps = all_sample_feature_maps
         # self.contributions = self.all_sample_feature_maps.mean(axis=0)
-        self.contributions = self.all_sample_feature_maps.sum(axis=0) / n_samples
+        # self.contributions = self.all_sample_feature_maps.sum(axis=0) / n_samples
         self.contributions = np.average(self.all_sample_feature_maps, axis=0, weights=self.sample_weights)
         self.contributions = np.abs(self.contributions[:, 0])
         self.contributions = np.repeat(self.contributions, window_length)

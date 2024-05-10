@@ -14,15 +14,15 @@ MODELS:
 AUGMENTATION:
   TYPE: "BASE"
 NORMALIZATION:
-  FLAG: False
+  FLAG: True
 EXTRACTION:
   FLAG: False
 SELECTION:
-  TYPE: "NONE"
-  RATE: 0.0625
+  TYPE: "DiffShapley"
+  RATE: 0.25
   Diff:
-    WINDOW_LENGTH: 50
-    M: 2
+    WINDOW_LENGTH: 25
+    M: 4
 EXPLAINER:
   TYPE: "Logit"
 #  MAX_DEPTH: 4
