@@ -12,18 +12,18 @@ MODELS:
   A: "DecMeg2014_sdt_hgrn_fakd"
   B: "DecMeg2014_sdt"
 AUGMENTATION:
-  TYPE: "NONE"
+  TYPE: "BASE"
 NORMALIZATION:
-  FLAG: True
+  FLAG: False
 EXTRACTION:
   FLAG: False
 SELECTION:
   TYPE: "DiffShapley"
   RATE: 0.05
   Diff:
-    WINDOW_LENGTH: 25
-    M: 16
+    WINDOW_LENGTH: 10
+    M: 8
 EXPLAINER:
-  TYPE: "Delta"
+  TYPE: "Logit"
   MAX_DEPTH: 7
   MIN_SAMPLES_LEAF: 2
