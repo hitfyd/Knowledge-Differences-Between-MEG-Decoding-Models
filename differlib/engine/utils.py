@@ -55,6 +55,14 @@ def sample_normalize(data):
     return (data - mu)/std
 
 
+class DatasetNormalization(object):
+
+    def __init__(self, data):
+        self.mu = np.mean(data, axis=0)
+        self.std = np.std(data, axis=0)
+
+    def __call__(self, data):
+        return (data - self.mu) / self.std
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""

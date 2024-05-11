@@ -11,7 +11,7 @@ def feature_extraction(x: np.ndarray, window_length=10):
     x_features = []
     for i in tqdm(range(num_samples)):
         sample_features = []
-        for window in np.array_split(x[i], window_length):
+        for window in np.array_split(x[i], num_windows):
             # Time Domain Features
             # maximum, minimum, mean, standard deviation
             maximum = np.max(window)
@@ -28,7 +28,7 @@ def feature_extraction(x: np.ndarray, window_length=10):
             time_features = [maximum, minimum, mean, standard_deviation,]
                              # first_difference, norm_first_difference, second_difference, norm_second_difference]
             sample_features.extend(time_features)
-            sample_features.extend(window)
+            # sample_features.extend(window)
 
             # Frequency Domain Features：针对平稳信号（静息态）
             pass

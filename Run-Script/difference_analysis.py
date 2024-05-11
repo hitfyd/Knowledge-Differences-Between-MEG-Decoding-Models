@@ -7,12 +7,13 @@ from statistics import mean, pstdev
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
 
 from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, get_data_loader,
-                                    save_checkpoint, output_predict_targets, model_eval, sample_normalize)
+                                    save_checkpoint, output_predict_targets, model_eval, sample_normalize,
+                                    DatasetNormalization)
 from differlib.explainer import explainer_dict
 from differlib.feature_extraction import feature_extraction
 from differlib.feature_selection import fsm_dict
@@ -129,7 +130,7 @@ if __name__ == "__main__":
     delta_target = (pred_target_A != pred_target_B).astype(int)
 
     # K-Fold evaluation
-    skf = StratifiedKFold(n_splits=n_splits)
+    skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.4)
     skf_id = 0
     # record metrics of i-th Fold
     precision_l, recall_l, f1_l, num_rules_l, average_num_rule_preds_l, num_unique_preds_l = [], [], [], [], [], []
@@ -176,8 +177,11 @@ if __name__ == "__main__":
 
         # Normalization
         if normalize:
-            x_train_aug = sample_normalize(x_train_aug)
-            x_test = sample_normalize(x_test)
+            data_normalize = DatasetNormalization(x_train_aug)
+            x_train_aug = data_normalize(x_train_aug)
+            x_test = data_normalize(x_test)
+            # x_train_aug = sample_normalize(x_train_aug)
+            # x_test = sample_normalize(x_test)
 
         # Execute Feature Selection
         x_train_aug = selection_method.transform(x_train_aug, selection_rate)
