@@ -13,7 +13,7 @@ from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, get_data_loader,
                                     save_checkpoint, output_predict_targets, model_eval, sample_normalize,
-                                    DatasetNormalization)
+                                    DatasetNormalization, dataset_info_dict)
 from differlib.explainer import explainer_dict
 from differlib.feature_extraction import feature_extraction
 from differlib.feature_selection import fsm_dict
@@ -29,45 +29,58 @@ if __name__ == "__main__":
     cfg.merge_from_file(args.cfg)
     cfg.merge_from_list(args.opts)
 
-    # init loggers
+    # init experiment
+    project = cfg.EXPERIMENT.PROJECT
     experiment_name = cfg.EXPERIMENT.NAME
+    tag = cfg.EXPERIMENT.TAG
+    dataset = cfg.EXPERIMENT.DATASET
+    model_A_type = cfg.EXPERIMENT.MODEL_A
+    model_B_type = cfg.EXPERIMENT.MODEL_B
+    if project == "":
+        project = dataset
+    if tag == "":
+        tag = "{}, {}".format(model_A_type, model_B_type)
     if experiment_name == "":
-        experiment_name = cfg.EXPERIMENT.TAG
-    tags = cfg.EXPERIMENT.TAG.split(",")
+        experiment_name = tag
+    tags = tag.split(',')
     if args.opts:
         addtional_tags = ["{}:{}".format(k, v) for k, v in zip(args.opts[::2], args.opts[1::2])]
         tags += addtional_tags
         experiment_name += ",".join(addtional_tags)
-    experiment_name = os.path.join(cfg.EXPERIMENT.PROJECT, experiment_name)
-    log_path = os.path.join(cfg.LOG.PREFIX, experiment_name)
+    experiment_name = os.path.join(project, experiment_name)
+    n_splits = cfg.EXPERIMENT.NUM_SPLITS
+
+    # init loggers
+    log_prefix = cfg.LOG.PREFIX
+    log_path = os.path.join(log_prefix, experiment_name)
     if not os.path.exists(log_path):
         os.makedirs(log_path)
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = cfg.EXPERIMENT.GPU_IDS
-    num_gpus = torch.cuda.device_count()
-    num_cpus = cfg.EXPERIMENT.CPU_COUNT
     # set the random number seed
     setup_seed(cfg.EXPERIMENT.SEED)
 
+    # set GPUs, CPUs
+    os.environ["CUDA_VISIBLE_DEVICES"] = cfg.EXPERIMENT.GPU_IDS
+    num_gpus = torch.cuda.device_count()
+    num_cpus = cfg.EXPERIMENT.CPU_COUNT
+
     # init dataset & models
-    test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
-    train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(cfg.DATASET.TYPE))
+    test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
+    train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
     train_loader = get_data_loader(train_data, train_labels)
     test_loader = get_data_loader(test_data, test_labels)
     data, labels = test_data, test_labels
-    dataset = cfg.DATASET.TYPE
     n_samples, channels, points = data.shape
     n_classes = len(set(labels))
-    assert channels == cfg.DATASET.CHANNELS
-    assert points == cfg.DATASET.POINTS
-    assert n_classes == cfg.DATASET.NUM_CLASSES
-    n_splits = cfg.DATASET.NUM_SPLITS
+    assert channels == dataset_info_dict[dataset]["CHANNELS"]
+    assert points == dataset_info_dict[dataset]["POINTS"]
+    assert n_classes == dataset_info_dict[dataset]["NUM_CLASSES"]
 
-    print(log_msg("Loading model A {}".format(cfg.MODELS.A), "INFO"))
-    model_A_type, model_A_pretrain_path = model_dict[cfg.MODELS.A]
-    assert (model_A_pretrain_path is not None), "no pretrain model A {}".format(cfg.MODELS.A)
-    model_A = model_A_type(
-        channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
+    # init different models and load pre-trained checkpoints
+    print(log_msg("Loading model A {}".format(model_A_type), "INFO"))
+    model_A_class, model_A_pretrain_path = model_dict[dataset][model_A_type]
+    assert (model_A_pretrain_path is not None), "no pretrain model A {}".format(model_A_type)
+    model_A = model_A_class(channels=channels, points=points, num_classes=n_classes)
     model_A.load_state_dict(load_checkpoint(model_A_pretrain_path))
     model_A = model_A.cuda()
     train_accuracy = model_eval(model_A, train_loader)
@@ -75,11 +88,10 @@ if __name__ == "__main__":
     print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
     print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
 
-    print(log_msg("Loading model B {}".format(cfg.MODELS.B), "INFO"))
-    model_B_type, model_B_pretrain_path = model_dict[cfg.MODELS.B]
-    assert (model_B_pretrain_path is not None), "no pretrain model B {}".format(cfg.MODELS.B)
-    model_B = model_B_type(
-        channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
+    print(log_msg("Loading model B {}".format(model_B_type), "INFO"))
+    model_B_class, model_B_pretrain_path = model_dict[dataset][model_B_type]
+    assert (model_B_pretrain_path is not None), "no pretrain model B {}".format(model_B_type)
+    model_B = model_B_class(channels=channels, points=points, num_classes=n_classes)
     model_B.load_state_dict(load_checkpoint(model_B_pretrain_path))
     model_B = model_B.cuda()
     train_accuracy = model_eval(model_B, train_loader)

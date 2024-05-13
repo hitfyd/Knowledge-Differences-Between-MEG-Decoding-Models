@@ -1,5 +1,1 @@
-from differlib.engine.trainer import BaseTrainer
 
-trainer_dict = {
-    "base": BaseTrainer,
-}

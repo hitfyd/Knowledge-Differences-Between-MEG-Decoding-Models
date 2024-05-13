@@ -11,6 +11,12 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 
+dataset_info_dict = {
+    "CamCAN": {"CHANNELS": 204, "POINTS": 100, "NUM_CLASSES": 2},
+    "DecMeg2014": {"CHANNELS": 204, "POINTS": 250, "NUM_CLASSES": 2},
+}
+
+
 # 设置全局随机数种子，同时用于记录实验数据
 def setup_seed(seed):
     torch.manual_seed(seed)
