@@ -32,23 +32,19 @@ if __name__ == "__main__":
     # init experiment
     project = cfg.EXPERIMENT.PROJECT
     experiment_name = cfg.EXPERIMENT.NAME
-    tag = cfg.EXPERIMENT.TAG
-    dataset = cfg.EXPERIMENT.DATASET
-    model_A_type = cfg.EXPERIMENT.MODEL_A
-    model_B_type = cfg.EXPERIMENT.MODEL_B
+    tags = cfg.EXPERIMENT.TAG
     if project == "":
-        project = dataset
-    if tag == "":
-        tag = "{}, {}".format(model_A_type, model_B_type)
+        project = cfg.DATASET
+    if tags == "":
+        tags = "{}".format(cfg.EXPLAINER.TYPE)
     if experiment_name == "":
-        experiment_name = tag
-    tags = tag.split(',')
+        experiment_name = tags
+    tags = tags.split(',')
     if args.opts:
         addtional_tags = ["{}:{}".format(k, v) for k, v in zip(args.opts[::2], args.opts[1::2])]
         tags += addtional_tags
         experiment_name += ",".join(addtional_tags)
     experiment_name = os.path.join(project, experiment_name)
-    n_splits = cfg.EXPERIMENT.NUM_SPLITS
 
     # init loggers
     log_prefix = cfg.LOG.PREFIX
@@ -65,6 +61,7 @@ if __name__ == "__main__":
     num_cpus = cfg.EXPERIMENT.CPU_COUNT
 
     # init dataset & models
+    dataset = cfg.DATASET
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
     train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
     train_loader = get_data_loader(train_data, train_labels)
@@ -75,8 +72,12 @@ if __name__ == "__main__":
     assert channels == dataset_info_dict[dataset]["CHANNELS"]
     assert points == dataset_info_dict[dataset]["POINTS"]
     assert n_classes == dataset_info_dict[dataset]["NUM_CLASSES"]
+    n_splits = cfg.NUM_SPLITS
+    window_length = cfg.WINDOW_LENGTH
 
     # init different models and load pre-trained checkpoints
+    model_A_type = cfg.MODEL_A
+    model_B_type = cfg.MODEL_B
     print(log_msg("Loading model A {}".format(model_A_type), "INFO"))
     model_A_class, model_A_pretrain_path = model_dict[dataset][model_A_type]
     assert (model_A_pretrain_path is not None), "no pretrain model A {}".format(model_A_type)
@@ -100,14 +101,14 @@ if __name__ == "__main__":
     print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
 
     # init data augmentation
-    augmentation_type = cfg.AUGMENTATION.TYPE
+    augmentation_type = cfg.AUGMENTATION
     augmentation_method = am_dict[augmentation_type]()
 
     # Normalization
-    normalize = cfg.NORMALIZATION.FLAG
+    normalize = cfg.NORMALIZATION
 
     # Extraction
-    extract = cfg.EXTRACTION.FLAG
+    extract = cfg.EXTRACTION
 
     # init feature selection
     selection_type = cfg.SELECTION.TYPE
@@ -116,9 +117,8 @@ if __name__ == "__main__":
     # 预先计算所有样本的特征归因图，训练时只使用训练集样本的特征归因图
     if selection_type in ["DiffShapley"]:
         time_start = time.perf_counter()
-        window_length, M = cfg.SELECTION.Diff.WINDOW_LENGTH, cfg.SELECTION.Diff.M
         all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B,
-                                                                  n_classes, window_length, M,
+                                                                  n_classes, window_length, cfg.SELECTION.Diff.M,
                                                                   num_gpus=num_gpus, num_cpus=num_cpus)
         time_end = time.perf_counter()  # 记录结束时间
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
@@ -178,8 +178,8 @@ if __name__ == "__main__":
         # For Feature Selection to Compute Feature Contributions
         time_start = time.perf_counter()
         if selection_type in ["DiffShapley"]:
-            window_length, M = cfg.SELECTION.Diff.WINDOW_LENGTH, cfg.SELECTION.Diff.M
-            selection_method.fit(x_train, model_A, model_B, channels, points, n_classes, window_length, M, all_sample_feature_maps[train_index],
+            selection_method.fit(x_train, model_A, model_B, channels, points, n_classes,
+                                 window_length, cfg.SELECTION.Diff.M, all_sample_feature_maps[train_index],
                                  num_gpus=num_gpus, num_cpus=num_cpus)
         else:
             selection_method.fit(x_train_aug, output_A_train, output_B_train)
@@ -201,8 +201,8 @@ if __name__ == "__main__":
 
         # Feature Extraction
         if extract:
-            x_train_aug = feature_extraction(x_train_aug, cfg.EXTRACTION.WINDOW_LENGTH)
-            x_test = feature_extraction(x_test, cfg.EXTRACTION.WINDOW_LENGTH)
+            x_train_aug = feature_extraction(x_train_aug, window_length)
+            x_test = feature_extraction(x_test, window_length)
 
         x_train = pd.DataFrame(x_train_aug)
         x_test = pd.DataFrame(x_test)
@@ -217,7 +217,7 @@ if __name__ == "__main__":
                           max_depth, min_samples_leaf=min_samples_leaf)
 
         diffrules = explainer.explain()
-        print(diffrules)
+        # print(diffrules)
 
         # Computation of metrics on train and test set
         if explainer_type in ["Logit"]:
@@ -265,6 +265,10 @@ if __name__ == "__main__":
         mean(average_num_rule_preds_l), pstdev(average_num_rule_preds_l), average_num_rule_preds_l))
     print("num-unique-preds(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
         mean(num_unique_preds_l), pstdev(num_unique_preds_l), num_unique_preds_l))
+    print("{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t"
+          .format(mean(precision_l), pstdev(precision_l), mean(recall_l), pstdev(recall_l), mean(f1_l), pstdev(f1_l),
+                  mean(num_rules_l), pstdev(num_rules_l), mean(average_num_rule_preds_l),
+                  pstdev(average_num_rule_preds_l), mean(num_unique_preds_l), pstdev(num_unique_preds_l)))
     with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
         writer.write(os.linesep + "-" * 25 + os.linesep)
         writer.write("test-precision(mean±std)\t{:.2f} ± {:.2f}\t{}\n".format(
@@ -279,4 +283,10 @@ if __name__ == "__main__":
             mean(average_num_rule_preds_l), pstdev(average_num_rule_preds_l), average_num_rule_preds_l))
         writer.write("num-unique-preds(mean±std)\t{:.2f} ± {:.2f}\t{}\n".format(
             mean(num_unique_preds_l), pstdev(num_unique_preds_l), num_unique_preds_l))
+        writer.write("{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t"
+                     "{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t"
+                     .format(mean(precision_l), pstdev(precision_l), mean(recall_l),
+                             pstdev(recall_l), mean(f1_l), pstdev(f1_l),
+                             mean(num_rules_l), pstdev(num_rules_l), mean(average_num_rule_preds_l),
+                             pstdev(average_num_rule_preds_l), mean(num_unique_preds_l), pstdev(num_unique_preds_l)))
         writer.write(os.linesep + "-" * 25 + os.linesep)
