@@ -23,7 +23,7 @@ CFG.EXPERIMENT.NAME = ""
 CFG.EXPERIMENT.TAG = ""
 CFG.EXPERIMENT.SEED = 0  # Random number seed, which is beneficial to the repeatability of the experiment.
 CFG.EXPERIMENT.GPU_IDS = "1"    # List of GPUs used
-CFG.EXPERIMENT.CPU_COUNT = 4
+CFG.EXPERIMENT.CPU_COUNT = 3
 
 # Dataset
 CFG.DATASET = "CamCAN"
@@ -53,7 +53,7 @@ CFG.SELECTION.Diff.M = 8
 # Explainer
 CFG.EXPLAINER = CN()
 CFG.EXPLAINER.TYPE = "Logit"
-CFG.EXPLAINER.MAX_DEPTH = 5
+CFG.EXPLAINER.MAX_DEPTH = 7
 CFG.EXPLAINER.MIN_SAMPLES_LEAF = 1
 
 # Log

@@ -113,12 +113,12 @@ if __name__ == "__main__":
     # 预先计算所有样本的特征归因图，训练时只使用训练集样本的特征归因图
     if selection_type in ["DiffShapley"]:
         time_start = time.perf_counter()
-        all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A_type, model_B_type,
+        all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B,
                                                                   n_classes, window_length, cfg.SELECTION.Diff.M,
                                                                   num_gpus=num_gpus, num_cpus=num_cpus)
         time_end = time.perf_counter()  # 记录结束时间
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
-        print("DiffShapley Computation Time ({} {} {}): {}".format(dataset, model_A, model_B, run_time))
+        print("DiffShapley Computation Time ({} {} {}): {}".format(dataset, model_A_type, model_B_type, run_time))
 
     # init explainer
     explainer_type = cfg.EXPLAINER.TYPE
