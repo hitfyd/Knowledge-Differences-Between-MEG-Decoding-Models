@@ -33,10 +33,6 @@ if __name__ == "__main__":
     project = cfg.EXPERIMENT.PROJECT
     experiment_name = cfg.EXPERIMENT.NAME
     tags = cfg.EXPERIMENT.TAG
-    if project == "":
-        project = cfg.DATASET
-    if tags == "":
-        tags = "{}".format(cfg.EXPLAINER.TYPE)
     if experiment_name == "":
         experiment_name = tags
     tags = tags.split(',')
@@ -117,12 +113,12 @@ if __name__ == "__main__":
     # 预先计算所有样本的特征归因图，训练时只使用训练集样本的特征归因图
     if selection_type in ["DiffShapley"]:
         time_start = time.perf_counter()
-        all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B,
+        all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A_type, model_B_type,
                                                                   n_classes, window_length, cfg.SELECTION.Diff.M,
                                                                   num_gpus=num_gpus, num_cpus=num_cpus)
         time_end = time.perf_counter()  # 记录结束时间
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
-        print("Feature Selection Run Time: {}".format(run_time))
+        print("DiffShapley Computation Time ({} {} {}): {}".format(dataset, model_A, model_B, run_time))
 
     # init explainer
     explainer_type = cfg.EXPLAINER.TYPE
@@ -176,16 +172,12 @@ if __name__ == "__main__":
         # 之后数据形状均为（n_samples, channels*points）
 
         # For Feature Selection to Compute Feature Contributions
-        time_start = time.perf_counter()
         if selection_type in ["DiffShapley"]:
             selection_method.fit(x_train, model_A, model_B, channels, points, n_classes,
                                  window_length, cfg.SELECTION.Diff.M, all_sample_feature_maps[train_index],
                                  num_gpus=num_gpus, num_cpus=num_cpus)
         else:
             selection_method.fit(x_train_aug, output_A_train, output_B_train)
-        time_end = time.perf_counter()  # 记录结束时间
-        run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
-        print("Feature Selection Run Time: {}".format(run_time))
 
         # Normalization
         if normalize:
@@ -253,19 +245,20 @@ if __name__ == "__main__":
 
         skf_id += 1
 
-    print("test-precision(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
-        mean(precision_l), pstdev(precision_l), precision_l))
-    print("test-recall(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
-        mean(recall_l), pstdev(recall_l), recall_l))
-    print("test-f1(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
-        mean(f1_l), pstdev(f1_l), f1_l))
-    print("num-rules(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
-        mean(num_rules_l), pstdev(num_rules_l), num_rules_l))
-    print("average-num-rule-preds(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
-        mean(average_num_rule_preds_l), pstdev(average_num_rule_preds_l), average_num_rule_preds_l))
-    print("num-unique-preds(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
-        mean(num_unique_preds_l), pstdev(num_unique_preds_l), num_unique_preds_l))
-    print("{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t"
+    # print("test-precision(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
+    #     mean(precision_l), pstdev(precision_l), precision_l))
+    # print("test-recall(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
+    #     mean(recall_l), pstdev(recall_l), recall_l))
+    # print("test-f1(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
+    #     mean(f1_l), pstdev(f1_l), f1_l))
+    # print("num-rules(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
+    #     mean(num_rules_l), pstdev(num_rules_l), num_rules_l))
+    # print("average-num-rule-preds(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
+    #     mean(average_num_rule_preds_l), pstdev(average_num_rule_preds_l), average_num_rule_preds_l))
+    # print("num-unique-preds(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
+    #     mean(num_unique_preds_l), pstdev(num_unique_preds_l), num_unique_preds_l))
+    print("precision\trecall\tf1\tnum-rules\taverage-num-rule-preds\tnum-unique-preds")
+    print("{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}"
           .format(mean(precision_l), pstdev(precision_l), mean(recall_l), pstdev(recall_l), mean(f1_l), pstdev(f1_l),
                   mean(num_rules_l), pstdev(num_rules_l), mean(average_num_rule_preds_l),
                   pstdev(average_num_rule_preds_l), mean(num_unique_preds_l), pstdev(num_unique_preds_l)))
@@ -283,8 +276,15 @@ if __name__ == "__main__":
             mean(average_num_rule_preds_l), pstdev(average_num_rule_preds_l), average_num_rule_preds_l))
         writer.write("num-unique-preds(mean±std)\t{:.2f} ± {:.2f}\t{}\n".format(
             mean(num_unique_preds_l), pstdev(num_unique_preds_l), num_unique_preds_l))
+        writer.write("precision\trecall\tf1\tnum-rules\taverage-num-rule-preds\tnum-unique-preds\n")
         writer.write("{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t"
-                     "{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t"
+                     "{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\n"
+                     .format(mean(precision_l), pstdev(precision_l), mean(recall_l),
+                             pstdev(recall_l), mean(f1_l), pstdev(f1_l),
+                             mean(num_rules_l), pstdev(num_rules_l), mean(average_num_rule_preds_l),
+                             pstdev(average_num_rule_preds_l), mean(num_unique_preds_l), pstdev(num_unique_preds_l)))
+        writer.write("{:.3f} ± {:.3f}\t{:.3f} ± {:.3f}\t{:.3f} ± {:.3f}\t"
+                     "{:.3f} ± {:.3f}\t{:.3f} ± {:.3f}\t{:.3f} ± {:.3f}\n"
                      .format(mean(precision_l), pstdev(precision_l), mean(recall_l),
                              pstdev(recall_l), mean(f1_l), pstdev(f1_l),
                              mean(num_rules_l), pstdev(num_rules_l), mean(average_num_rule_preds_l),

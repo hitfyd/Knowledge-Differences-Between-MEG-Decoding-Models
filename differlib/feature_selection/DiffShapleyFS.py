@@ -17,8 +17,14 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
         os.makedirs(save_path)
 
     save_file = os.path.join(save_path, f"{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_{window_length}_{M}")
+    save_file_ = os.path.join(save_path, f"{dataset}_{model2.__class__.__name__}_{model1.__class__.__name__}_{window_length}_{M}")
 
-    if not os.path.exists(save_file):
+    if os.path.exists(save_file):
+        all_sample_feature_maps = load_checkpoint(save_file)
+    elif os.path.exists(save_file_):
+        all_sample_feature_maps = load_checkpoint(save_file)
+        # all_sample_feature_maps = -all_sample_feature_maps
+    else:
         if parallel:
             if not ray.is_initialized():
                 ray.init(num_gpus=num_gpus, num_cpus=num_cpus,  # 计算资源
@@ -33,8 +39,6 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
         else:
             all_sample_feature_maps = diff_shapley(data, model1, model2, window_length, M, n_classes)
         save_checkpoint(all_sample_feature_maps, save_file)
-    else:
-        all_sample_feature_maps = load_checkpoint(save_file)
     return all_sample_feature_maps
 
 
