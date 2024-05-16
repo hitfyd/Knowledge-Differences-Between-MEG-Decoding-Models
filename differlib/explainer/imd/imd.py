@@ -167,15 +167,10 @@ class IMDExplainer(DISExplainer):
         inregion = self.inregion(self.diffregions, x_test.to_numpy())
         samples_in_region = np.sum(inregion)
 
-        metrics[name + "-precision"] = 0 if samples_in_region == 0 else round(diff_samples_inside_diff_region / samples_in_region, 6)
-        metrics[name + "-recall"] = 0 if total_number_diff_samples == 0 else round(diff_samples_inside_diff_region / total_number_diff_samples, 6)
-        if metrics[name + "-recall"] == 0:
-            metrics[name + "-f1"] = 0
-        elif metrics[name + "-precision"] == 0:
-            metrics[name + "-f1"] = 0
-        else:
-            metrics[name + "-f1"] = round(2 * metrics[name + "-precision"] * metrics[name + "-recall"] /
-                                          (metrics[name + "-precision"]+metrics[name + "-recall"]), 6)
+        metrics[name + "-precision"] = np.nan_to_num(diff_samples_inside_diff_region / samples_in_region)
+        metrics[name + "-recall"] = np.nan_to_num(diff_samples_inside_diff_region / total_number_diff_samples)
+        metrics[name + "-f1"] = np.nan_to_num(2 * metrics[name + "-precision"] * metrics[name + "-recall"] /
+                                              (metrics[name + "-precision"] + metrics[name + "-recall"]))
         metrics["num-rules"] = len(self.diffregions)
 
         preds = []

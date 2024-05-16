@@ -180,12 +180,12 @@ if __name__ == "__main__":
             selection_method.fit(x_train_aug, output_A_train, output_B_train)
 
         # Normalization
-        if normalize:
-            data_normalize = DatasetNormalization(x_train_aug)
-            x_train_aug = data_normalize(x_train_aug)
-            x_test = data_normalize(x_test)
-            # x_train_aug = sample_normalize(x_train_aug)
-            # x_test = sample_normalize(x_test)
+        # if normalize:
+        #     data_normalize = DatasetNormalization(x_train_aug)
+        #     x_train_aug = data_normalize(x_train_aug)
+        #     x_test = data_normalize(x_test)
+        #     # x_train_aug = sample_normalize(x_train_aug)
+        #     # x_test = sample_normalize(x_test)
 
         # Execute Feature Selection
         x_train_aug = selection_method.transform(x_train_aug, selection_rate)
@@ -208,8 +208,8 @@ if __name__ == "__main__":
             explainer.fit(x_train, pred_target_A_train, pred_target_B_train,
                           max_depth, min_samples_leaf=min_samples_leaf)
 
-        diffrules = explainer.explain()
-        # print(diffrules)
+        diff_rules = explainer.explain()
+        # print(diff_rules)
 
         # Computation of metrics on train and test set
         if explainer_type in ["Logit"]:
@@ -238,10 +238,14 @@ if __name__ == "__main__":
         average_num_rule_preds_l.append(test_metrics["average-num-rule-preds"])
         num_unique_preds_l.append(test_metrics["num-unique-preds"])
 
-        save_checkpoint(explainer, os.path.join(log_path, "{}_{}-{}".format(skf_id, explainer_type, max_depth)))
-        save_checkpoint(diffrules, os.path.join(log_path, "{}_diffrules".format(skf_id)))
-        save_checkpoint(test_index, os.path.join(log_path, "{}_test_index".format(skf_id)))
-        save_checkpoint(test_metrics, os.path.join(log_path, "{}_test_metrics".format(skf_id)))
+        save_dict = {"explainer": explainer,
+                     "diff_rules": diff_rules,
+                     "test_index": test_index,
+                     "train_metrics": train_metrics,
+                     "test_metrics": test_metrics,
+                     }
+        save_path = os.path.join(log_path, "{}_{}".format(explainer_type, skf_id))
+        save_checkpoint(save_dict, save_path)
 
         skf_id += 1
 

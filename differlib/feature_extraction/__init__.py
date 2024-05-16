@@ -14,24 +14,23 @@ def feature_extraction(x: np.ndarray, window_length=10):
         for window in np.array_split(x[i], num_windows):
             # Time Domain Features
             # maximum, minimum, mean, standard deviation
-            maximum = np.max(window)
-            minimum = np.min(window)
+            # maximum = np.max(window)
+            # minimum = np.min(window)
             mean = np.mean(window)
             standard_deviation = np.std(window)
-            # diff = np.diff(window)
-            # first_difference = np.mean(diff)
+            diff = np.diff(window)
+            first_difference = np.mean(diff)
             # norm_first_difference = first_difference / standard_deviation
             # second_diff = window[2:] - window[:-2]
             # second_difference = np.mean(second_diff)
             # norm_second_difference = second_difference / standard_deviation
 
-            time_features = [maximum, minimum, mean, standard_deviation,]
-                             # first_difference, norm_first_difference, second_difference, norm_second_difference]
-            sample_features.extend(window)
+            time_features = [mean, standard_deviation, first_difference]
+            # sample_features.extend(window)
             sample_features.extend(time_features)
 
-            # Frequency Domain Features：针对平稳信号（静息态）
-            pass
+            # # Frequency Domain Features：针对平稳信号（静息态）
+            # pass
 
         # for c in range(channels):
         #     # Time-Frequency Domain：针对非平稳信号

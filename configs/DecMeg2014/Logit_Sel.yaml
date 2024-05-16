@@ -7,7 +7,6 @@ WINDOW_LENGTH: 10
 MODEL_A: "sdt_hgrn_fakd"
 MODEL_B: "sdt"
 AUGMENTATION: "NONE"
-NORMALIZATION: False
 EXTRACTION: False
 SELECTION:
   TYPE: "DiffShapley"

@@ -239,10 +239,12 @@ class BaseAM(AMethod):
     def augment(self, origin_data, delta_labels, *argv, **kwargs):
         ag_data, ag_label = [], []
         for i in range(len(delta_labels)):
-            if delta_labels[i] == 0:
-                continue
+            # if delta_labels[i] == 0:
+            #     continue
             for op in ALL_TRANSFORMS:
                 ag_data.append(op.meg_transformer(1., PARAMETER_MAX-1)(origin_data[i]))
+                ag_label.append(delta_labels[i])
+                ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(origin_data[i]))
                 ag_label.append(delta_labels[i])
         ag_data, ag_label = np.array(ag_data), np.array(ag_label)
         all_data = np.concatenate((origin_data, ag_data), axis=0)
