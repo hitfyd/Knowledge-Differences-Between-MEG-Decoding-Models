@@ -186,6 +186,13 @@ if __name__ == "__main__":
         #     x_test = data_normalize(x_test)
         #     # x_train_aug = sample_normalize(x_train_aug)
         #     # x_test = sample_normalize(x_test)
+        # from sklearn.preprocessing import Binarizer, KBinsDiscretizer
+        #
+        # transformer = Binarizer()
+        # transformer = KBinsDiscretizer(n_bins=10, encode='ordinal', strategy='uniform', subsample=None)
+        # transformer.fit(x_train_aug)
+        # x_train_aug = transformer.transform(x_train_aug)
+        # x_test = transformer.transform(x_test)
 
         # Execute Feature Selection
         x_train_aug = selection_method.transform(x_train_aug, selection_rate)
@@ -200,10 +207,12 @@ if __name__ == "__main__":
         x_test = pd.DataFrame(x_test)
         print(x_train.shape, x_test.shape)
 
-
         if explainer_type in ["Logit"]:
+            contributions = selection_method.computing_contribution()
+            kth = int(len(contributions) * selection_rate)
+            ind = np.argpartition(contributions, kth=-kth)[-kth:]
             explainer.fit(x_train, output_A_train, output_B_train,
-                          max_depth, min_samples_leaf=min_samples_leaf)
+                          max_depth, min_samples_leaf=min_samples_leaf, feature_weights=contributions[ind])
         else:
             explainer.fit(x_train, pred_target_A_train, pred_target_B_train,
                           max_depth, min_samples_leaf=min_samples_leaf)
