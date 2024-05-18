@@ -118,7 +118,7 @@ if __name__ == "__main__":
                                                                   num_gpus=num_gpus, num_cpus=num_cpus)
         time_end = time.perf_counter()  # 记录结束时间
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
-        print("DiffShapley Computation Time ({} {} {}): {}".format(dataset, model_A_type, model_B_type, run_time))
+        print("DiffShapley Computation Time ({} {} {}): {:.6f}s".format(dataset, model_A_type, model_B_type, run_time))
 
     # init explainer
     explainer_type = cfg.EXPLAINER.TYPE

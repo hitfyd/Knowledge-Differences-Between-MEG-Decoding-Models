@@ -18,6 +18,7 @@ pip install Boruta
 conda install -c conda-forge imbalanced-learn
 pip install einops
 conda install catboost
+pip install merlinxai pyeda rulefit
 ```
 
 Major dependency packages:

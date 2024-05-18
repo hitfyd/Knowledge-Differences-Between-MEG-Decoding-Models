@@ -116,9 +116,9 @@ class LogitDeltaRule(DISExplainer):
         delta_target = (pred_target_1 != pred_target_2).astype(int)
         delta_output = Y1 - Y2
 
-        # self.delta_tree = DecisionTreeRegressor(min_samples_leaf=min_samples_leaf, ccp_alpha=0.001)
-        # self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
-        # self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
+        self.delta_tree = DecisionTreeRegressor(min_samples_leaf=min_samples_leaf, ccp_alpha=0.001)
+        self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
+        self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
         # print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
         # plot_tree(self.delta_tree)
 
@@ -126,9 +126,9 @@ class LogitDeltaRule(DISExplainer):
         # self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
         # self.diffrules = dtree_to_rule(self.delta_tree.estimators_[0][0], feature_names=self.feature_names)
 
-        self.delta_tree = CatBoostRegressor(iterations=100, depth=None, learning_rate=0.1, loss_function='RMSE', task_type="GPU", devices='0', feature_weights=feature_weights)
-        self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
-        self.diffrules = []
+        # self.delta_tree = CatBoostRegressor(iterations=100, depth=None, learning_rate=0.1, loss_function='RMSE', task_type="GPU", devices='0', feature_weights=feature_weights)
+        # self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
+        # self.diffrules = []
 
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
@@ -154,10 +154,10 @@ class LogitDeltaRule(DISExplainer):
 
         delta_target = (pred_target_1 != pred_target_2).astype(int)
         logit_delta = self.delta_tree.predict(x_test)
-        # y_test2_ = y_test1 - logit_delta
-        y_test2_ = np.zeros_like(y_test1)
-        y_test2_[:, 0] = y_test1[:, 0] - logit_delta
-        y_test2_[:, 1] = y_test1[:, 1] + logit_delta
+        y_test2_ = y_test1 - logit_delta
+        # y_test2_ = np.zeros_like(y_test1)
+        # y_test2_[:, 0] = y_test1[:, 0] - logit_delta
+        # y_test2_[:, 1] = y_test1[:, 1] + logit_delta
         pred_target_2_ = y_test2_.argmax(axis=1)
         pred_target = pred_target_1 ^ pred_target_2_
         metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)

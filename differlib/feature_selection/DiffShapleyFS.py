@@ -22,7 +22,7 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
     if os.path.exists(save_file):
         all_sample_feature_maps = load_checkpoint(save_file)
     elif os.path.exists(save_file_):
-        all_sample_feature_maps = load_checkpoint(save_file)
+        all_sample_feature_maps = load_checkpoint(save_file_)
         # all_sample_feature_maps = -all_sample_feature_maps
     else:
         if parallel:
@@ -215,6 +215,7 @@ def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES, n
     features_num = (channels * points) // window_length
     data = data.reshape((n_samples, channels * points))
     all_sample_feature_maps = np.zeros((n_samples, features_num, NUM_CLASSES))
+    print("n_samples", n_samples)
 
     @ray.remote(num_gpus=num_gpus)
     def run(index, data_r, model1_r, model2_r):
@@ -233,6 +234,7 @@ def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES, n
                 S1[feature, m] = S2[feature, m] = feature_mark * data_r[index] + ~feature_mark * data_r[reference_index]
                 S1[feature, m][feature * window_length:(feature + 1) * window_length] = \
                     data_r[index][feature * window_length:(feature + 1) * window_length]
+        print(index, end=',')
 
         # 计算S1和S2的预测差值
         S1 = S1.reshape(-1, channels, points)
