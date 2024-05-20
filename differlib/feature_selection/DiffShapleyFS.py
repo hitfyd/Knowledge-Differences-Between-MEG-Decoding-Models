@@ -100,11 +100,12 @@ class DiffShapleyFS(FSMethod):
         assert len(x.shape) == 2
         lmax = stats.yeojohnson_normmax(self.contributions)
         yj_contributions = stats.yeojohnson(self.contributions, lmbda=lmax)
+        yj_contributions = self.contributions
         mean = yj_contributions.mean()
         std = yj_contributions.std()
-        z_contributions = (yj_contributions - mean) / std
+        z_contributions = (yj_contributions) / std
         abs_contributions = np.abs(z_contributions)
-        threshold = 5   # 2/3
+        threshold = 3   # 2/3
         condition = (z_contributions > threshold) | (z_contributions < -threshold)
         indices = np.where(condition)[0]
         return x[:, indices]
