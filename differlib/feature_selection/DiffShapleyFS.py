@@ -1,4 +1,5 @@
 import os
+import time
 
 import numpy as np
 import ray
@@ -18,13 +19,17 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
 
     save_file = os.path.join(save_path, f"{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_{window_length}_{M}")
     save_file_ = os.path.join(save_path, f"{dataset}_{model2.__class__.__name__}_{model1.__class__.__name__}_{window_length}_{M}")
+    log_file = os.path.join(save_path, f"{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_{window_length}_{M}.log")
 
     if os.path.exists(save_file):
         all_sample_feature_maps = load_checkpoint(save_file)
+        print("feature_maps has been loaded")
     elif os.path.exists(save_file_):
         all_sample_feature_maps = load_checkpoint(save_file_)
         # all_sample_feature_maps = -all_sample_feature_maps
+        print("feature_maps has been loaded")
     else:
+        time_start = time.perf_counter()
         if parallel:
             if not ray.is_initialized():
                 ray.init(num_gpus=num_gpus, num_cpus=num_cpus,  # 计算资源
@@ -35,10 +40,16 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
                          log_to_driver=False,  # 日志记录不配置到driver
                          )
             all_sample_feature_maps = diff_shapley_parallel(data, model1, model2, window_length, M, n_classes,
-                                                            num_gpus=num_gpus/num_cpus)
+                                                            num_gpus=num_gpus/num_cpus, log_file=log_file)
         else:
             all_sample_feature_maps = diff_shapley(data, model1, model2, window_length, M, n_classes)
         save_checkpoint(all_sample_feature_maps, save_file)
+
+        time_end = time.perf_counter()  # 记录结束时间
+        run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
+        print("DiffShapley Computation Time ({} {} {}): {:.6f}s".format(dataset, {model1.__class__.__name__}, {model2.__class__.__name__}, run_time))
+        with open(log_file, "a") as writer:
+            writer.write("DiffShapley Computation Time ({} {} {}): {:.6f}s".format(dataset, {model1.__class__.__name__}, {model2.__class__.__name__}, run_time))
     return all_sample_feature_maps
 
 
@@ -210,15 +221,17 @@ def diff_shapley_feature(data, model1, model2, window_length, M, NUM_CLASSES):
 #     return features.cpu().detach().numpy()
 
 
-def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES, num_gpus=0.125):
+def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES, num_gpus=0.125, log_file=None):
     n_samples, channels, points = data.shape
     features_num = (channels * points) // window_length
     data = data.reshape((n_samples, channels * points))
     all_sample_feature_maps = np.zeros((n_samples, features_num, NUM_CLASSES))
-    print("n_samples", n_samples)
+    with open(log_file, "a") as writer:
+        writer.write("n_samples: {}\n".format(n_samples))
 
     @ray.remote(num_gpus=num_gpus)
     def run(index, data_r, model1_r, model2_r):
+        time_start = time.perf_counter()
         S1 = np.zeros((features_num, M, channels * points), dtype=np.float16)
         S2 = np.zeros((features_num, M, channels * points), dtype=np.float16)
         for feature in range(features_num):
@@ -234,7 +247,6 @@ def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES, n
                 S1[feature, m] = S2[feature, m] = feature_mark * data_r[index] + ~feature_mark * data_r[reference_index]
                 S1[feature, m][feature * window_length:(feature + 1) * window_length] = \
                     data_r[index][feature * window_length:(feature + 1) * window_length]
-        print(index, end=',')
 
         # 计算S1和S2的预测差值
         S1 = S1.reshape(-1, channels, points)
@@ -242,6 +254,11 @@ def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES, n
         S1_preds = predict(model1_r, S1, NUM_CLASSES, eval=True) - predict(model2_r, S1, NUM_CLASSES, eval=True)
         S2_preds = predict(model1_r, S2, NUM_CLASSES, eval=True) - predict(model2_r, S2, NUM_CLASSES, eval=True)
         feature_maps = (S1_preds.view(features_num, M, -1) - S2_preds.view(features_num, M, -1)).sum(axis=1) / M
+
+        time_end = time.perf_counter()  # 记录结束时间
+        run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
+        with open(log_file, "a") as writer:
+            writer.write("{}\t{}s\n".format(index, run_time))
 
         return index, feature_maps.cpu().detach().numpy()
 
@@ -251,8 +268,7 @@ def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES, n
     model2_ = ray.put(model2.cuda())
 
     rs = [run.remote(index, data_, model1_, model2_) for index in range(n_samples)]
-    rs_list = ray.get(rs)
-    for index, sample_feature_maps in rs_list:
+    for index, sample_feature_maps in tqdm(ray.get(rs), total=n_samples, desc="Processing"):
         all_sample_feature_maps[index] = sample_feature_maps
 
     return all_sample_feature_maps
