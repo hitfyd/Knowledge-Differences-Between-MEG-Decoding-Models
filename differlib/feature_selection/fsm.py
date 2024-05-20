@@ -45,11 +45,17 @@ class FSMethod(ABC):
 
 
 class NoneFSM(FSMethod):
-    def fit(self, *argv, **kwargs):
-        pass
+    def __init__(self):
+        super(NoneFSM, self).__init__()
+        self.contributions = None
+
+    def fit(self, x: np.ndarray, *argv, **kwargs):
+        assert len(x.shape) == 2
+        n_samples, n_features = x.shape
+        self.contributions = np.zeros(n_features)
 
     def computing_contribution(self, *argv, **kwargs):
-        pass
+        return self.contributions
 
     def transform(self, x, *argv, **kwargs):
         return x
@@ -67,7 +73,7 @@ class RandFSM(FSMethod):
 
 
     def computing_contribution(self, *argv, **kwargs):
-        pass
+        return self.contributions
 
     def transform(self, x, *argv, rate=0.1, **kwargs):
         assert len(x.shape) == 2

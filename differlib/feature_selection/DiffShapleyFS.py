@@ -4,6 +4,7 @@ import time
 import numpy as np
 import ray
 import torch
+from scipy import stats
 from tqdm import tqdm
 
 from .fsm import FSMethod
@@ -87,7 +88,7 @@ class DiffShapleyFS(FSMethod):
         # self.contributions = self.all_sample_feature_maps.mean(axis=0)
         # self.contributions = self.all_sample_feature_maps.sum(axis=0) / n_samples
         self.contributions = np.average(self.all_sample_feature_maps, axis=0, weights=self.sample_weights)
-        self.contributions = np.abs(self.contributions[:, 0])
+        self.contributions = self.contributions[:, 0]
         self.contributions = np.repeat(self.contributions, window_length)
         print(self.contributions.shape)
         print(self.contributions)
@@ -97,11 +98,23 @@ class DiffShapleyFS(FSMethod):
 
     def transform(self, x: np.ndarray, rate=0.1, *args, **kwargs):
         assert len(x.shape) == 2
-        kth = int(len(self.contributions) * rate)
-        ind = np.argpartition(self.contributions, kth=-kth)[-kth:]
-        threshold = np.min(self.contributions[ind])
-        print(kth, threshold)
-        return x[:, ind]
+        lmax = stats.yeojohnson_normmax(self.contributions)
+        yj_contributions = stats.yeojohnson(self.contributions, lmbda=lmax)
+        mean = yj_contributions.mean()
+        std = yj_contributions.std()
+        z_contributions = (yj_contributions - mean) / std
+        abs_contributions = np.abs(z_contributions)
+        threshold = 5   # 2/3
+        condition = (z_contributions > threshold) | (z_contributions < -threshold)
+        indices = np.where(condition)[0]
+        return x[:, indices]
+
+        # abs_contributions = np.abs(self.contributions)
+        # kth = int(len(abs_contributions) * rate)
+        # ind = np.argpartition(abs_contributions, kth=-kth)[-kth:]
+        # threshold = np.min(abs_contributions[ind])
+        # print(kth, threshold)
+        # return x[:, ind]
 
 
 # def feature_segment(channels, points, window_length):
@@ -258,7 +271,7 @@ def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES, n
         time_end = time.perf_counter()  # 记录结束时间
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
         with open(log_file, "a") as writer:
-            writer.write("{}\t{}s\n".format(index, run_time))
+            writer.write("{}\t{:.6f}s\n".format(index, run_time))
 
         return index, feature_maps.cpu().detach().numpy()
 

@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
+from sklearn.preprocessing import KBinsDiscretizer
 
 from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
