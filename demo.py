@@ -2,7 +2,7 @@ import os
 import logging
 from zipfile import ZipFile
 import pandas as pd
-from merlin import MERLIN
+from differlib.explainer.merlin import MERLIN
 
 with ZipFile('tests/test_data/20newsgroups.zip', 'r') as archive:
     df_left = pd.read_csv(archive.open('df_left.csv'), delimiter=',')
