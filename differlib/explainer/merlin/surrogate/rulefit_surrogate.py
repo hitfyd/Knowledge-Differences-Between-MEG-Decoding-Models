@@ -52,6 +52,9 @@ class RulefitSurrogate(GenericSurrogate):
         self.fit_time = round(time() - start_time, 3)
         self.logger.info(f'Time for fitting surrogate: {self.fit_time}')
 
+    def predict(self, x):
+        return self._model.predict(x)
+
     def score(self):
         '''Compute fidelity score.
         '''

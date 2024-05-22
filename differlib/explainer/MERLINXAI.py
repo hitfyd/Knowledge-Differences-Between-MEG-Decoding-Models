@@ -100,14 +100,13 @@ class MERLINXAI(DISExplainer):
 
         delta_target = (y_test1 != y_test2).astype(int)
         predict_labels_l = []
-        for y in [y_test1, y_test2]:
-            predict_labels = np.zeros_like(y)
+        for y, time_label in [[y_test1, 'left'], [y_test2, 'right']]:
+            labels = np.zeros(len(y))
             for class_id in self.exp.trace.classes:
-                label = int(class_id)
-                indices = np.where(y_test1 == label)[0]
-                class_data = x_test[indices]
-                predict_labels[indices] = self.exp.trace.surrogate_explainer.predict(class_data)
-            predict_labels_l.append(predict_labels)
+                indices = np.where(y_test1 == int(class_id))[0]
+                class_data = x_test.iloc[indices]
+                labels[indices] = self.exp.trace.surrogate_explainer[time_label][class_id].predict(class_data)
+            predict_labels_l.append(labels)
         pred_target = (predict_labels_l[0] != predict_labels_l[1]).astype(int)
 
         metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
