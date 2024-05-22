@@ -40,7 +40,8 @@ class IMDExplainer(DISExplainer):
         """
         pass
 
-    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, split_criterion=1, alpha=0.0, verbose=True, **kwargs):
+    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, split_criterion=1, alpha=0.0, verbose=True,
+            feature_names=None, **kwargs):
         """
         Fit joint surrogate tree to input data, and outputs from two models.
         Args:
@@ -56,7 +57,8 @@ class IMDExplainer(DISExplainer):
         Returns:
             self
         """
-        feature_names = X_train.columns.to_list()
+        if feature_names is None:
+            feature_names = X_train.columns.to_list()
         self.feature_names = feature_names
 
         x1 = x2 = X_train.to_numpy()
@@ -195,8 +197,8 @@ class SeparateSurrogate(IMDExplainer):
         """
         pass
 
-    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, **kwargs):
-        super().fit(X_train, Y1, Y2, max_depth=max_depth, split_criterion=2, alpha=1.0, verbose=True)
+    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, feature_names=None, **kwargs):
+        super().fit(X_train, Y1, Y2, max_depth=max_depth, split_criterion=2, alpha=1.0, verbose=True, feature_names=feature_names)
 
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
@@ -207,4 +209,3 @@ class SeparateSurrogate(IMDExplainer):
         """Return diff-rules.
         """
         return self.diffrules
-

@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
-from sklearn.preprocessing import KBinsDiscretizer
+from sklearn.preprocessing import KBinsDiscretizer, Binarizer
 
 from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
@@ -71,6 +71,8 @@ if __name__ == "__main__":
     assert n_classes == dataset_info_dict[dataset]["NUM_CLASSES"]
     n_splits = cfg.NUM_SPLITS
     window_length = cfg.WINDOW_LENGTH
+    feature_names = [f"C{c}T{t}" for c in range(channels) for t in range(points)]
+    feature_names = np.array(feature_names)
 
     # init different models and load pre-trained checkpoints
     model_A_type = cfg.MODEL_A
@@ -81,10 +83,10 @@ if __name__ == "__main__":
     model_A = model_A_class(channels=channels, points=points, num_classes=n_classes)
     model_A.load_state_dict(load_checkpoint(model_A_pretrain_path))
     model_A = model_A.cuda()
-    train_accuracy = model_eval(model_A, train_loader)
-    test_accuracy = model_eval(model_A, test_loader)
-    print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
-    print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
+    # train_accuracy = model_eval(model_A, train_loader)
+    # test_accuracy = model_eval(model_A, test_loader)
+    # print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
+    # print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
 
     print(log_msg("Loading model B {}".format(model_B_type), "INFO"))
     model_B_class, model_B_pretrain_path = model_dict[dataset][model_B_type]
@@ -92,10 +94,10 @@ if __name__ == "__main__":
     model_B = model_B_class(channels=channels, points=points, num_classes=n_classes)
     model_B.load_state_dict(load_checkpoint(model_B_pretrain_path))
     model_B = model_B.cuda()
-    train_accuracy = model_eval(model_B, train_loader)
-    test_accuracy = model_eval(model_B, test_loader)
-    print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
-    print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
+    # train_accuracy = model_eval(model_B, train_loader)
+    # test_accuracy = model_eval(model_B, test_loader)
+    # print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
+    # print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
 
     # init data augmentation
     augmentation_type = cfg.AUGMENTATION
@@ -185,23 +187,24 @@ if __name__ == "__main__":
         #     # x_test = sample_normalize(x_test)
         # from sklearn.preprocessing import Binarizer, KBinsDiscretizer
         #
-        # transformer = Binarizer()
+        transformer = Binarizer()
         # transformer = KBinsDiscretizer(n_bins=10, encode='ordinal', strategy='uniform', subsample=None)
-        # transformer.fit(x_train_aug)
-        # x_train_aug = transformer.transform(x_train_aug)
-        # x_test = transformer.transform(x_test)
+        transformer.fit(x_train_aug)
+        x_train_aug = transformer.transform(x_train_aug)
+        x_test = transformer.transform(x_test)
 
         # Execute Feature Selection
-        x_train_aug = selection_method.transform(x_train_aug, selection_rate)
-        x_test = selection_method.transform(x_test, selection_rate)
+        x_train_aug, _ = selection_method.transform(x_train_aug, selection_rate)
+        x_test, select_indices = selection_method.transform(x_test, selection_rate)
+        x_feature_names = feature_names[select_indices]
 
         # Feature Extraction
         if extract:
             x_train_aug = feature_extraction(x_train_aug, window_length)
             x_test = feature_extraction(x_test, window_length)
 
-        x_train = pd.DataFrame(x_train_aug)
-        x_test = pd.DataFrame(x_test)
+        x_train = pd.DataFrame(x_train_aug, columns=x_feature_names)
+        x_test = pd.DataFrame(x_test, columns=x_feature_names)
         print(x_train.shape, x_test.shape)
 
         if explainer_type in ["Logit"]:
@@ -209,10 +212,11 @@ if __name__ == "__main__":
             kth = int(len(contributions) * selection_rate)
             ind = np.argpartition(contributions, kth=-kth)[-kth:]
             explainer.fit(x_train, output_A_train, output_B_train,
-                          max_depth, min_samples_leaf=min_samples_leaf, feature_weights=contributions[ind])
+                          max_depth, min_samples_leaf=min_samples_leaf,
+                          feature_weights=contributions[ind], feature_names=x_feature_names)
         else:
             explainer.fit(x_train, pred_target_A_train, pred_target_B_train,
-                          max_depth, min_samples_leaf=min_samples_leaf)
+                          max_depth, min_samples_leaf=min_samples_leaf, feature_names=x_feature_names)
 
         diff_rules = explainer.explain()
         # print(diff_rules)

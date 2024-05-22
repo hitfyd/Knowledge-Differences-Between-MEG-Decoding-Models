@@ -34,7 +34,7 @@ class MERLINXAI(DISExplainer):
         """
         pass
 
-    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, min_samples_leaf=1, verbose=True, **kwargs):
+    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, min_samples_leaf=1, verbose=True, feature_names = None, **kwargs):
         """
         Fit joint surrogate tree to input data, and outputs from two models.
         Args:
@@ -47,12 +47,13 @@ class MERLINXAI(DISExplainer):
             **kwargs:
         Returns:
             self
-        """
-        # TODO: 手动生成列名称，然后特征选择时同时选择
-        feature_names = X_train.columns.to_list()
-        self.feature_names = feature_names
 
-        # X_train = pd.Series([i for i in X_train.to_numpy()])
+        Parameters
+        ----------
+        feature_names
+        """
+        self.feature_names = X_train.columns.to_list()
+
         Y1 = pd.Series(Y1)
         Y2 = pd.Series(Y2)
 
@@ -64,9 +65,20 @@ class MERLINXAI(DISExplainer):
                           save_surrogates=True, save_bdds=True)
         self.exp.run_trace()
 
-        self.exp.run_explain()
-
-        self.exp.explain.BDD2Text()
+        # self.exp.run_explain()
+        #
+        # self.exp.explain.BDD2Text()
+        bdds = self.exp.trace.bdds
+        id = 0
+        for time_label in ['left', 'right']:
+            for class_id in self.exp.trace.classes:
+                class_bdds = bdds[time_label][class_id]
+                rules = class_bdds.split('|')
+                for r in rules:
+                    predicates = r.split('&')
+                    rule = Rule(id, predicates, class_id)
+                    self.diffrules.append(rule)
+                    id += 1
 
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
@@ -87,7 +99,17 @@ class MERLINXAI(DISExplainer):
         metrics["samples"] = len(x_test)
 
         delta_target = (y_test1 != y_test2).astype(int)
-        pred_target = self.delta_tree.predict(x_test)
+        predict_labels_l = []
+        for y in [y_test1, y_test2]:
+            predict_labels = np.zeros_like(y)
+            for class_id in self.exp.trace.classes:
+                label = int(class_id)
+                indices = np.where(y_test1 == label)[0]
+                class_data = x_test[indices]
+                predict_labels[indices] = self.exp.trace.surrogate_explainer.predict(class_data)
+            predict_labels_l.append(predict_labels)
+        pred_target = (predict_labels_l[0] != predict_labels_l[1]).astype(int)
+
         metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
         metrics[name + "-accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
         metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target)

@@ -108,7 +108,7 @@ class DiffShapleyFS(FSMethod):
         threshold = 3   # 2/3
         condition = (z_contributions > threshold) | (z_contributions < -threshold)
         indices = np.where(condition)[0]
-        return x[:, indices]
+        return x[:, indices], indices
 
         # abs_contributions = np.abs(self.contributions)
         # kth = int(len(abs_contributions) * rate)

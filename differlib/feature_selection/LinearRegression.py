@@ -27,7 +27,7 @@ class LinearRegression(FSMethod):
         ind = np.argpartition(self.contributions, kth=-kth)[-kth:]
         threshold = np.min(self.contributions[ind])
         print(kth, threshold)
-        return x[:, ind]
+        return x[:, ind], ind
 
     def metrics(self, x_test: pd.DataFrame, logit1, logit2, name="test"):
         assert len(logit1.shape) == len(logit2.shape) == 2 and logit1.shape == logit2.shape, \

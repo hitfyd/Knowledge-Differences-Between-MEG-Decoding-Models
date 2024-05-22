@@ -58,7 +58,8 @@ class NoneFSM(FSMethod):
         return self.contributions
 
     def transform(self, x, *argv, **kwargs):
-        return x
+        assert len(x.shape) == 2
+        return x, np.array(range(x.shape[1]))
 
 
 class RandFSM(FSMethod):
@@ -81,4 +82,4 @@ class RandFSM(FSMethod):
         ind = np.argpartition(self.contributions, kth=-kth)[-kth:]
         threshold = np.min(self.contributions[ind])
         print(kth, threshold)
-        return x[:, ind]
+        return x[:, ind], ind

@@ -81,7 +81,7 @@ class LogitDeltaRule(DISExplainer):
         """
         pass
 
-    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, min_samples_leaf=1, verbose=True, feature_weights=None, **kwargs):
+    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, min_samples_leaf=1, verbose=True, feature_weights=None, feature_names = None, **kwargs):
         """
         Fit joint surrogate tree to input data, and outputs from two models.
         Args:
@@ -95,7 +95,8 @@ class LogitDeltaRule(DISExplainer):
         Returns:
             self
         """
-        feature_names = X_train.columns.to_list()
+        if feature_names is None:
+            feature_names = X_train.columns.to_list()
         self.feature_names = feature_names
 
         X_train = X_train.to_numpy()

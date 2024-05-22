@@ -70,6 +70,9 @@ class Trace:
         self._initialize_hyperparameters(hyperparameters)
         self._initialize_result_dicts()
 
+        # 增加代理决策树保存
+        self.surrogate_explainer = {'left': {}, 'right': {}}
+
     def _assign_classes(self):
         '''Get list of common classes.
         '''
@@ -162,6 +165,9 @@ class Trace:
 
                 self.times[time_label][class_id] = round(
                     time() - start_time, 3)
+
+                # 增加代理保存
+                self.surrogate_explainer[time_label][class_id] = surrogate_explainer
 
             except Exception:
                 self.logger.exception(traceback.print_exc())
