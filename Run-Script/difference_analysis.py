@@ -187,11 +187,11 @@ if __name__ == "__main__":
         #     # x_test = sample_normalize(x_test)
         # from sklearn.preprocessing import Binarizer, KBinsDiscretizer
         #
-        transformer = Binarizer()
-        # transformer = KBinsDiscretizer(n_bins=10, encode='ordinal', strategy='uniform', subsample=None)
-        transformer.fit(x_train_aug)
-        x_train_aug = transformer.transform(x_train_aug)
-        x_test = transformer.transform(x_test)
+        # transformer = Binarizer()
+        # # transformer = KBinsDiscretizer(n_bins=10, encode='ordinal', strategy='uniform', subsample=None)
+        # transformer.fit(x_train_aug)
+        # x_train_aug = transformer.transform(x_train_aug)
+        # x_test = transformer.transform(x_test)
 
         # Execute Feature Selection
         x_train_aug, _ = selection_method.transform(x_train_aug, selection_rate)

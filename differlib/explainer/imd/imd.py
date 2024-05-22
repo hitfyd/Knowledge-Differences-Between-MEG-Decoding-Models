@@ -40,8 +40,7 @@ class IMDExplainer(DISExplainer):
         """
         pass
 
-    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, split_criterion=1, alpha=0.0, verbose=True,
-            feature_names=None, **kwargs):
+    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, split_criterion=1, alpha=0.0, verbose=True, **kwargs):
         """
         Fit joint surrogate tree to input data, and outputs from two models.
         Args:
@@ -57,8 +56,7 @@ class IMDExplainer(DISExplainer):
         Returns:
             self
         """
-        if feature_names is None:
-            feature_names = X_train.columns.to_list()
+        feature_names = X_train.columns.to_list()
         self.feature_names = feature_names
 
         x1 = x2 = X_train.to_numpy()
