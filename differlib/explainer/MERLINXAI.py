@@ -24,7 +24,7 @@ class MERLINXAI(DISExplainer):
         super(MERLINXAI, self).__init__()
 
         # to be populated on calling fit() method, or set manually
-        self.exp = None
+        self.explainer = None
         self.diffrules = []
         self.feature_names = []
 
@@ -59,19 +59,19 @@ class MERLINXAI(DISExplainer):
 
         assert Y1.shape == Y2.shape, "Y1 and Y2 must have the same"
 
-        self.exp = MERLIN(X_train, Y1, X_train, Y2,
-                          data_type='tabular', surrogate_type='sklearn', log_level=logging.INFO,
-                          hyperparameters_selection=True, save_path=f'results/',
-                          save_surrogates=True, save_bdds=True)
-        self.exp.run_trace()
+        self.explainer = MERLIN(X_train, Y1, X_train, Y2,
+                                data_type='tabular', surrogate_type='sklearn', log_level=logging.INFO,
+                                hyperparameters_selection=True, save_path=f'results/',
+                                save_surrogates=True, save_bdds=True)
+        self.explainer.run_trace()
 
         # self.exp.run_explain()
         #
         # self.exp.explain.BDD2Text()
-        bdds = self.exp.trace.bdds
+        bdds = self.explainer.trace.bdds
         id = 0
         for time_label in ['left', 'right']:
-            for class_id in self.exp.trace.classes:
+            for class_id in self.explainer.trace.classes:
                 class_bdds = bdds[time_label][class_id]
                 rules = class_bdds.split('|')
                 for r in rules:
@@ -102,10 +102,10 @@ class MERLINXAI(DISExplainer):
         predict_labels_l = []
         for y, time_label in [[y_test1, 'left'], [y_test2, 'right']]:
             labels = np.zeros(len(y))
-            for class_id in self.exp.trace.classes:
+            for class_id in self.explainer.trace.classes:
                 indices = np.where(y_test1 == int(class_id))[0]
                 class_data = x_test.iloc[indices]
-                labels[indices] = self.exp.trace.surrogate_explainer[time_label][class_id].predict(class_data)
+                labels[indices] = self.explainer.trace.surrogate_explainer[time_label][class_id].predict(class_data)
             predict_labels_l.append(labels)
         pred_target = (predict_labels_l[0] != predict_labels_l[1]).astype(int)
 

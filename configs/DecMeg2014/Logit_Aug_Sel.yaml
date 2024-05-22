@@ -12,4 +12,4 @@ SELECTION:
   TYPE: "DiffShapley"
   RATE: 0.01
 EXPLAINER:
-  TYPE: "MERLIN"
+  TYPE: "Logit"

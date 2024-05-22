@@ -248,7 +248,7 @@ if __name__ == "__main__":
         average_num_rule_preds_l.append(test_metrics["average-num-rule-preds"])
         num_unique_preds_l.append(test_metrics["num-unique-preds"])
 
-        save_dict = {"explainer": explainer,
+        save_dict = {"explainer": explainer if explainer_type not in ["MERLIN"] else [],
                      "diff_rules": diff_rules,
                      "test_index": test_index,
                      "train_metrics": train_metrics,
