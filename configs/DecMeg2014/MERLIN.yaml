@@ -1,15 +1,15 @@
 EXPERIMENT:
   PROJECT: "DecMeg2014"
-  TAG: "Logit,Aug,Sel"
+  TAG: "MERLIN"
 DATASET: "DecMeg2014"
 NUM_SPLITS: 3
 WINDOW_LENGTH: 10
-MODEL_A: "sdt"
-MODEL_B: "atcnet"
-AUGMENTATION: "BASE"
+MODEL_A: "sdt_hgrn_fakd"
+MODEL_B: "sdt"
+AUGMENTATION: "NONE"
 EXTRACTION: False
 SELECTION:
   TYPE: "DiffShapley"
-  RATE: 0.01
+  RATE: 0.1
 EXPLAINER:
-  TYPE: "Logit"
+  TYPE: "MERLIN"

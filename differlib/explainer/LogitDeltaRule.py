@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 import sklearn
-from sklearn.ensemble import GradientBoostingRegressor
+from rulefit import RuleFit
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.tree import _tree, DecisionTreeRegressor
 from catboost import CatBoostRegressor
 
@@ -129,6 +130,19 @@ class LogitDeltaRule(DISExplainer):
         # self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
         # self.diffrules = []
 
+        # gb = GradientBoostingRegressor(
+        #     n_estimators=500,
+        #     max_depth=5,
+        #     learning_rate=0.01,
+        #     random_state=42,
+        # )
+        # self.delta_tree = RuleFit(tree_generator=gb, random_state=42)
+        # self.delta_tree.fit(X_train, np.array(delta_output[:, 0]), feature_names=np.array(self.feature_names),)
+        # self.diffrules = []
+        # rules = self.delta_tree.get_rules()
+        # rules = rules[(rules.coef != 0) & (rules['type'] == 'rule')]
+        # print(len(rules))
+
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
         """
@@ -154,6 +168,7 @@ class LogitDeltaRule(DISExplainer):
         delta_target = (pred_target_1 != pred_target_2).astype(int)
         logit_delta = self.delta_tree.predict(x_test)
         y_test2_ = y_test1 - logit_delta
+        # logit_delta = self.delta_tree.predict(np.array(x_test))
         # y_test2_ = np.zeros_like(y_test1)
         # y_test2_[:, 0] = y_test1[:, 0] - logit_delta
         # y_test2_[:, 1] = y_test1[:, 1] + logit_delta
