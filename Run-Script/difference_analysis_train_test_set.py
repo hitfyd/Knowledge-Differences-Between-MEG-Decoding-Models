@@ -12,10 +12,12 @@ from sklearn.model_selection import StratifiedKFold
 from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, get_data_loader,
-                                    save_checkpoint, output_predict_targets, model_eval, sample_normalize)
+                                    save_checkpoint, output_predict_targets, model_eval, sample_normalize,
+                                    dataset_info_dict)
 from differlib.explainer import explainer_dict
 from differlib.feature_extraction import feature_extraction
 from differlib.feature_selection import fsm_dict
+from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature_maps
 from differlib.models import model_dict
 
 if __name__ == "__main__":
@@ -43,63 +45,71 @@ if __name__ == "__main__":
 
     # set the random number seed
     setup_seed(cfg.EXPERIMENT.SEED)
-    n_repetitions = cfg.EXPERIMENT.NUM_REPETITIONS
+    n_repetitions = 1
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.EXPERIMENT.GPU_IDS
     num_gpus = torch.cuda.device_count()
     num_cpus = cfg.EXPERIMENT.CPU_COUNT
 
     # init dataset & models
-    train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(cfg.DATASET.TYPE))
-    test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(cfg.DATASET.TYPE))
+    dataset = cfg.DATASET
+    train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
+    test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
     train_loader = get_data_loader(train_data, train_labels)
     test_loader = get_data_loader(test_data, test_labels)
-
-    dataset = cfg.DATASET.TYPE
     n_samples, channels, points = train_data.shape
     n_classes = len(set(train_labels))
-    assert channels == cfg.DATASET.CHANNELS
-    assert points == cfg.DATASET.POINTS
-    assert n_classes == cfg.DATASET.NUM_CLASSES
-    # n_splits = cfg.DATASET.NUM_SPLITS
+    assert channels == dataset_info_dict[dataset]["CHANNELS"]
+    assert points == dataset_info_dict[dataset]["POINTS"]
+    assert n_classes == dataset_info_dict[dataset]["NUM_CLASSES"]
+    n_splits = cfg.NUM_SPLITS
+    window_length = cfg.WINDOW_LENGTH
+    feature_names = [f"C{c}T{t}" for c in range(channels) for t in range(points)]
+    feature_names = np.array(feature_names)
 
-    print(log_msg("Loading model A {}".format(cfg.MODELS.A), "INFO"))
-    model_A_type, model_A_pretrain_path = model_dict[cfg.MODELS.A]
-    assert (model_A_pretrain_path is not None), "no pretrain model A {}".format(cfg.MODELS.A)
-    model_A = model_A_type(
-        channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
+    # init different models and load pre-trained checkpoints
+    model_A_type = cfg.MODEL_A
+    model_B_type = cfg.MODEL_B
+    print(log_msg("Loading model A {}".format(model_A_type), "INFO"))
+    model_A_class, model_A_pretrain_path = model_dict[dataset][model_A_type]
+    assert (model_A_pretrain_path is not None), "no pretrain model A {}".format(model_A_type)
+    model_A = model_A_class(channels=channels, points=points, num_classes=n_classes)
     model_A.load_state_dict(load_checkpoint(model_A_pretrain_path))
     model_A = model_A.cuda()
-    train_accuracy = model_eval(model_A, train_loader)
-    test_accuracy = model_eval(model_A, test_loader)
-    print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
-    print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
+    # train_accuracy = model_eval(model_A, train_loader)
+    # test_accuracy = model_eval(model_A, test_loader)
+    # print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
+    # print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
 
-    print(log_msg("Loading model B {}".format(cfg.MODELS.B), "INFO"))
-    model_B_type, model_B_pretrain_path = model_dict[cfg.MODELS.B]
-    assert (model_B_pretrain_path is not None), "no pretrain model B {}".format(cfg.MODELS.B)
-    model_B = model_B_type(
-        channels=cfg.DATASET.CHANNELS, points=cfg.DATASET.POINTS, num_classes=cfg.DATASET.NUM_CLASSES)
+    print(log_msg("Loading model B {}".format(model_B_type), "INFO"))
+    model_B_class, model_B_pretrain_path = model_dict[dataset][model_B_type]
+    assert (model_B_pretrain_path is not None), "no pretrain model B {}".format(model_B_type)
+    model_B = model_B_class(channels=channels, points=points, num_classes=n_classes)
     model_B.load_state_dict(load_checkpoint(model_B_pretrain_path))
     model_B = model_B.cuda()
-    train_accuracy = model_eval(model_B, train_loader)
-    test_accuracy = model_eval(model_B, test_loader)
-    print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
-    print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
+    # train_accuracy = model_eval(model_B, train_loader)
+    # test_accuracy = model_eval(model_B, test_loader)
+    # print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
+    # print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
 
     # init data augmentation
-    augmentation_type = cfg.AUGMENTATION.TYPE
+    augmentation_type = cfg.AUGMENTATION
     augmentation_method = am_dict[augmentation_type]()
 
     # Normalization
-    normalize = cfg.NORMALIZATION.FLAG
+    normalize = cfg.NORMALIZATION
 
     # Extraction
-    extract = cfg.EXTRACTION.FLAG
+    extract = cfg.EXTRACTION
 
     # init feature selection
     selection_type = cfg.SELECTION.TYPE
     selection_method = fsm_dict[selection_type]()
     selection_rate = cfg.SELECTION.RATE
+    # 预先计算所有样本的特征归因图，训练时只使用训练集样本的特征归因图
+    if selection_type in ["DiffShapley"]:
+        all_sample_feature_maps = compute_all_sample_feature_maps(dataset, train_data, model_A, model_B,
+                                                                  n_classes, window_length, cfg.SELECTION.Diff.M,
+                                                                  num_gpus=num_gpus, num_cpus=num_cpus)
 
     # init explainer
     explainer_type = cfg.EXPLAINER.TYPE
@@ -160,8 +170,8 @@ if __name__ == "__main__":
             x_test = sample_normalize(x_test)
 
         # Execute Feature Selection, 和Normalization二选一
-        x_train_aug = selection_method.transform(x_train_aug, selection_rate)
-        x_test = selection_method.transform(x_test, selection_rate)
+        x_train_aug, _ = selection_method.transform(x_train_aug, selection_rate)
+        x_test, _ = selection_method.transform(x_test, selection_rate)
 
         # Feature Extraction
         if extract:
@@ -172,7 +182,7 @@ if __name__ == "__main__":
         x_test = pd.DataFrame(x_test)
         print(x_train.shape, x_test.shape)
 
-        for explainer_type in ["Logit", "Delta", "IMD", "SS"]:  # "Logit", "Delta", "IMD", "SS"
+        for explainer_type in ["MERLIN"]:  # "Logit", "Delta", "IMD", "SS"
             explainer = explainer_dict[explainer_type]()
             if explainer_type in ["Logit"]:
                 explainer.fit(x_train, train_output_A, train_output_B,
@@ -182,7 +192,7 @@ if __name__ == "__main__":
                               max_depth, min_samples_leaf=min_samples_leaf)
 
             diffrules = explainer.explain()
-            print(diffrules)
+            # print(diffrules)
 
             # Computation of metrics
             if explainer_type in ["Logit"]:

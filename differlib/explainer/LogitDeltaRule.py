@@ -3,6 +3,7 @@ import pandas as pd
 import sklearn
 from rulefit import RuleFit
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.model_selection import RandomizedSearchCV
 from sklearn.tree import _tree, DecisionTreeRegressor
 from catboost import CatBoostRegressor
 
@@ -73,6 +74,7 @@ class LogitDeltaRule(DISExplainer):
 
         # to be populated on calling fit() method, or set manually
         self.delta_tree = None
+        self.hyperparameters = {}
         self.diffrules = []
         self.feature_names = []
 
@@ -117,6 +119,32 @@ class LogitDeltaRule(DISExplainer):
         delta_output = Y1 - Y2
 
         self.delta_tree = DecisionTreeRegressor(min_samples_leaf=min_samples_leaf, ccp_alpha=0.001)
+
+        # search_space = {
+        #     'criterion': ['squared_error', ],
+        #     # restrict the minimum % of samples before splitting
+        #     # 'min_samples_split': [2, 0.01, 0.02, 0.03],
+        #     # restrict the minimum number of samples in a leaf
+        #     'min_samples_leaf': [1, 0.01, 0.02],
+        #     # 'max_depth': [3, 5, 7],  # helps in reducing the depth of the tree
+        #     'ccp_alpha': [0, 0.001, 0.01],
+        # }
+        # random_search_estimator = RandomizedSearchCV(estimator=self.delta_tree, cv=3,
+        #                                              param_distributions=search_space,
+        #                                              scoring='f1_weighted', n_iter=10, n_jobs=-1,
+        #                                              random_state=42, verbose=4)
+        # # train a surrogate DT
+        # random_search_estimator.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
+        # # access the best estimator
+        # self.delta_tree = random_search_estimator.best_estimator_
+        #
+        # self.hyperparameters['criterion'] = self.delta_tree.criterion
+        # self.hyperparameters['min_samples_split'] = self.delta_tree.min_samples_split
+        # self.hyperparameters['min_samples_leaf'] = self.delta_tree.min_samples_leaf
+        # self.hyperparameters['max_depth'] = self.delta_tree.max_depth
+        # self.hyperparameters['ccp_alpha'] = self.delta_tree.ccp_alpha
+        # print(self.hyperparameters)
+
         self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
         self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
         # print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
