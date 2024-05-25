@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dataset='CamCAN'  # CamCAN or DecMeg2014
+dataset='DecMeg2014'  # CamCAN or DecMeg2014
 models=('mlp' 'sdt' 'lfcnn' 'varcnn' 'hgrn' 'atcnet') # 'mlp' 'sdt' 'lfcnn' 'varcnn' 'hgrn' 'atcnet'
 explainer='Logit_Aug_Sel' # 'SS' 'IMD' 'Delta' 'Logit' 'Logit_Aug' 'Logit_Sel' 'Logit_Aug_Sel'
 
