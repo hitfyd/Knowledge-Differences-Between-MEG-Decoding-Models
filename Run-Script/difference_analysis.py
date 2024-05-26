@@ -141,6 +141,7 @@ if __name__ == "__main__":
     skf_id = 0
     # record metrics of i-th Fold
     precision_l, recall_l, f1_l, num_rules_l, average_num_rule_preds_l, num_unique_preds_l = [], [], [], [], [], []
+    pd_metrics = None
     for train_index, test_index in skf.split(data, delta_target):
         x_train = data[train_index]
         output_A_train = output_A[train_index]
@@ -248,6 +249,13 @@ if __name__ == "__main__":
         average_num_rule_preds_l.append(test_metrics["average-num-rule-preds"])
         num_unique_preds_l.append(test_metrics["num-unique-preds"])
 
+        test_metrics['test-confusion_matrix'] = np.array2string(test_metrics['test-confusion_matrix'])
+        if pd_metrics is None:
+            pd_metrics = pd.DataFrame(test_metrics, index=test_metrics.keys())
+        else:
+            pd_metrics = pd_metrics.join(test_metrics)
+
+
         save_dict = {"explainer": explainer if explainer_type not in ["MERLIN"] else [],
                      "diff_rules": diff_rules,
                      "test_index": test_index,
@@ -278,6 +286,10 @@ if __name__ == "__main__":
                   pstdev(average_num_rule_preds_l), mean(num_unique_preds_l), pstdev(num_unique_preds_l)))
     with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
         writer.write(os.linesep + "-" * 25 + os.linesep)
+
+        def _list_string(l):
+            return
+
         writer.write("test-precision(mean±std)\t{:.2f} ± {:.2f}\t{}\n".format(
             mean(precision_l), pstdev(precision_l), precision_l))
         writer.write("test-recall(mean±std)\t{:.2f} ± {:.2f}\t{}\n".format(
