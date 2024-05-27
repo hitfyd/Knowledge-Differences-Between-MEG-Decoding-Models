@@ -96,12 +96,18 @@ class MERLINXAI(DISExplainer):
 
         delta_target = (y_test1 != y_test2).astype(int)
         predict_labels_l = []
+        assert len(self.explainer.trace.classes) == 2
         for y, time_label in [[y_test1, 'left'], [y_test2, 'right']]:
             labels = np.zeros(len(y))
             for class_id in self.explainer.trace.classes:
                 indices = np.where(y_test1 == int(class_id))[0]
                 class_data = x_test.iloc[indices]
                 labels[indices] = self.explainer.trace.surrogate_explainer[time_label][class_id].predict(class_data)
+                for index in indices:
+                    if labels[index] == 1:
+                        labels[index] = int(class_id)
+                    else:
+                        labels[index] = 1 if int(class_id) == 0 else 0
             predict_labels_l.append(labels)
         pred_target = (predict_labels_l[0] != predict_labels_l[1]).astype(int)
 
