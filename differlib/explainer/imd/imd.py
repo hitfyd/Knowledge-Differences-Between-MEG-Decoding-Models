@@ -167,6 +167,13 @@ class IMDExplainer(DISExplainer):
         inregion = self.inregion(self.diffregions, x_test.to_numpy())
         samples_in_region = np.sum(inregion)
 
+        tp = diff_samples_inside_diff_region
+        fn = total_number_diff_samples - tp
+        fp = samples_in_region - tp
+        tn = len(x_test) - tp - fn - fp
+        metrics[name + "-confusion_matrix"] = np.array([[tn, fp], [fn, tp]])
+        metrics[name + "-accuracy"] = np.nan_to_num((tp+tn)/(tp+tn+fp+fn))
+
         metrics[name + "-precision"] = np.nan_to_num(diff_samples_inside_diff_region / samples_in_region)
         metrics[name + "-recall"] = np.nan_to_num(diff_samples_inside_diff_region / total_number_diff_samples)
         metrics[name + "-f1"] = np.nan_to_num(2 * metrics[name + "-precision"] * metrics[name + "-recall"] /

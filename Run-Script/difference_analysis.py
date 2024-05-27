@@ -46,6 +46,7 @@ if __name__ == "__main__":
     # init loggers
     log_prefix = cfg.LOG.PREFIX
     log_path = os.path.join(log_prefix, experiment_name)
+    record_path = os.path.join(log_prefix, project)
     if not os.path.exists(log_path):
         os.makedirs(log_path)
 
@@ -251,9 +252,8 @@ if __name__ == "__main__":
 
         test_metrics['test-confusion_matrix'] = np.array2string(test_metrics['test-confusion_matrix'])
         if pd_metrics is None:
-            pd_metrics = pd.DataFrame(test_metrics, index=test_metrics.keys())
-        else:
-            pd_metrics = pd_metrics.join(test_metrics)
+            pd_metrics = pd.DataFrame(columns=test_metrics.keys())
+        pd_metrics.loc[len(pd_metrics)] = test_metrics.values()
 
 
         save_dict = {"explainer": explainer if explainer_type not in ["MERLIN"] else [],
@@ -267,52 +267,30 @@ if __name__ == "__main__":
 
         skf_id += 1
 
-    # print("test-precision(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
-    #     mean(precision_l), pstdev(precision_l), precision_l))
-    # print("test-recall(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
-    #     mean(recall_l), pstdev(recall_l), recall_l))
-    # print("test-f1(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
-    #     mean(f1_l), pstdev(f1_l), f1_l))
-    # print("num-rules(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
-    #     mean(num_rules_l), pstdev(num_rules_l), num_rules_l))
-    # print("average-num-rule-preds(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
-    #     mean(average_num_rule_preds_l), pstdev(average_num_rule_preds_l), average_num_rule_preds_l))
-    # print("num-unique-preds(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
-    #     mean(num_unique_preds_l), pstdev(num_unique_preds_l), num_unique_preds_l))
-    print("precision\trecall\tf1\tnum-rules\taverage-num-rule-preds\tnum-unique-preds")
-    print("{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}"
-          .format(mean(precision_l), pstdev(precision_l), mean(recall_l), pstdev(recall_l), mean(f1_l), pstdev(f1_l),
-                  mean(num_rules_l), pstdev(num_rules_l), mean(average_num_rule_preds_l),
-                  pstdev(average_num_rule_preds_l), mean(num_unique_preds_l), pstdev(num_unique_preds_l)))
+    # 计算各个指标的均值和标准差
+    assert len(pd_metrics.columns.tolist()) == 10
+    partial_pd_metrics = pd_metrics.iloc[:, 3:]
+    partial_pd_metrics_mean, partial_pd_metrics_std = partial_pd_metrics.mean(), partial_pd_metrics.std()
+    record_mean_std = partial_pd_metrics_mean.copy()
+    for i in range(len(partial_pd_metrics_mean.values)):
+        record_mean_std.iloc[i] = f"{partial_pd_metrics_mean.iloc[i]:.2f} ± {partial_pd_metrics_std.iloc[i]:.2f}"
+    print(pd_metrics.to_string())
+    print(record_mean_std.to_string())
     with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
         writer.write(os.linesep + "-" * 25 + os.linesep)
-
-        def _list_string(l):
-            return
-
-        writer.write("test-precision(mean±std)\t{:.2f} ± {:.2f}\t{}\n".format(
-            mean(precision_l), pstdev(precision_l), precision_l))
-        writer.write("test-recall(mean±std)\t{:.2f} ± {:.2f}\t{}\n".format(
-            mean(recall_l), pstdev(recall_l), recall_l))
-        writer.write("test-f1(mean±std)\t{:.2f} ± {:.2f}\t{}\n".format(
-            mean(f1_l), pstdev(f1_l), f1_l))
-        writer.write("num-rules(mean±std)\t{:.2f} ± {:.2f}\t{}\n".format(
-            mean(num_rules_l), pstdev(num_rules_l), num_rules_l))
-        writer.write("average-num-rule-preds(mean±std)\t{:.2f} ± {:.2f}\t{}\n".format(
-            mean(average_num_rule_preds_l), pstdev(average_num_rule_preds_l), average_num_rule_preds_l))
-        writer.write("num-unique-preds(mean±std)\t{:.2f} ± {:.2f}\t{}\n".format(
-            mean(num_unique_preds_l), pstdev(num_unique_preds_l), num_unique_preds_l))
-        writer.write("precision\trecall\tf1\tnum-rules\taverage-num-rule-preds\tnum-unique-preds\n")
-        writer.write("{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t"
-                     "{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\t{:.2f} ± {:.2f}\n"
-                     .format(mean(precision_l), pstdev(precision_l), mean(recall_l),
-                             pstdev(recall_l), mean(f1_l), pstdev(f1_l),
-                             mean(num_rules_l), pstdev(num_rules_l), mean(average_num_rule_preds_l),
-                             pstdev(average_num_rule_preds_l), mean(num_unique_preds_l), pstdev(num_unique_preds_l)))
-        writer.write("{:.3f} ± {:.3f}\t{:.3f} ± {:.3f}\t{:.3f} ± {:.3f}\t"
-                     "{:.3f} ± {:.3f}\t{:.3f} ± {:.3f}\t{:.3f} ± {:.3f}\n"
-                     .format(mean(precision_l), pstdev(precision_l), mean(recall_l),
-                             pstdev(recall_l), mean(f1_l), pstdev(f1_l),
-                             mean(num_rules_l), pstdev(num_rules_l), mean(average_num_rule_preds_l),
-                             pstdev(average_num_rule_preds_l), mean(num_unique_preds_l), pstdev(num_unique_preds_l)))
+        writer.write(pd_metrics.to_string() + os.linesep)
+        writer.write(record_mean_std.to_string() + os.linesep)
         writer.write(os.linesep + "-" * 25 + os.linesep)
+
+    # 根据模型A、B和解释器，记录实验结果用于对比
+    record_file = os.path.join(record_path, f"{model_A_type}_{model_B_type}_record.csv")
+    record_mean_std['model_A'] = model_A_type
+    record_mean_std['model_B'] = model_B_type
+    record_mean_std['explainer'] = explainer_type
+    if os.path.exists(record_file):
+        all_record_mean_std = pd.read_csv(record_file)
+        assert all_record_mean_std.columns.tolist() == record_mean_std.index.tolist()
+    else:
+        all_record_mean_std = pd.DataFrame(columns=record_mean_std.index)
+    all_record_mean_std.loc[len(all_record_mean_std)] = record_mean_std.values
+    all_record_mean_std.to_csv(record_file, index=False)
