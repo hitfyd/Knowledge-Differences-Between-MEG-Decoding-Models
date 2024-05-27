@@ -8,9 +8,7 @@ WINDOW_LENGTH: 5
 MODEL_A: "varcnn"
 MODEL_B: "hgrn"
 AUGMENTATION: "BASE"
-EXTRACTION: False
 SELECTION:
   TYPE: "DiffShapley"
-  RATE: 0.01
 EXPLAINER:
   TYPE: "Logit"

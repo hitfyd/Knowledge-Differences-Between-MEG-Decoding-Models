@@ -286,7 +286,7 @@ if __name__ == "__main__":
     record_file = os.path.join(record_path, f"{model_A_type}_{model_B_type}_record.csv")
     record_mean_std['model_A'] = model_A_type
     record_mean_std['model_B'] = model_B_type
-    record_mean_std['explainer'] = explainer_type
+    record_mean_std['explainer'] = tags
     if os.path.exists(record_file):
         all_record_mean_std = pd.read_csv(record_file)
         assert all_record_mean_std.columns.tolist() == record_mean_std.index.tolist()
