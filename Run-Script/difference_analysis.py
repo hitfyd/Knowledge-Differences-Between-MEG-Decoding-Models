@@ -114,10 +114,12 @@ if __name__ == "__main__":
     selection_type = cfg.SELECTION.TYPE
     selection_method = fsm_dict[selection_type]()
     selection_rate = cfg.SELECTION.RATE
+    selection_M = cfg.SELECTION.Diff.M
+    selection_threshold = cfg.SELECTION.Diff.THRESHOLD
     # 预先计算所有样本的特征归因图，训练时只使用训练集样本的特征归因图
     if selection_type in ["DiffShapley"]:
         all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B,
-                                                                  n_classes, window_length, cfg.SELECTION.Diff.M,
+                                                                  n_classes, window_length, selection_M,
                                                                   num_gpus=num_gpus, num_cpus=num_cpus)
 
     # init explainer
@@ -138,10 +140,10 @@ if __name__ == "__main__":
     delta_target = (pred_target_A != pred_target_B).astype(int)
 
     # K-Fold evaluation
-    skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.4)
+    # skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.4)
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=cfg.EXPERIMENT.SEED)
     skf_id = 0
     # record metrics of i-th Fold
-    precision_l, recall_l, f1_l, num_rules_l, average_num_rule_preds_l, num_unique_preds_l = [], [], [], [], [], []
     pd_metrics = None
     for train_index, test_index in skf.split(data, delta_target):
         x_train = data[train_index]
@@ -175,8 +177,8 @@ if __name__ == "__main__":
         # For Feature Selection to Compute Feature Contributions
         if selection_type in ["DiffShapley"]:
             selection_method.fit(x_train, model_A, model_B, channels, points, n_classes,
-                                 window_length, cfg.SELECTION.Diff.M, all_sample_feature_maps[train_index],
-                                 num_gpus=num_gpus, num_cpus=num_cpus)
+                                 window_length, selection_M, all_sample_feature_maps[train_index],
+                                 threshold=selection_threshold, num_gpus=num_gpus, num_cpus=num_cpus)
         else:
             selection_method.fit(x_train_aug, output_A_train, output_B_train)
 
@@ -235,26 +237,18 @@ if __name__ == "__main__":
               min_samples_leaf)
         print("Train set", train_metrics)
         print("Test set", test_metrics)
-        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-            writer.write("skf_id {} Explainer {} max_depth {} min_samples_leaf {}\n".format(
-                skf_id, explainer_type, max_depth, min_samples_leaf))
-            writer.write("Train {}\n".format(train_metrics))
-            writer.write("Test {}\n".format(test_metrics))
-            # writer.write("train_index {}\n".format(train_index))
-            writer.write("test_index {}\n".format(test_index))
-
-        precision_l.append(test_metrics["test-precision"])
-        recall_l.append(test_metrics["test-recall"])
-        f1_l.append(test_metrics["test-f1"])
-        num_rules_l.append(test_metrics["num-rules"])
-        average_num_rule_preds_l.append(test_metrics["average-num-rule-preds"])
-        num_unique_preds_l.append(test_metrics["num-unique-preds"])
+        # with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+        #     writer.write("skf_id {} Explainer {} max_depth {} min_samples_leaf {}\n".format(
+        #         skf_id, explainer_type, max_depth, min_samples_leaf))
+        #     writer.write("Train {}\n".format(train_metrics))
+        #     writer.write("Test {}\n".format(test_metrics))
+        #     # writer.write("train_index {}\n".format(train_index))
+        #     writer.write("test_index {}\n".format(test_index))
 
         test_metrics['test-confusion_matrix'] = np.array2string(test_metrics['test-confusion_matrix'])
         if pd_metrics is None:
             pd_metrics = pd.DataFrame(columns=test_metrics.keys())
         pd_metrics.loc[len(pd_metrics)] = test_metrics.values()
-
 
         save_dict = {"explainer": explainer if explainer_type not in ["MERLIN"] else [],
                      "diff_rules": diff_rules,
@@ -271,7 +265,7 @@ if __name__ == "__main__":
     assert len(pd_metrics.columns.tolist()) == 10
     partial_pd_metrics = pd_metrics.iloc[:, 3:]
     partial_pd_metrics_mean, partial_pd_metrics_std = partial_pd_metrics.mean(), partial_pd_metrics.std()
-    record_mean_std = partial_pd_metrics_mean.copy()
+    record_mean_std = pd.Series(index=partial_pd_metrics_mean.index, dtype=str)
     for i in range(len(partial_pd_metrics_mean.values)):
         record_mean_std.iloc[i] = f"{partial_pd_metrics_mean.iloc[i]:.2f} ± {partial_pd_metrics_std.iloc[i]:.2f}"
     print(pd_metrics.to_string())

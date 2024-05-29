@@ -97,7 +97,7 @@ class DeltaExplainer(DISExplainer):
         feature_names = X_train.columns.to_list()
         self.feature_names = feature_names
 
-        X_train = X_train.to_numpy()
+        # X_train = X_train.to_numpy()
 
         if not isinstance(Y1, np.ndarray):
             Y1 = Y1.to_numpy()

@@ -100,7 +100,7 @@ class LogitDeltaRule(DISExplainer):
         """
         self.feature_names = X_train.columns.to_list()
 
-        X_train = X_train.to_numpy()
+        # X_train = X_train.to_numpy()
 
         if not isinstance(Y1, np.ndarray):
             Y1 = Y1.to_numpy()

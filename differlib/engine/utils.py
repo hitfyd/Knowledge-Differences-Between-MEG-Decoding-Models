@@ -122,7 +122,7 @@ def validate(val_loader, distiller):
     return top1.avg, losses.avg
 
 
-def predict(model, data, num_classes=2, batch_size=256, eval=False, softmax=True):
+def predict(model, data, num_classes=2, batch_size=512, eval=False, softmax=True):
     model.cuda()
     data = torch.from_numpy(data)
     data_split = torch.split(data, batch_size, dim=0)
@@ -143,6 +143,7 @@ def predict(model, data, num_classes=2, batch_size=256, eval=False, softmax=True
             batch_data = batch_data.float()
             output[start:start + len(batch_data)] = model(batch_data)
             start += len(batch_data)
+            del batch_data
     model.train()
     if softmax:
         if model.__class__.__name__ in ["LFCNN", "VARCNN"]:
@@ -168,12 +169,12 @@ def model_eval(model, data_loader):
     return accuracy
 
 
-def output_predict_targets(model: torch.nn, data: np.ndarray, num_classes=2, batch_size=256, softmax=True):
+def output_predict_targets(model: torch.nn, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
     # data_torch = torch.from_numpy(data).float().cuda()
     # model.eval()
     # with torch.no_grad():
     #     output = model(data_torch)
-    output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax)
+    output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
     _, predict_targets = output.topk(1, 1, True, True)
     output = output.cpu().detach().numpy()
     predict_targets = predict_targets.squeeze().cpu().detach().numpy()

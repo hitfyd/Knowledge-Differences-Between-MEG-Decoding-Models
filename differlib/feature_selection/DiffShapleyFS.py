@@ -62,9 +62,10 @@ class DiffShapleyFS(FSMethod):
         self.contributions = None
         self.logit_delta = None
         self.sample_weights = None
+        self.threshold = 3  # 2/3
 
-    def fit(self, x: np.ndarray, model1, model2, channels, points, n_classes, window_length, M, all_sample_feature_maps, *args,
-            parallel=True, num_gpus=1, num_cpus=16, **kwargs):
+    def fit(self, x: np.ndarray, model1, model2, channels, points, n_classes, window_length, M, all_sample_feature_maps,
+            *args, threshold=3, parallel=True, num_gpus=1, num_cpus=16, **kwargs):
         n_samples, channels, points = x.shape
         # x = x.reshape((n_samples, channels, points))
         assert points % window_length == 0
@@ -92,6 +93,7 @@ class DiffShapleyFS(FSMethod):
         self.contributions = np.repeat(self.contributions, window_length)
         print(self.contributions.shape)
         print(self.contributions)
+        self.threshold = threshold
 
     def computing_contribution(self, *argv, **kwargs):
         return self.contributions
@@ -105,8 +107,7 @@ class DiffShapleyFS(FSMethod):
         std = yj_contributions.std()
         z_contributions = (yj_contributions) / std
         abs_contributions = np.abs(z_contributions)
-        threshold = 3   # 2/3
-        condition = (z_contributions > threshold) | (z_contributions < -threshold)
+        condition = (z_contributions > self.threshold) | (z_contributions < -self.threshold)
         indices = np.where(condition)[0]
         return x[:, indices], indices
 
