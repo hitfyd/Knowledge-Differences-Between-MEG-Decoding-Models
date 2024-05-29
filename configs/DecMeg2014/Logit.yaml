@@ -2,7 +2,7 @@ EXPERIMENT:
   PROJECT: "DecMeg2014"
   TAG: "Logit"
 DATASET: "DecMeg2014"
-NUM_SPLITS: 3
+NUM_SPLITS: 4
 WINDOW_LENGTH: 10
 MODEL_A: "sdt_hgrn_fakd"
 MODEL_B: "sdt"

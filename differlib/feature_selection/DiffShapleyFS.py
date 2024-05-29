@@ -107,7 +107,8 @@ class DiffShapleyFS(FSMethod):
         std = yj_contributions.std()
         z_contributions = (yj_contributions) / std
         abs_contributions = np.abs(z_contributions)
-        condition = (z_contributions > self.threshold) | (z_contributions < -self.threshold)
+        # condition = (z_contributions > self.threshold) | (z_contributions < -self.threshold)
+        condition = (abs_contributions > self.threshold)
         indices = np.where(condition)[0]
         return x[:, indices], indices
 

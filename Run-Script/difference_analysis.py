@@ -140,8 +140,8 @@ if __name__ == "__main__":
     delta_target = (pred_target_A != pred_target_B).astype(int)
 
     # K-Fold evaluation
-    # skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.4)
-    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=cfg.EXPERIMENT.SEED)
+    skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.25)
+    # skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=cfg.EXPERIMENT.SEED)
     skf_id = 0
     # record metrics of i-th Fold
     pd_metrics = None
