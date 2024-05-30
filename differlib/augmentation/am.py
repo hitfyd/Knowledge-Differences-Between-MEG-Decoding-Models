@@ -374,21 +374,21 @@ class BaseAM(AMethod):
 
     def augment(self, origin_data, delta_labels, *argv, **kwargs):
         ag_data, ag_label = [], []
-        # for i in range(len(delta_labels)):
-        #     # if delta_labels[i] == 0:
-        #     #     continue
-        #     for op in ALL_TRANSFORMS:
-        #         ag_data.append(op.meg_transformer(1., PARAMETER_MAX-1)(origin_data[i]))
-        #         ag_label.append(delta_labels[i])
-        #         # ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(origin_data[i]))
-        #         # ag_label.append(delta_labels[i])
+        for i in range(len(delta_labels)):
+            # if delta_labels[i] == 0:
+            #     continue
+            for op in ALL_TRANSFORMS:
+                ag_data.append(op.meg_transformer(1., PARAMETER_MAX-1)(origin_data[i]))
+                ag_label.append(delta_labels[i])
+                # ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(origin_data[i]))
+                # ag_label.append(delta_labels[i])
 
-        data_dict = divide_by_labels(origin_data, delta_labels)
-        for label in data_dict.keys():
-            label_data = data_dict[label]
-            for augment_func in multi_input_algorithm:
-                ag_data.extend(augment_func(label_data, len(label_data)))
-                ag_label.extend(np.full(len(label_data), label))
+        # data_dict = divide_by_labels(origin_data, delta_labels)
+        # for label in data_dict.keys():
+        #     label_data = data_dict[label]
+        #     for augment_func in multi_input_algorithm:
+        #         ag_data.extend(augment_func(label_data, len(label_data)))
+        #         ag_label.extend(np.full(len(label_data), label))
 
         ag_data, ag_label = np.array(ag_data), np.array(ag_label)
         all_data = np.concatenate((origin_data, ag_data), axis=0)

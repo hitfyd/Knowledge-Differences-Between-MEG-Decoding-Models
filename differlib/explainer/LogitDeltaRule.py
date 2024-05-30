@@ -241,7 +241,7 @@ class LogitRuleFit(LogitDeltaRule):
         """
         self.feature_names = X_train.columns.to_list()
 
-        # X_train = X_train.to_numpy()
+        X_train = X_train.to_numpy()
 
         if not isinstance(Y1, np.ndarray):
             Y1 = Y1.to_numpy()
@@ -259,26 +259,36 @@ class LogitRuleFit(LogitDeltaRule):
         delta_target = (pred_target_1 != pred_target_2).astype(int)
         delta_output = Y1 - Y2
 
-        gb = GradientBoostingRegressor(
-            n_estimators=10,
-            # max_depth=5,
-            learning_rate=0.01,
-            # random_state=42,
-            min_samples_leaf=min_samples_leaf,
-            ccp_alpha=0.001,
-        )
-        self.delta_tree = RuleFit(tree_generator=gb)
-        self.delta_tree.fit(X_train.to_numpy(), np.array(delta_output[:, 0]), feature_names=np.array(self.feature_names))
+        self.delta_tree = GradientBoostingRegressor(n_estimators=10, min_samples_leaf=min_samples_leaf, ccp_alpha=0.001)
+        self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
+
+        # self.delta_tree = CatBoostRegressor(iterations=10, depth=5, learning_rate=0.01, loss_function='RMSE',
+        #                                     task_type="GPU", devices='0', feature_weights=feature_weights)
+        # self.delta_tree = CatBoostRegressor(iterations=2, depth=3, learning_rate=0.01, loss_function='RMSE',
+        #                                     task_type="GPU", devices='0', )
+        # self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
         self.diffrules = []
-        rules = self.delta_tree.get_rules()
-        rules = rules[(rules.coef != 0) & (rules['type'] == 'rule')]
-        rules = rules['rule'].values
-        self.diffrules = []
-        for r in rules:
-            predicates = r.split('&')
-            rule = Rule(id, predicates, class_id)
-            self.diffrules.append(rule)
-            id += 1
+
+        # gb = GradientBoostingRegressor(
+        #     n_estimators=10,
+        #     max_depth=3,
+        #     learning_rate=0.01,
+        #     # random_state=42,
+        #     # min_samples_leaf=min_samples_leaf,
+        #     # ccp_alpha=0.001,
+        # )
+        # self.delta_tree = RuleFit(tree_generator=gb)
+        # self.delta_tree.fit(X_train.to_numpy(), np.array(delta_output[:, 0]), feature_names=np.array(self.feature_names))
+        # self.diffrules = []
+        # rules = self.delta_tree.get_rules()
+        # rules = rules[(rules.coef != 0) & (rules['type'] == 'rule')]
+        # self.diffrules = []
+        # id = 0
+        # for rule_str, rule_support in rules[['rule', 'support']].values:
+        #     predicates = rule_str.split('&')
+        #     rule = Rule(id, predicates, rule_support)
+        #     self.diffrules.append(rule)
+        #     id += 1
 
     def metrics(self, x_test: pd.DataFrame, y_test1, y_test2, name="test"):
         assert len(y_test1.shape) == len(y_test2.shape) == 2 and y_test1.shape[0] == y_test2.shape[0], \
