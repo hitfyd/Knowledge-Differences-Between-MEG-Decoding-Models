@@ -145,8 +145,8 @@ class LogitDeltaRule(DISExplainer):
         # self.hyperparameters['ccp_alpha'] = self.delta_tree.ccp_alpha
         # print(self.hyperparameters)
 
-        self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
-        self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
+        # self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
+        # self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
         # print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
         # plot_tree(self.delta_tree)
 
@@ -158,18 +158,19 @@ class LogitDeltaRule(DISExplainer):
         # self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
         # self.diffrules = []
 
-        # gb = GradientBoostingRegressor(
-        #     n_estimators=500,
-        #     max_depth=5,
-        #     learning_rate=0.01,
-        #     random_state=42,
-        # )
-        # self.delta_tree = RuleFit(tree_generator=gb, random_state=42)
-        # self.delta_tree.fit(X_train, np.array(delta_output[:, 0]), feature_names=np.array(self.feature_names),)
-        # self.diffrules = []
-        # rules = self.delta_tree.get_rules()
-        # rules = rules[(rules.coef != 0) & (rules['type'] == 'rule')]
-        # print(len(rules))
+        gb = GradientBoostingRegressor(
+            n_estimators=100,
+            # max_depth=5,
+            # learning_rate=0.01,
+            # random_state=42,
+            min_samples_leaf=min_samples_leaf, ccp_alpha=0.001,
+        )
+        self.delta_tree = RuleFit(tree_generator=gb)
+        self.delta_tree.fit(X_train.to_numpy(), np.array(delta_output[:, 0]), feature_names=np.array(self.feature_names))
+        self.diffrules = []
+        rules = self.delta_tree.get_rules()
+        rules = rules[(rules.coef != 0) & (rules['type'] == 'rule')]
+        print(len(rules))
 
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
@@ -194,12 +195,12 @@ class LogitDeltaRule(DISExplainer):
         metrics["samples"] = len(x_test)
 
         delta_target = (pred_target_1 != pred_target_2).astype(int)
-        logit_delta = self.delta_tree.predict(x_test)
-        y_test2_ = y_test1 - logit_delta
-        # logit_delta = self.delta_tree.predict(np.array(x_test))
-        # y_test2_ = np.zeros_like(y_test1)
-        # y_test2_[:, 0] = y_test1[:, 0] - logit_delta
-        # y_test2_[:, 1] = y_test1[:, 1] + logit_delta
+        # logit_delta = self.delta_tree.predict(x_test)
+        # y_test2_ = y_test1 - logit_delta
+        logit_delta = self.delta_tree.predict(np.array(x_test))
+        y_test2_ = np.zeros_like(y_test1)
+        y_test2_[:, 0] = y_test1[:, 0] - logit_delta
+        y_test2_[:, 1] = y_test1[:, 1] + logit_delta
         pred_target_2_ = y_test2_.argmax(axis=1)
         pred_target = pred_target_1 ^ pred_target_2_
         metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)

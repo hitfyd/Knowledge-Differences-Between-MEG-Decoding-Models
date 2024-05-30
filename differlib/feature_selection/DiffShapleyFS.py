@@ -91,8 +91,8 @@ class DiffShapleyFS(FSMethod):
         self.contributions = np.average(self.all_sample_feature_maps, axis=0, weights=self.sample_weights)
         self.contributions = self.contributions[:, 0]
         self.contributions = np.repeat(self.contributions, window_length)
-        print(self.contributions.shape)
-        print(self.contributions)
+        # print(self.contributions.shape)
+        # print(self.contributions)
         self.threshold = threshold
 
     def computing_contribution(self, *argv, **kwargs):

@@ -144,7 +144,7 @@ if __name__ == "__main__":
     # skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=cfg.EXPERIMENT.SEED)
     skf_id = 0
     # record metrics of i-th Fold
-    pd_metrics = None
+    pd_test_metrics, pd_train_metrics = None, None
     for train_index, test_index in skf.split(data, delta_target):
         x_train = data[train_index]
         output_A_train = output_A[train_index]
@@ -161,14 +161,18 @@ if __name__ == "__main__":
         pred_target_B_test = pred_target_B[test_index]
 
         x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index])
+        # if augmentation_type != 'NONE':
+        #     x_train_aug = np.concatenate((x_train, train_data), axis=0)
+        # else:
+        #     x_train_aug = x_train
         output_A_train, pred_target_A_train = output_predict_targets(model_A, x_train_aug)
         output_B_train, pred_target_B_train = output_predict_targets(model_B, x_train_aug)
 
         ydiff = (pred_target_A_train != pred_target_B_train).astype(int)
         print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
-        delta_diff = (ydiff != delta_target_aug).astype(int)
-        print(
-            f"delta_diffs in X_train = {delta_diff.sum()} / {len(delta_diff)} = {(delta_diff.sum() / len(delta_diff) * 100):.2f}%")
+        # delta_diff = (ydiff != delta_target_aug).astype(int)
+        # print(
+        #     f"delta_diffs in X_train = {delta_diff.sum()} / {len(delta_diff)} = {(delta_diff.sum() / len(delta_diff) * 100):.2f}%")
 
         x_train_aug = x_train_aug.reshape((len(x_train_aug), -1))
         x_test = x_test.reshape((len(test_index), -1))
@@ -233,23 +237,23 @@ if __name__ == "__main__":
             train_metrics = explainer.metrics(x_train, pred_target_A_train, pred_target_B_train, name="train")
             test_metrics = explainer.metrics(x_test, pred_target_A_test, pred_target_B_test)
 
-        print("skf_id", skf_id, "Explainer", explainer_type, "max_depth", max_depth, "min_samples_leaf",
-              min_samples_leaf)
-        print("Train set", train_metrics)
-        print("Test set", test_metrics)
-        # with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-        #     writer.write("skf_id {} Explainer {} max_depth {} min_samples_leaf {}\n".format(
-        #         skf_id, explainer_type, max_depth, min_samples_leaf))
-        #     writer.write("Train {}\n".format(train_metrics))
-        #     writer.write("Test {}\n".format(test_metrics))
-        #     # writer.write("train_index {}\n".format(train_index))
-        #     writer.write("test_index {}\n".format(test_index))
+        # 记录单次实验的训练和测试结果
+        train_metrics['train-confusion_matrix'] = np.array2string(train_metrics['train-confusion_matrix'])
+        if pd_train_metrics is None:
+            pd_train_metrics = pd.DataFrame(columns=train_metrics.keys())
+        pd_train_metrics.loc[len(pd_train_metrics)] = train_metrics.values()
 
         test_metrics['test-confusion_matrix'] = np.array2string(test_metrics['test-confusion_matrix'])
-        if pd_metrics is None:
-            pd_metrics = pd.DataFrame(columns=test_metrics.keys())
-        pd_metrics.loc[len(pd_metrics)] = test_metrics.values()
+        if pd_test_metrics is None:
+            pd_test_metrics = pd.DataFrame(columns=test_metrics.keys())
+        pd_test_metrics.loc[len(pd_test_metrics)] = test_metrics.values()
 
+        # 打印单次实验结果
+        print("skf_id", skf_id, "Explainer", explainer_type)
+        print(pd_train_metrics.to_string())
+        print(pd_test_metrics.to_string())
+
+        # 保存单次实验中的中间结果
         save_dict = {"explainer": explainer if explainer_type not in ["MERLIN"] else [],
                      "diff_rules": diff_rules,
                      "test_index": test_index,
@@ -261,22 +265,22 @@ if __name__ == "__main__":
 
         skf_id += 1
 
-    # 计算各个指标的均值和标准差
-    assert len(pd_metrics.columns.tolist()) == 10
-    partial_pd_metrics = pd_metrics.iloc[:, 3:]
+    # 计算测试集上各个指标的均值和标准差
+    assert len(pd_test_metrics.columns.tolist()) == 10
+    partial_pd_metrics = pd_test_metrics.iloc[:, 3:]
     partial_pd_metrics_mean, partial_pd_metrics_std = partial_pd_metrics.mean(), partial_pd_metrics.std()
     record_mean_std = pd.Series(index=partial_pd_metrics_mean.index, dtype=str)
     for i in range(len(partial_pd_metrics_mean.values)):
         record_mean_std.iloc[i] = f"{partial_pd_metrics_mean.iloc[i]:.2f} ± {partial_pd_metrics_std.iloc[i]:.2f}"
-    print(pd_metrics.to_string())
     print(record_mean_std.to_string())
     with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
         writer.write(os.linesep + "-" * 25 + os.linesep)
-        writer.write(pd_metrics.to_string() + os.linesep)
+        writer.write(pd_train_metrics.to_string() + os.linesep)
+        writer.write(pd_test_metrics.to_string() + os.linesep)
         writer.write(record_mean_std.to_string() + os.linesep)
         writer.write(os.linesep + "-" * 25 + os.linesep)
 
-    # 根据模型A、B和解释器，记录实验结果用于对比
+    # 根据模型A、B，记录不同解释器配置下的测试集实验结果用于对比
     record_file = os.path.join(record_path, f"{model_A_type}_{model_B_type}_record.csv")
     record_mean_std['model_A'] = model_A_type
     record_mean_std['model_B'] = model_B_type

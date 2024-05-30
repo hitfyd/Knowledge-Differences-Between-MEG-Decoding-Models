@@ -223,9 +223,144 @@ def _mask(epoch_data, level):
 mask = TransformT('mask', _mask)
 
 
+# 多图像输入
+def divide_by_labels(data, labels):
+    labels_set = set(labels)
+    for label in labels_set:
+        exec("data_%s=[]" % label)
+    for index in range(len(labels)):
+        exec("data_%s.append(data[index])" % labels[index])
+    data_dict = {}
+    for label in labels_set:
+        exec("data_dict[%d] = data_%s" % (label, label))
+    return data_dict
+
+
+# 时域分割重组
+def segment_recombine_time(train_data, ag_number, segment=4):
+    """
+    根据原始数据集，使用时域分割重组生成数据增强数据集
+    :param train_data: 原始数据集
+    :param ag_number: 每一个类的生成的个数
+    :param segment：分割数量
+    """
+    # 生成重组随机矩阵
+    train_data = np.array(train_data)
+    assert len(train_data.shape) == 3
+    random_matrix = np.random.randint(0, train_data.shape[0], (ag_number, segment))
+
+    # 生成重组epoch
+    ag_data = np.zeros((ag_number, train_data.shape[1], train_data.shape[2]), dtype=np.float32)
+    segment_length = int(train_data.shape[-1] / segment)
+    for i in range(ag_number):
+        for j in range(segment):
+            if j < segment - 1:
+                ag_data[i, :, j * segment_length:(j + 1) * segment_length] = \
+                    train_data[random_matrix[i][j], :, j * segment_length:(j + 1) * segment_length]
+            else:
+                ag_data[i, :, j * segment_length:] = train_data[random_matrix[i][j], :, j * segment_length:]
+
+    return ag_data
+
+
+# 信道分割重组
+def segment_recombine_channel(train_data, ag_number, segment=4):
+    """
+    根据原始数据集，使用信道分割重组生成数据增强数据集
+    :param train_data: 原始数据集
+    :param ag_number: 每一个类的生成的个数
+    :param segment：分割数量
+    """
+    # 生成重组随机矩阵
+    train_data = np.array(train_data)
+    assert len(train_data.shape) == 3
+    random_matrix = np.random.randint(0, train_data.shape[0], (ag_number, segment))
+
+    # 生成重组epoch
+    ag_data = np.zeros((ag_number, train_data.shape[1], train_data.shape[2]), dtype=np.float32)
+    segment_length = int(train_data.shape[-1] / segment)
+    for i in range(ag_number):
+        for j in range(segment):
+            if j < segment - 1:
+                ag_data[i, j * segment_length:(j + 1) * segment_length, :] = \
+                    train_data[random_matrix[i][j], j * segment_length:(j + 1) * segment_length, :]
+            else:
+                ag_data[i, :, j * segment_length:] = train_data[random_matrix[i][j], :, j * segment_length:]
+
+    return ag_data
+
+
+# 默认的分割频带及其范围
+bandpass_frequency = [
+    {'name': 'Delta', 'fmin': 0, 'fmax': 4},
+    {'name': 'Theta', 'fmin': 4, 'fmax': 8},
+    {'name': 'Alpha', 'fmin': 8, 'fmax': 14},
+    {'name': 'Beta', 'fmin': 14, 'fmax': 30},
+    {'name': 'Gamma', 'fmin': 30, 'fmax': 90}
+]
+
+
+# 频域分割重组
+def segment_recombine_frequency(train_data, ag_number, sfreq=125):
+    """
+    根据原始数据集，使用频域分割重组生成数据增强数据集
+    :param train_data: 原始数据集
+    :param ag_number: 每一个类的生成的个数
+    :param sfreq：采样频率
+    """
+    # 区分标签并将单个epoch分割
+    train_data_f, train_data_Zxx = [], []
+    for i in range(len(train_data)):
+        f, t, Zxx = signal.stft(train_data[i], fs=sfreq, nperseg=train_data[i].shape[-1])
+        train_data_f.append(f)
+        train_data_Zxx.append(Zxx)
+
+    # 生成重组随机矩阵
+    random_matrix = np.random.randint(0, len(train_data_f), (ag_number, len(bandpass_frequency)))
+
+    # 生成重组epoch
+    gen_data = []
+    for i in range(ag_number):
+        recombine0 = np.zeros(train_data_Zxx[0].shape, dtype=np.complex_)
+        for j in range(len(bandpass_frequency)):
+            iter_subject = random_matrix[i][j]
+            iter_freq = bandpass_frequency[j]
+            # 定位有效频率的索引
+            index = np.where(
+                (iter_freq['fmin'] <= train_data_f[iter_subject]) & (train_data_f[iter_subject] <= iter_freq['fmax']))
+            recombine0[:, index, :] = train_data_Zxx[iter_subject][:, index, :]
+        _, recombine0_data = signal.istft(recombine0, fs=sfreq)
+        gen_data.append(recombine0_data)
+
+    gen_data = np.array(gen_data)
+    print(gen_data.shape)
+
+    return gen_data
+
+
+# 随机同标签数据取平均
+def average(epoch_1, epoch_2, level=0):
+    return (epoch_1 + epoch_2) / 2
+
+
+def epochs_average(train_data, ag_number, average_number=2):
+    # 生成重组随机矩阵
+    train_data = np.array(train_data)
+    assert len(train_data.shape) == 3
+    random_matrix = np.random.randint(0, train_data.shape[0], (ag_number, average_number))
+
+    ag_data = np.zeros((ag_number, train_data.shape[1], train_data.shape[2]), dtype=np.float32)
+    for i in range(ag_number):
+        for j in range(average_number):
+            ag_data[i] += train_data[random_matrix[i][j]]
+        ag_data[i] /= average_number
+
+    return ag_data
+
+
 ALL_TRANSFORMS = [
-    # awgn_time,
-    # awgn_frequency,
+    awgn_time,
+    awgn_frequency,
     reduce_waveform,
     expand_waveform,
     # translation_left,
@@ -233,19 +368,28 @@ ALL_TRANSFORMS = [
     # mask,
 ]
 
+multi_input_algorithm = [segment_recombine_time, segment_recombine_channel, segment_recombine_frequency, epochs_average]
 
 class BaseAM(AMethod):
 
     def augment(self, origin_data, delta_labels, *argv, **kwargs):
         ag_data, ag_label = [], []
-        for i in range(len(delta_labels)):
-            # if delta_labels[i] == 0:
-            #     continue
-            for op in ALL_TRANSFORMS:
-                ag_data.append(op.meg_transformer(1., PARAMETER_MAX-1)(origin_data[i]))
-                ag_label.append(delta_labels[i])
-                ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(origin_data[i]))
-                ag_label.append(delta_labels[i])
+        # for i in range(len(delta_labels)):
+        #     # if delta_labels[i] == 0:
+        #     #     continue
+        #     for op in ALL_TRANSFORMS:
+        #         ag_data.append(op.meg_transformer(1., PARAMETER_MAX-1)(origin_data[i]))
+        #         ag_label.append(delta_labels[i])
+        #         # ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(origin_data[i]))
+        #         # ag_label.append(delta_labels[i])
+
+        data_dict = divide_by_labels(origin_data, delta_labels)
+        for label in data_dict.keys():
+            label_data = data_dict[label]
+            for augment_func in multi_input_algorithm:
+                ag_data.extend(augment_func(label_data, len(label_data)))
+                ag_label.extend(np.full(len(label_data), label))
+
         ag_data, ag_label = np.array(ag_data), np.array(ag_label)
         all_data = np.concatenate((origin_data, ag_data), axis=0)
         all_label = np.concatenate((delta_labels, ag_label), axis=0)
