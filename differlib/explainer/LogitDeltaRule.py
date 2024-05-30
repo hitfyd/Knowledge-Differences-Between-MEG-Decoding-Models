@@ -145,8 +145,8 @@ class LogitDeltaRule(DISExplainer):
         # self.hyperparameters['ccp_alpha'] = self.delta_tree.ccp_alpha
         # print(self.hyperparameters)
 
-        # self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
-        # self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
+        self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
+        self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
         # print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
         # plot_tree(self.delta_tree)
 
@@ -158,19 +158,19 @@ class LogitDeltaRule(DISExplainer):
         # self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
         # self.diffrules = []
 
-        gb = GradientBoostingRegressor(
-            n_estimators=100,
-            # max_depth=5,
-            # learning_rate=0.01,
-            # random_state=42,
-            min_samples_leaf=min_samples_leaf, ccp_alpha=0.001,
-        )
-        self.delta_tree = RuleFit(tree_generator=gb)
-        self.delta_tree.fit(X_train.to_numpy(), np.array(delta_output[:, 0]), feature_names=np.array(self.feature_names))
-        self.diffrules = []
-        rules = self.delta_tree.get_rules()
-        rules = rules[(rules.coef != 0) & (rules['type'] == 'rule')]
-        print(len(rules))
+        # gb = GradientBoostingRegressor(
+        #     n_estimators=100,
+        #     # max_depth=5,
+        #     # learning_rate=0.01,
+        #     # random_state=42,
+        #     min_samples_leaf=min_samples_leaf, ccp_alpha=0.001,
+        # )
+        # self.delta_tree = RuleFit(tree_generator=gb)
+        # self.delta_tree.fit(X_train.to_numpy(), np.array(delta_output[:, 0]), feature_names=np.array(self.feature_names))
+        # self.diffrules = []
+        # rules = self.delta_tree.get_rules()
+        # rules = rules[(rules.coef != 0) & (rules['type'] == 'rule')]
+        # print(len(rules))
 
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
@@ -195,8 +195,104 @@ class LogitDeltaRule(DISExplainer):
         metrics["samples"] = len(x_test)
 
         delta_target = (pred_target_1 != pred_target_2).astype(int)
-        # logit_delta = self.delta_tree.predict(x_test)
-        # y_test2_ = y_test1 - logit_delta
+        logit_delta = self.delta_tree.predict(x_test)
+        y_test2_ = y_test1 - logit_delta
+        # logit_delta = self.delta_tree.predict(np.array(x_test))
+        # y_test2_ = np.zeros_like(y_test1)
+        # y_test2_[:, 0] = y_test1[:, 0] - logit_delta
+        # y_test2_[:, 1] = y_test1[:, 1] + logit_delta
+        pred_target_2_ = y_test2_.argmax(axis=1)
+        pred_target = pred_target_1 ^ pred_target_2_
+        metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
+        metrics[name + "-accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
+        metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target)
+        metrics[name + "-recall"] = sklearn.metrics.recall_score(delta_target, pred_target)
+        metrics[name + "-f1"] = sklearn.metrics.f1_score(delta_target, pred_target)
+
+        metrics["num-rules"] = len(self.diffrules)
+
+        preds = []
+        for rule in self.diffrules:
+            preds += rule.predicates
+        metrics["average-num-rule-preds"] = 0 if metrics["num-rules"] == 0 else float(len(preds)) / metrics["num-rules"]
+        preds = set(preds)
+        metrics["num-unique-preds"] = len(preds)
+        return metrics
+
+
+class LogitRuleFit(LogitDeltaRule):
+
+    def __init__(self):
+        super(LogitRuleFit, self).__init__()
+
+    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, min_samples_leaf=1, verbose=True, feature_weights=None, **kwargs):
+        """
+        Fit joint surrogate tree to input data, and outputs from two models.
+        Args:
+            X_train: input dataframe
+            Y1: model1 outputs(logits)
+            Y2: model2 outputs(logits)
+            max_depth: maximum depth of the joint surrogate tree to be built
+            min_samples_leaf: minimum number of samples required to be at a leaf node
+            verbose:
+            **kwargs:
+        Returns:
+            self
+        """
+        self.feature_names = X_train.columns.to_list()
+
+        # X_train = X_train.to_numpy()
+
+        if not isinstance(Y1, np.ndarray):
+            Y1 = Y1.to_numpy()
+        if not isinstance(Y2, np.ndarray):
+            Y2 = Y2.to_numpy()
+
+        assert Y1.shape == Y2.shape, "Y1 and Y2 must have the same"
+        pred_target_1 = Y1.argmax(axis=1)
+        pred_target_2 = Y2.argmax(axis=1)
+
+        ydiff = (pred_target_1 != pred_target_2).astype(int)
+        if verbose:
+            print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
+
+        delta_target = (pred_target_1 != pred_target_2).astype(int)
+        delta_output = Y1 - Y2
+
+        gb = GradientBoostingRegressor(
+            n_estimators=10,
+            # max_depth=5,
+            learning_rate=0.01,
+            # random_state=42,
+            min_samples_leaf=min_samples_leaf,
+            ccp_alpha=0.001,
+        )
+        self.delta_tree = RuleFit(tree_generator=gb)
+        self.delta_tree.fit(X_train.to_numpy(), np.array(delta_output[:, 0]), feature_names=np.array(self.feature_names))
+        self.diffrules = []
+        rules = self.delta_tree.get_rules()
+        rules = rules[(rules.coef != 0) & (rules['type'] == 'rule')]
+        rules = rules['rule'].values
+        self.diffrules = []
+        for r in rules:
+            predicates = r.split('&')
+            rule = Rule(id, predicates, class_id)
+            self.diffrules.append(rule)
+            id += 1
+
+    def metrics(self, x_test: pd.DataFrame, y_test1, y_test2, name="test"):
+        assert len(y_test1.shape) == len(y_test2.shape) == 2 and y_test1.shape[0] == y_test2.shape[0], \
+            "y_test1 and y_test2 must have the same"
+        pred_target_1 = y_test1.argmax(axis=1)
+        pred_target_2 = y_test2.argmax(axis=1)
+
+        metrics = {}
+        diff_samples = pred_target_1 != pred_target_2
+        total_number_diff_samples = np.sum(diff_samples)
+        metrics["diffs"] = total_number_diff_samples
+        metrics["samples"] = len(x_test)
+
+        delta_target = (pred_target_1 != pred_target_2).astype(int)
         logit_delta = self.delta_tree.predict(np.array(x_test))
         y_test2_ = np.zeros_like(y_test1)
         y_test2_[:, 0] = y_test1[:, 0] - logit_delta
@@ -218,4 +314,3 @@ class LogitDeltaRule(DISExplainer):
         preds = set(preds)
         metrics["num-unique-preds"] = len(preds)
         return metrics
-

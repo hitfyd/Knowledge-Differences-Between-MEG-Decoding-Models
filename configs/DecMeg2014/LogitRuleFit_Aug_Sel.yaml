@@ -1,0 +1,13 @@
+EXPERIMENT:
+  PROJECT: "DecMeg2014"
+  TAG: "LogitRuleFit,Aug,Sel"
+DATASET: "DecMeg2014"
+NUM_SPLITS: 5
+WINDOW_LENGTH: 10
+MODEL_A: "sdt_hgrn_fakd"
+MODEL_B: "sdt"
+AUGMENTATION: "BASE"
+SELECTION:
+  TYPE: "DiffShapley"
+EXPLAINER:
+  TYPE: "LogitRuleFit"

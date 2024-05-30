@@ -215,7 +215,7 @@ if __name__ == "__main__":
         x_test = pd.DataFrame(x_test, columns=x_feature_names)
         print(x_train.shape, x_test.shape)
 
-        if explainer_type in ["Logit"]:
+        if explainer_type in ["Logit", "LogitRuleFit"]:
             contributions = selection_method.computing_contribution()
             kth = int(len(contributions) * selection_rate)
             ind = np.argpartition(contributions, kth=-kth)[-kth:]
@@ -230,7 +230,7 @@ if __name__ == "__main__":
         # print(diff_rules)
 
         # Computation of metrics on train and test set
-        if explainer_type in ["Logit"]:
+        if explainer_type in ["Logit", "LogitRuleFit"]:
             train_metrics = explainer.metrics(x_train, output_A_train, output_B_train, name="train")
             test_metrics = explainer.metrics(x_test, output_A_test, output_B_test)
         else:
