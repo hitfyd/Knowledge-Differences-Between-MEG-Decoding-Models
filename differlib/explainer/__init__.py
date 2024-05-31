@@ -8,6 +8,6 @@ explainer_dict = {
     "IMD": IMDExplainer,
     "Delta": DeltaExplainer,
     "Logit": LogitDeltaRule,
-    "LogitRuleFit": LogitRuleFit,
+    # "LogitRuleFit": LogitRuleFit,
     "MERLIN": MERLINXAI,
 }

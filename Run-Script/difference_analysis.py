@@ -221,10 +221,10 @@ if __name__ == "__main__":
             # ind = np.argpartition(contributions, kth=-kth)[-kth:]
             explainer.fit(x_train, output_A_train, output_B_train,
                           max_depth, min_samples_leaf=min_samples_leaf,
-                          feature_weights=contributions[select_indices], feature_names=x_feature_names)
+                          feature_weights=contributions[select_indices])
         else:
             explainer.fit(x_train, pred_target_A_train, pred_target_B_train,
-                          max_depth, min_samples_leaf=min_samples_leaf, feature_names=x_feature_names)
+                          max_depth, min_samples_leaf=min_samples_leaf)
 
         diff_rules = explainer.explain()
         # print(diff_rules)

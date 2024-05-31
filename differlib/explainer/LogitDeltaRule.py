@@ -202,7 +202,7 @@ class LogitDeltaRule(DISExplainer):
         # y_test2_[:, 0] = y_test1[:, 0] - logit_delta
         # y_test2_[:, 1] = y_test1[:, 1] + logit_delta
         pred_target_2_ = y_test2_.argmax(axis=1)
-        pred_target = pred_target_1 ^ pred_target_2_
+        pred_target = (pred_target_1 != pred_target_2_).astype(int)
         metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
         metrics[name + "-accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
         metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target)

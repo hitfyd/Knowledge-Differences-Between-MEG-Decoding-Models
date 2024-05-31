@@ -1,5 +1,8 @@
 import warnings
 
+import numpy as np
+from sklearn.preprocessing import OneHotEncoder
+
 warnings.filterwarnings('ignore')
 
 import pandas as pd
@@ -14,8 +17,20 @@ from differlib.explainer.imd.utils import load_bc_dataset
 
 # Data preparation
 random_state = 1234
-datadf, target = load_bc_dataset()
+# datadf, target = load_bc_dataset()
 # datadf, target = load_iris_dataset()
+
+from ucimlrepo import fetch_ucirepo
+
+# fetch dataset
+waveform_database_generator_version_1 = fetch_ucirepo(id=107)
+# data (as pandas dataframes)
+X = waveform_database_generator_version_1.data.features
+y = waveform_database_generator_version_1.data.targets.values
+
+datadf = X
+target = np.squeeze(y)
+
 x_train, x_test, y_train, y_test = train_test_split(datadf, target, train_size=0.7,
                                                     random_state=random_state)
 print(x_train.shape, x_test.shape)
@@ -48,17 +63,17 @@ print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(yd
 ydifftest = (model1.predict(x_test) != model2.predict(x_test)).astype(int)
 print(f"diffs in X_test = {ydifftest.sum()} / {len(ydifftest)} = {(ydifftest.sum() / len(ydifftest)):.2f}")
 
-# data augmentation
-oversampler = SMOTE(random_state=0)
-x_train_aug, delta_target_aug = oversampler.fit_resample(x1, ydiff)
-x_train = pd.DataFrame(x_train_aug, columns=feature_names)
-y1 = model1.predict(x_train_aug)
-y2 = model2.predict(x_train_aug)
-ydiff = (y1 != y2).astype(int)
-print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff)):.2f}")
+# # data augmentation
+# oversampler = SMOTE(random_state=0)
+# x_train_aug, delta_target_aug = oversampler.fit_resample(x1, ydiff)
+# x_train = pd.DataFrame(x_train_aug, columns=feature_names)
+# y1 = model1.predict(x_train_aug)
+# y2 = model2.predict(x_train_aug)
+# ydiff = (y1 != y2).astype(int)
+# print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff)):.2f}")
 
 # Interpretable model differencing
-max_depth = 4
+max_depth = 5
 
 imd = IMDExplainer()
 # imd = DeltaExplainer()
