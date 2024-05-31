@@ -19,11 +19,13 @@ train_size = 0.7
 max_depth = 5
 min_samples_leaf = 1
 datasets = {'bc': load_bc_dataset(),
-            'waveform': load_waveform_dataset(),}
+            'waveform': load_waveform_dataset(),
+            }
 models = {'LR': LogisticRegression(random_state=random_state),
           'DT1': DecisionTreeClassifier(max_depth=5),
           # 'GB': GradientBoostingClassifier(),
-          'NB': GaussianNB()}
+          'NB': GaussianNB()
+          }
 explainers = {"SS": SeparateSurrogate,
               "IMD": IMDExplainer,
               "Delta": DeltaExplainer,
