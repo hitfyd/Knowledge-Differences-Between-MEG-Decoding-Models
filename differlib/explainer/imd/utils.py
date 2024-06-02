@@ -108,16 +108,6 @@ def load_bc_dataset():
     return data["data"], data["target"]
 
 
-def load_waveform_dataset():
-    from ucimlrepo import fetch_ucirepo
-    # fetch dataset
-    waveform_database_generator_version_1 = fetch_ucirepo(id=107)
-    # data (as pandas dataframes)
-    X = waveform_database_generator_version_1.data.features
-    y = waveform_database_generator_version_1.data.targets.values
-    return X, np.squeeze(y)
-
-
 def common_trunk_tree_to_digraph(root: dict):
     """
     returns a networkx digraph from the common trunk tree dictionary (jst).
