@@ -225,7 +225,7 @@ class LogitRuleFit(LogitDeltaRule):
     def __init__(self):
         super(LogitRuleFit, self).__init__()
 
-    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, min_samples_leaf=1, verbose=True, feature_weights=None, **kwargs):
+    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, min_samples_leaf=1, ccp_alpha=0.001, verbose=True, feature_weights=None, **kwargs):
         """
         Fit joint surrogate tree to input data, and outputs from two models.
         Args:
@@ -259,7 +259,7 @@ class LogitRuleFit(LogitDeltaRule):
         delta_target = (pred_target_1 != pred_target_2).astype(int)
         delta_output = Y1 - Y2
 
-        self.delta_tree = GradientBoostingRegressor(n_estimators=10, min_samples_leaf=min_samples_leaf, ccp_alpha=0.001)
+        self.delta_tree = GradientBoostingRegressor(n_estimators=10, min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
         self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
 
         # self.delta_tree = CatBoostRegressor(iterations=10, depth=5, learning_rate=0.01, loss_function='RMSE',

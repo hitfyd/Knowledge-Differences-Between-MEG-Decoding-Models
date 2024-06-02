@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import arff
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
@@ -37,16 +38,24 @@ def load_magic_dataset():
     # data (as pandas dataframes)
     X = waveform_database_generator_version_1.data.features
     y = waveform_database_generator_version_1.data.targets.values
-    return X, np.squeeze(y)
+    y = np.squeeze(y)
+    y = [0 if y[i] == 'g' else 1 for i in range(len(y))]
+    return X, np.array(y)
 
 
 def load_waveform_dataset():
-    # fetch dataset
-    waveform_database_generator_version_1 = fetch_ucirepo(id=107)
-    # data (as pandas dataframes)
-    X = waveform_database_generator_version_1.data.features
-    y = waveform_database_generator_version_1.data.targets.values
-    return X, np.squeeze(y)
+    data = arff.load("../dataset/tabular/dataset_60_waveform-5000.arff")
+    df = pd.DataFrame(data)[1:]
+    X = df.iloc[:, :-1]
+    y = df.iloc[:, -1]
+    return X, y.values.astype(int)
+
+    # # fetch dataset
+    # waveform_database_generator_version_1 = fetch_ucirepo(id=107)
+    # # data (as pandas dataframes)
+    # X = waveform_database_generator_version_1.data.features
+    # y = waveform_database_generator_version_1.data.targets.values
+    # return X, np.squeeze(y)
 
 
 # Data preparation
@@ -55,6 +64,7 @@ train_size = 0.7
 n_times = 5
 max_depth = 6
 min_samples_leaf = 0.01
+ccp_alpha = 0.0
 datasets = {'banknote': load_banknote_dataset(),
             'bc': load_bc_dataset(),
             'magic': load_magic_dataset(),
@@ -134,7 +144,7 @@ for dataset in datasets.keys():
                 # x_train, x_test, y_train, y_test = train_test_split(data, target, train_size=train_size)
                 explainer = explainers[explainer_type]()
                 if explainer_type in ["Logit"]:
-                    explainer.fit(x_train, output1, output2, max_depth, min_samples_leaf=min_samples_leaf,)
+                    explainer.fit(x_train, output1, output2, max_depth, min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
                     train_metrics = explainer.metrics(x_train, output1, output2, name="train")
                     test_metrics = explainer.metrics(x_test, t_output1, t_output2)
                 else:
@@ -168,6 +178,7 @@ for dataset in datasets.keys():
             print(record_mean_std.to_string())
             with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
                 writer.write(os.linesep + "-" * 25 + os.linesep)
+                writer.write(f"{dataset}_{model1_name}_{model2_name}_{explainer_type}" + os.linesep)
                 writer.write(pd_train_metrics.to_string() + os.linesep)
                 writer.write(pd_test_metrics.to_string() + os.linesep)
                 writer.write(record_mean_std.to_string() + os.linesep)

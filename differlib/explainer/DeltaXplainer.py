@@ -80,7 +80,7 @@ class DeltaExplainer(DISExplainer):
         """
         pass
 
-    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, min_samples_leaf=1, verbose=True, **kwargs):
+    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, min_samples_leaf=1, ccp_alpha=0.0, verbose=True, **kwargs):
         """
         Fit joint surrogate tree to input data, and outputs from two models.
         Args:
@@ -112,7 +112,7 @@ class DeltaExplainer(DISExplainer):
 
         delta_target = (Y1 != Y2).astype(int)
 
-        self.delta_tree = DecisionTreeClassifier(min_samples_leaf=min_samples_leaf, ccp_alpha=0.001)
+        self.delta_tree = DecisionTreeClassifier(min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
         self.delta_tree.fit(X_train, delta_target)
         self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
         # print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
