@@ -117,14 +117,23 @@ models = {
     'RF2': RandomForestClassifier(max_depth=6, random_state=random_state),
     'GNB': GaussianNB()
 }
+# dataset_diff_models = {
+#     'bank_marketing': [('MLP2', 'GB'), ('MLP1', 'GNB')],
+#     'banknote': [('KN1', 'GNB'), ('LR', 'DT1')],
+#     'bc': [('DT1', 'GNB'), ('KN2', 'RF2')],
+#     'eye_movements': [('RF1', 'GNB'), ('LR', 'MLP1')],
+#     'heloc': [('KN1', 'RF2'), ('GB', 'RF1')],
+#     'magic': [('RF1', 'GNB'), ('MLP2', 'DT2')],
+#     'waveform': [('LR', 'DT1'), ('MLP1', 'RF2')],
+# }
 dataset_diff_models = {
-    'bank_marketing': [('MLP2', 'GB'), ('MLP1', 'GNB')],
-    'banknote': [('KN1', 'GNB'), ('LR', 'DT1')],
+    'bank_marketing': [('MLP2', 'GB'), ('LF', 'KN2')],
+    'banknote': [('KN1', 'GNB'), ('MLP1', 'KN2')],
     'bc': [('DT1', 'GNB'), ('KN2', 'RF2')],
-    'eye_movements': [('RF1', 'GNB'), ('LR', 'MLP1')],
-    'heloc': [('KN1', 'RF2'), ('GB', 'RF1')],
-    'magic': [('RF1', 'GNB'), ('MLP2', 'DT2')],
-    'waveform': [('LR', 'DT1'), ('MLP1', 'RF2')],
+    'eye_movements': [('RF1', 'MLP1'), ('KN1', 'KN2')],
+    'heloc': [('KN1', 'GB'), ('GB', 'RF1')],
+    'magic': [('RF1', 'GNB'), ('MLP2', 'DT1')],
+    'waveform': [('MLP1', 'DT1'), ('LR', 'GNB')],
 }
 explainers = {
     "SS": SeparateSurrogate,
@@ -154,8 +163,6 @@ for dataset in datasets.keys():
         t_acc = accuracy_score(y_true=y_test, y_pred=model.predict(x_test))
         print(f"dataset: {dataset} model: {model_name} test accuracy: {(t_acc * 100):.2f}%")
         models[model_name] = model
-
-    continue
 
     # Computing differencing
     for model1_name, model2_name in dataset_diff_models[dataset]:
