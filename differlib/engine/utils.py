@@ -122,7 +122,7 @@ def validate(val_loader, distiller):
     return top1.avg, losses.avg
 
 
-def predict(model, data, num_classes=2, batch_size=512, eval=False, softmax=True):
+def predict(model, data, num_classes=2, batch_size=1024, eval=False, softmax=True):
     model.cuda()
     data = torch.from_numpy(data)
     data_split = torch.split(data, batch_size, dim=0)
@@ -169,7 +169,7 @@ def model_eval(model, data_loader):
     return accuracy
 
 
-def output_predict_targets(model: torch.nn, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
+def output_predict_targets(model: torch.nn, data: np.ndarray, num_classes=2, batch_size=1024, softmax=True):
     # data_torch = torch.from_numpy(data).float().cuda()
     # model.eval()
     # with torch.no_grad():
