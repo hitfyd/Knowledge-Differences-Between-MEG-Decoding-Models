@@ -128,9 +128,9 @@ models = {
 # }
 dataset_diff_models = {
     'bank_marketing': [('MLP2', 'GB'), ('LR', 'KN2')],
-    'banknote': [('KN1', 'GNB'), ('MLP1', 'KN2')],
+    'banknote': [('KN1', 'GNB'), ('GB', 'RF2')],
     'bc': [('DT1', 'GNB'), ('KN2', 'RF2')],
-    'eye_movements': [('RF1', 'MLP1'), ('KN1', 'KN2')],
+    'eye_movements': [('RF1', 'MLP1'), ('KN1', 'DT1')],
     'heloc': [('KN1', 'GB'), ('GB', 'RF1')],
     'magic': [('RF1', 'GNB'), ('MLP2', 'DT1')],
     'waveform': [('MLP1', 'DT1'), ('LR', 'GNB')],
@@ -199,7 +199,7 @@ for dataset in datasets.keys():
                     test_metrics = explainer.metrics(x_test, t_y1, t_y2)
 
                 # 打印单次实验结果
-                print(dataset, explainer_type, model1, model2, skf_id)
+                print(dataset, explainer_type, model1_name, model2_name, skf_id)
                 print(train_metrics)
                 print(test_metrics)
 
@@ -224,7 +224,7 @@ for dataset in datasets.keys():
             print(record_mean_std.to_string())
             with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
                 writer.write(os.linesep + "-" * 25 + os.linesep)
-                writer.write(f"{dataset}_{model1_name}_{model2_name}_{explainer_type}" + os.linesep)
+                writer.write(f"{dataset} {model1_name} {model2_name} {explainer_type}" + os.linesep)
                 writer.write(pd_train_metrics.to_string() + os.linesep)
                 writer.write(pd_test_metrics.to_string() + os.linesep)
                 writer.write(record_mean_std.to_string() + os.linesep)
