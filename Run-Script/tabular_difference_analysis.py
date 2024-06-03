@@ -44,11 +44,12 @@ def load_magic_dataset():
 
 
 def load_waveform_dataset():
-    data = arff.load("../dataset/tabular/dataset_60_waveform-5000.arff")
-    df = pd.DataFrame(data)[1:]
+    data = arff.load("../dataset/tabular/waveform-5000.arff")
+    df = pd.DataFrame(data)
     X = df.iloc[:, :-1]
-    y = df.iloc[:, -1]
-    return X, y.values.astype(int)
+    y = df.iloc[:, -1].values
+    y = [0 if y[i] == 'N' else 1 for i in range(len(y))]
+    return X, np.array(y)
 
     # # fetch dataset
     # waveform_database_generator_version_1 = fetch_ucirepo(id=107)
@@ -58,42 +59,80 @@ def load_waveform_dataset():
     # return X, np.squeeze(y)
 
 
+def load_heloc_dataset():
+    data = arff.load("../dataset/tabular/dataset_HELOC")
+    df = pd.DataFrame(data)
+    X = df.iloc[:, 1:]
+    X[[10, 11]] = X[[10, 11]].astype(int)
+    y = df.iloc[:, 0].values
+    y = np.squeeze(y)
+    y = [0 if y[i] == 'Bad' else 1 for i in range(len(y))]
+    return X, np.array(y)
+
+
+def load_bank_marketing_dataset():
+    data = arff.load("../dataset/tabular/dataset_bank-marketing")
+    df = pd.DataFrame(data)
+    X = df.iloc[:, :-1]
+    y = df.iloc[:, -1].values
+    y = [0 if y[i] == '1' else 1 for i in range(len(y))]
+    return X, np.array(y)
+
+
+def load_eye_movements_dataset():
+    data = arff.load("../dataset/tabular/dataset_eye_movements")
+    df = pd.DataFrame(data)
+    X = df.iloc[:, :-1]
+    X[[20, 21, 22]] = X[[20, 21, 22]].astype(int)
+    y = df.iloc[:, -1].values
+    return X, np.array(y)
+
+
 # Data preparation
 random_state = 1234
 train_size = 0.7
 n_times = 5
 max_depth = 6
-min_samples_leaf = 0.01
-ccp_alpha = 0.0
-datasets = {'banknote': load_banknote_dataset(),
-            'bc': load_bc_dataset(),
-            'magic': load_magic_dataset(),
-            'waveform': load_waveform_dataset(),
-            }
-models = {'LR': LogisticRegression(random_state=random_state),
-          'KN1': KNeighborsClassifier(n_neighbors=3),
-          'DT1': DecisionTreeClassifier(max_depth=5),
-          'MLP1': MLPClassifier(alpha=1e-05, hidden_layer_sizes=(15,), random_state=1234, solver='lbfgs'),
-          'MLP2': MLPClassifier(hidden_layer_sizes=(100, 100), random_state=1234),
-          'DT2': DecisionTreeClassifier(max_depth=10),
-          'GB': GradientBoostingClassifier(),
-          'RF1': RandomForestClassifier(),
-          'KN2': KNeighborsClassifier(),
-          'RF2': RandomForestClassifier(max_depth=6, random_state=1234),
-          'GNB': GaussianNB()
-          }
+min_samples_leaf = 0.001
+ccp_alpha = 0.001
+datasets = {
+    'bank_marketing': load_bank_marketing_dataset(),
+    'banknote': load_banknote_dataset(),
+    'bc': load_bc_dataset(),
+    'eye_movements': load_eye_movements_dataset(),
+    'heloc': load_heloc_dataset(),
+    'magic': load_magic_dataset(),
+    'waveform': load_waveform_dataset(),
+}
+models = {
+    'LR': LogisticRegression(random_state=random_state),
+    'KN1': KNeighborsClassifier(n_neighbors=3),
+    'DT1': DecisionTreeClassifier(max_depth=5, random_state=random_state),
+    'MLP1': MLPClassifier(alpha=1e-05, hidden_layer_sizes=(15,), random_state=random_state, solver='lbfgs'),
+    'MLP2': MLPClassifier(hidden_layer_sizes=(100, 100), random_state=random_state),
+    'DT2': DecisionTreeClassifier(max_depth=10, random_state=random_state),
+    'GB': GradientBoostingClassifier(random_state=random_state),
+    'RF1': RandomForestClassifier(random_state=random_state),
+    'KN2': KNeighborsClassifier(),
+    'RF2': RandomForestClassifier(max_depth=6, random_state=random_state),
+    'GNB': GaussianNB()
+}
 dataset_diff_models = {
+    'bank_marketing': [('MLP2', 'GB'), ('MLP1', 'GNB')],
     'banknote': [('KN1', 'GNB'), ('LR', 'DT1')],
     'bc': [('DT1', 'GNB'), ('KN2', 'RF2')],
+    'eye_movements': [('RF1', 'GNB'), ('LR', 'MLP1')],
+    'heloc': [('KN1', 'RF2'), ('GB', 'RF1')],
     'magic': [('RF1', 'GNB'), ('MLP2', 'DT2')],
     'waveform': [('LR', 'DT1'), ('MLP1', 'RF2')],
 }
-explainers = {"SS": SeparateSurrogate,
-              "IMD": IMDExplainer,
-              "Delta": DeltaExplainer,
-              "Logit": LogitDeltaRule,
-              # "MERLIN": MERLINXAI,
-              }
+explainers = {
+    "SS": SeparateSurrogate,
+    "IMD": IMDExplainer,
+    "Delta": DeltaExplainer,
+    "Logit": LogitDeltaRule,
+    # "MERLIN": MERLINXAI,
+}
 
 log_path = './output/tabular/'
 if not os.path.exists(log_path):
@@ -107,7 +146,6 @@ for dataset in datasets.keys():
     for model_name in models.keys():
         save_path = os.path.join(log_path, "{}_{}".format(dataset, model_name))
         if not os.path.exists(save_path):
-            setup_seed(random_state)
             model = models[model_name]
             model.fit(x_train, y_train)
             save_checkpoint(model, save_path)
@@ -117,38 +155,39 @@ for dataset in datasets.keys():
         print(f"dataset: {dataset} model: {model_name} test accuracy: {(t_acc * 100):.2f}%")
         models[model_name] = model
 
+    continue
+
+    # Computing differencing
     for model1_name, model2_name in dataset_diff_models[dataset]:
         model1, model2 = models[model1_name], models[model2_name]
 
-        # Calculate diff-samples %
-        # feature_names = x_train.columns.to_list()
-        # x1 = x2 = x_train.to_numpy()
-        y1 = model1.predict(x_train)
-        y2 = model2.predict(x_train)
-        output1 = model1.predict_proba(x_train)
-        output2 = model2.predict_proba(x_train)
-        ydiff = (y1 != y2).astype(int)
-        print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff)):.2f}")
-
-        t_y1 = model1.predict(x_test)
-        t_y2 = model2.predict(x_test)
-        t_output1 = model1.predict_proba(x_test)
-        t_output2 = model2.predict_proba(x_test)
-        ydifftest = (t_y1 != t_y2).astype(int)
-        print(f"diffs in X_test = {ydifftest.sum()} / {len(ydifftest)} = {(ydifftest.sum() / len(ydifftest)):.2f}")
-
         for explainer_type in explainers.keys():
-            setup_seed(random_state)
             pd_test_metrics, pd_train_metrics = None, None
             for skf_id in range(n_times):
-                # x_train, x_test, y_train, y_test = train_test_split(data, target, train_size=train_size)
+                x_train, x_test, y_train, y_test = train_test_split(data, target, train_size=train_size, random_state=random_state+skf_id)
+
+                # Calculate diff-samples
+                y1 = model1.predict(x_train)
+                y2 = model2.predict(x_train)
+                output1 = model1.predict_proba(x_train)
+                output2 = model2.predict_proba(x_train)
+                ydiff = (y1 != y2).astype(int)
+                print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff)):.2f}")
+
+                t_y1 = model1.predict(x_test)
+                t_y2 = model2.predict(x_test)
+                t_output1 = model1.predict_proba(x_test)
+                t_output2 = model2.predict_proba(x_test)
+                ydifftest = (t_y1 != t_y2).astype(int)
+                print(f"diffs in X_test = {ydifftest.sum()} / {len(ydifftest)} = {(ydifftest.sum() / len(ydifftest)):.2f}")
+
                 explainer = explainers[explainer_type]()
                 if explainer_type in ["Logit"]:
                     explainer.fit(x_train, output1, output2, max_depth, min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
                     train_metrics = explainer.metrics(x_train, output1, output2, name="train")
                     test_metrics = explainer.metrics(x_test, t_output1, t_output2)
                 else:
-                    explainer.fit(x_train, y1, y2, max_depth, min_samples_leaf=min_samples_leaf)
+                    explainer.fit(x_train, y1, y2, max_depth, min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
                     train_metrics = explainer.metrics(x_train, y1, y2, name="train")
                     test_metrics = explainer.metrics(x_test, t_y1, t_y2)
 

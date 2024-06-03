@@ -84,7 +84,7 @@ class LogitDeltaRule(DISExplainer):
         """
         pass
 
-    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, min_samples_leaf=1, verbose=True, feature_weights=None, **kwargs):
+    def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, min_samples_leaf=1, ccp_alpha=0.001, verbose=True, feature_weights=None, **kwargs):
         """
         Fit joint surrogate tree to input data, and outputs from two models.
         Args:
@@ -118,7 +118,7 @@ class LogitDeltaRule(DISExplainer):
         delta_target = (pred_target_1 != pred_target_2).astype(int)
         delta_output = Y1 - Y2
 
-        self.delta_tree = DecisionTreeRegressor(min_samples_leaf=min_samples_leaf, ccp_alpha=0.001)
+        self.delta_tree = DecisionTreeRegressor(max_depth=max_depth, min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
 
         # search_space = {
         #     'criterion': ['squared_error', ],
