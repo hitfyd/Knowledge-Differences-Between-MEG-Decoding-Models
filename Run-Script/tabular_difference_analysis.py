@@ -31,6 +31,13 @@ def load_banknote_dataset():
     y = waveform_database_generator_version_1.data.targets.values
     return X, np.squeeze(y)
 
+    # data = arff.load("../dataset/tabular/banknote.arff")
+    # df = pd.DataFrame(data)
+    # X = df.iloc[:, :-1]
+    # y = df.iloc[:, -1].values
+    # y = [0 if y[i] == '1' else 1 for i in range(len(y))]
+    # return X, np.array(y)
+
 
 def load_magic_dataset():
     # fetch dataset
@@ -50,13 +57,6 @@ def load_waveform_dataset():
     y = df.iloc[:, -1].values
     y = [0 if y[i] == 'N' else 1 for i in range(len(y))]
     return X, np.array(y)
-
-    # # fetch dataset
-    # waveform_database_generator_version_1 = fetch_ucirepo(id=107)
-    # # data (as pandas dataframes)
-    # X = waveform_database_generator_version_1.data.features
-    # y = waveform_database_generator_version_1.data.targets.values
-    # return X, np.squeeze(y)
 
 
 def load_heloc_dataset():
@@ -85,7 +85,7 @@ def load_eye_movements_dataset():
     X = df.iloc[:, :-1]
     X[[20, 21, 22]] = X[[20, 21, 22]].astype(int)
     y = df.iloc[:, -1].values
-    return X, np.array(y)
+    return X, y
 
 
 # Data preparation
@@ -160,9 +160,13 @@ for dataset in datasets.keys():
             save_checkpoint(model, save_path)
         else:
             model = load_checkpoint(save_path)
+        models[model_name] = model
+
         t_acc = accuracy_score(y_true=y_test, y_pred=model.predict(x_test))
         print(f"dataset: {dataset} model: {model_name} test accuracy: {(t_acc * 100):.2f}%")
-        models[model_name] = model
+        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+            writer.write(os.linesep + "-" * 25 + os.linesep)
+            writer.write(f"dataset: {dataset} model: {model_name} test accuracy: {(t_acc * 100):.2f}%" + os.linesep)
 
     # Computing differencing
     for model1_name, model2_name in dataset_diff_models[dataset]:
