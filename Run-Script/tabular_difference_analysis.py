@@ -130,7 +130,7 @@ dataset_diff_models = {
     'bank_marketing': [('MLP2', 'GB'), ('LR', 'KN2')],
     'banknote': [('KN1', 'GNB'), ('GB', 'RF2')],
     'bc': [('DT1', 'GNB'), ('KN2', 'RF2')],
-    'eye_movements': [('RF1', 'MLP1'), ('KN1', 'DT1')],
+    'eye_movements': [('RF1', 'MLP1'), ('KN1', 'DT1')],     # min应改为KN1-KN2，但是由于两者模型架构一致，改为次min对KN1-DT1
     'heloc': [('KN1', 'GB'), ('GB', 'RF1')],
     'magic': [('RF1', 'GNB'), ('MLP2', 'DT1')],
     'waveform': [('MLP1', 'DT1'), ('LR', 'GNB')],
@@ -165,7 +165,6 @@ for dataset in datasets.keys():
         t_acc = accuracy_score(y_true=y_test, y_pred=model.predict(x_test))
         print(f"dataset: {dataset} model: {model_name} test accuracy: {(t_acc * 100):.2f}%")
         with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-            writer.write(os.linesep + "-" * 25 + os.linesep)
             writer.write(f"dataset: {dataset} model: {model_name} test accuracy: {(t_acc * 100):.2f}%" + os.linesep)
 
     # Computing differencing
