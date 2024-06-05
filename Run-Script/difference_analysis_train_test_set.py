@@ -105,10 +105,12 @@ if __name__ == "__main__":
     selection_type = cfg.SELECTION.TYPE
     selection_method = fsm_dict[selection_type]()
     selection_rate = cfg.SELECTION.RATE
+    selection_M = cfg.SELECTION.Diff.M
+    selection_threshold = cfg.SELECTION.Diff.THRESHOLD
     # 预先计算所有样本的特征归因图，训练时只使用训练集样本的特征归因图
     if selection_type in ["DiffShapley"]:
         all_sample_feature_maps = compute_all_sample_feature_maps(dataset, train_data, model_A, model_B,
-                                                                  n_classes, window_length, cfg.SELECTION.Diff.M,
+                                                                  n_classes, window_length, selection_M,
                                                                   num_gpus=num_gpus, num_cpus=num_cpus)
 
     # init explainer
@@ -155,9 +157,9 @@ if __name__ == "__main__":
         # For Feature Selection to Compute Feature Contributions
         time_start = time.perf_counter()
         if selection_type in ["DiffShapley"]:
-            window_length, M = cfg.SELECTION.Diff.WINDOW_LENGTH, cfg.SELECTION.Diff.M
-            selection_method.fit(x_train_aug, model_A, model_B, channels, points, n_classes, window_length, M,
-                                 num_gpus=num_gpus, num_cpus=num_cpus)
+            selection_method.fit(x_train, model_A, model_B, channels, points, n_classes,
+                                 window_length, selection_M, all_sample_feature_maps[train_index],
+                                 threshold=selection_threshold, num_gpus=num_gpus, num_cpus=num_cpus)
         else:
             selection_method.fit(x_train_aug, train_output_A, train_output_B)
         time_end = time.perf_counter()  # 记录结束时间
@@ -182,46 +184,44 @@ if __name__ == "__main__":
         x_test = pd.DataFrame(x_test)
         print(x_train.shape, x_test.shape)
 
-        for explainer_type in ["MERLIN"]:  # "Logit", "Delta", "IMD", "SS"
-            explainer = explainer_dict[explainer_type]()
-            if explainer_type in ["Logit"]:
-                explainer.fit(x_train, train_output_A, train_output_B,
-                              max_depth, min_samples_leaf=min_samples_leaf)
-            else:
-                explainer.fit(x_train, train_predict_targets_A, train_predict_targets_B,
-                              max_depth, min_samples_leaf=min_samples_leaf)
+        if explainer_type in ["Logit"]:
+            explainer.fit(x_train, train_output_A, train_output_B,
+                          max_depth, min_samples_leaf=min_samples_leaf)
+        else:
+            explainer.fit(x_train, train_predict_targets_A, train_predict_targets_B,
+                          max_depth, min_samples_leaf=min_samples_leaf)
 
-            diffrules = explainer.explain()
-            # print(diffrules)
+        diffrules = explainer.explain()
+        # print(diffrules)
 
-            # Computation of metrics
-            if explainer_type in ["Logit"]:
-                train_metrics = explainer.metrics(x_train, train_output_A, train_output_B, name="train")
-                test_metrics = explainer.metrics(x_test, test_output_A, test_output_B)
-            else:
-                train_metrics = explainer.metrics(x_train, train_predict_targets_A, train_predict_targets_B, name="train")
-                test_metrics = explainer.metrics(x_test, test_predict_targets_A, test_predict_targets_B)
+        # Computation of metrics
+        if explainer_type in ["Logit"]:
+            train_metrics = explainer.metrics(x_train, train_output_A, train_output_B, name="train")
+            test_metrics = explainer.metrics(x_test, test_output_A, test_output_B)
+        else:
+            train_metrics = explainer.metrics(x_train, train_predict_targets_A, train_predict_targets_B, name="train")
+            test_metrics = explainer.metrics(x_test, test_predict_targets_A, test_predict_targets_B)
 
-            print("repetition_id", repetition_id, "Explainer", explainer_type,
-                  "max_depth", max_depth, "min_samples_leaf", min_samples_leaf)
-            print("Train set", train_metrics)
-            print("Test set", test_metrics)
-            with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                writer.write("repetition_id {} Explainer {} max_depth {} min_samples_leaf {}\n".format(
-                    repetition_id, explainer_type, max_depth, min_samples_leaf))
-                writer.write("Train {}\n".format(train_metrics))
-                writer.write("Test {}\n".format(test_metrics))
+        print("repetition_id", repetition_id, "Explainer", explainer_type,
+              "max_depth", max_depth, "min_samples_leaf", min_samples_leaf)
+        print("Train set", train_metrics)
+        print("Test set", test_metrics)
+        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+            writer.write("repetition_id {} Explainer {} max_depth {} min_samples_leaf {}\n".format(
+                repetition_id, explainer_type, max_depth, min_samples_leaf))
+            writer.write("Train {}\n".format(train_metrics))
+            writer.write("Test {}\n".format(test_metrics))
 
-            precision_l.append(test_metrics["test-precision"])
-            recall_l.append(test_metrics["test-recall"])
-            f1_l.append(test_metrics["test-f1"])
-            num_rules_l.append(test_metrics["num-rules"])
-            average_num_rule_preds_l.append(test_metrics["average-num-rule-preds"])
-            num_unique_preds_l.append(test_metrics["num-unique-preds"])
+        precision_l.append(test_metrics["test-precision"])
+        recall_l.append(test_metrics["test-recall"])
+        f1_l.append(test_metrics["test-f1"])
+        num_rules_l.append(test_metrics["num-rules"])
+        average_num_rule_preds_l.append(test_metrics["average-num-rule-preds"])
+        num_unique_preds_l.append(test_metrics["num-unique-preds"])
 
-            save_checkpoint(explainer, os.path.join(log_path, f"{repetition_id}_{explainer_type}-{max_depth}"))
-            save_checkpoint(diffrules, os.path.join(log_path, f"{repetition_id}_{explainer_type}_diffrules"))
-            save_checkpoint(test_metrics, os.path.join(log_path, f"{repetition_id}_{explainer_type}_test_metrics"))
+        save_checkpoint(explainer, os.path.join(log_path, f"{repetition_id}_{explainer_type}-{max_depth}"))
+        save_checkpoint(diffrules, os.path.join(log_path, f"{repetition_id}_{explainer_type}_diffrules"))
+        save_checkpoint(test_metrics, os.path.join(log_path, f"{repetition_id}_{explainer_type}_test_metrics"))
 
     print("test-precision(mean±std)\t{:.2f} ± {:.2f}\t{}".format(
         mean(precision_l), pstdev(precision_l), precision_l))

@@ -4,12 +4,13 @@ EXPERIMENT:
 DATASET: "DecMeg2014"
 NUM_SPLITS: 5
 WINDOW_LENGTH: 10
-#MODEL_A: "sdt_hgrn_fakd"
-#MODEL_B: "sdt"
 MODEL_A: "sdt"
-MODEL_B: "hgrn"
+MODEL_B: "sdt_hgrn_fakd"
 AUGMENTATION: "BASE"
 SELECTION:
   TYPE: "DiffShapley"
+  Diff:
+    M: 8
+    THRESHOLD: 6.0
 EXPLAINER:
   TYPE: "Logit"

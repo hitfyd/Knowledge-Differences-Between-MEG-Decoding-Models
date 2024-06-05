@@ -3,6 +3,8 @@
 import abc
 import sys
 
+from differlib.engine.utils import setup_seed
+
 # Ensure compatibility with Python 2/3
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -370,25 +372,27 @@ ALL_TRANSFORMS = [
 
 multi_input_algorithm = [segment_recombine_time, segment_recombine_channel, segment_recombine_frequency, epochs_average]
 
+
 class BaseAM(AMethod):
 
-    def augment(self, origin_data, delta_labels, *argv, **kwargs):
+    def augment(self, origin_data, delta_labels, *argv, rand_state=0, **kwargs):
+        setup_seed(rand_state)
         ag_data, ag_label = [], []
         for i in range(len(delta_labels)):
             # if delta_labels[i] == 0:
             #     continue
             for op in ALL_TRANSFORMS:
-                ag_data.append(op.meg_transformer(1., PARAMETER_MAX-1)(origin_data[i]))
+                ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(origin_data[i]))
                 ag_label.append(delta_labels[i])
                 # ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(origin_data[i]))
                 # ag_label.append(delta_labels[i])
 
-        # data_dict = divide_by_labels(origin_data, delta_labels)
-        # for label in data_dict.keys():
-        #     label_data = data_dict[label]
-        #     for augment_func in multi_input_algorithm:
-        #         ag_data.extend(augment_func(label_data, len(label_data)))
-        #         ag_label.extend(np.full(len(label_data), label))
+        data_dict = divide_by_labels(origin_data, delta_labels)
+        for label in data_dict.keys():
+            label_data = data_dict[label]
+            for augment_func in multi_input_algorithm:
+                ag_data.extend(augment_func(label_data, len(label_data)))
+                ag_label.extend(np.full(len(label_data), label))
 
         ag_data, ag_label = np.array(ag_data), np.array(ag_label)
         all_data = np.concatenate((origin_data, ag_data), axis=0)

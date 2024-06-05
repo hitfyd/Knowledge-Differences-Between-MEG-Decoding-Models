@@ -9,5 +9,8 @@ MODEL_B: "atcnet"
 AUGMENTATION: "NONE"
 SELECTION:
   TYPE: "DiffShapley"
+  Diff:
+    M: 8
+    THRESHOLD: 6.0
 EXPLAINER:
   TYPE: "Logit"
