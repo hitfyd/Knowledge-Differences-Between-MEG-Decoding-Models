@@ -3,14 +3,14 @@ EXPERIMENT:
   TAG: "Logit,Sel"
 DATASET: "DecMeg2014"
 NUM_SPLITS: 5
-WINDOW_LENGTH: 5
+WINDOW_LENGTH: 2
 MODEL_A: "sdt"
 MODEL_B: "atcnet"
 AUGMENTATION: "NONE"
 SELECTION:
   TYPE: "DiffShapley"
   Diff:
-    M: 8
+    M: 4
     THRESHOLD: 6.0
 EXPLAINER:
-  TYPE: "Logit"
+  TYPE: "SS"

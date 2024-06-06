@@ -211,6 +211,9 @@ if __name__ == "__main__":
             x_train_aug = feature_extraction(x_train_aug, window_length)
             x_test = feature_extraction(x_test, window_length)
 
+            # temp
+            x_feature_names = x_feature_names[::window_length]
+
         x_train = pd.DataFrame(x_train_aug, columns=x_feature_names)
         x_test = pd.DataFrame(x_test, columns=x_feature_names)
         print(x_train.shape, x_test.shape)
