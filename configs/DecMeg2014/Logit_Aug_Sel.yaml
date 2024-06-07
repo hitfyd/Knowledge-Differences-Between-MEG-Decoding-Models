@@ -3,9 +3,9 @@ EXPERIMENT:
   TAG: "Logit,Aug,Sel"
 DATASET: "DecMeg2014"
 NUM_SPLITS: 5
-WINDOW_LENGTH: 5
+WINDOW_LENGTH: 10
 MODEL_A: "sdt"
-MODEL_B: "atcnet"
+MODEL_B: "sdt_hgrn_fakd"
 AUGMENTATION: "BASE"
 SELECTION:
   TYPE: "DiffShapley"
