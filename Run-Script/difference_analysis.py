@@ -100,9 +100,10 @@ if __name__ == "__main__":
             output = model.predict_proba(data.reshape((len(data), -1)))
         elif model_type in torch_models:
             output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
-            _, predict_targets = output.topk(1, 1, True, True)
-            output = output.cpu().detach().numpy()
-            predict_targets = predict_targets.squeeze().cpu().detach().numpy()
+            predict_targets = np.argmax(output, axis=1)
+            # _, predict_targets = output.topk(1, 1, True, True)
+            # output = output.cpu().detach().numpy()
+            # predict_targets = predict_targets.squeeze().cpu().detach().numpy()
         else:
             print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
         assert output is not None
