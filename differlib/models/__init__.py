@@ -13,6 +13,9 @@ model_checkpoint_prefix = os.path.join(
     "../../checkpoint/Models_Train/"
 )
 
+scikit_models = ["gnb", "rf", "lr"]
+torch_models = ["mlp", "lfcnn", "varcnn", "hgrn", "atcnet", "linear", "sdt"]
+
 model_dict = {
     "CamCAN": {
         "gnb": (GaussianNB, model_checkpoint_prefix + "CamCAN_GNB"),

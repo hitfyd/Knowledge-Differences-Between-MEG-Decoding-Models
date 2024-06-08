@@ -1,25 +1,21 @@
 import argparse
 import os
-import time
 from datetime import datetime
-from statistics import mean, pstdev
 
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
-from sklearn.preprocessing import KBinsDiscretizer, Binarizer
+from sklearn.model_selection import StratifiedShuffleSplit
 
 from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, get_data_loader,
-                                    save_checkpoint, output_predict_targets, model_eval, sample_normalize,
-                                    DatasetNormalization, dataset_info_dict)
+                                    save_checkpoint, dataset_info_dict, predict)
 from differlib.explainer import explainer_dict
 from differlib.feature_extraction import feature_extraction
 from differlib.feature_selection import fsm_dict
 from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature_maps
-from differlib.models import model_dict
+from differlib.models import model_dict, scikit_models, torch_models
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
@@ -78,42 +74,73 @@ if __name__ == "__main__":
     # init different models and load pre-trained checkpoints
     model_A_type = cfg.MODEL_A
     model_B_type = cfg.MODEL_B
-    print(log_msg("Loading model A {}".format(model_A_type), "INFO"))
-    model_A_class, model_A_pretrain_path = model_dict[dataset][model_A_type]
-    assert (model_A_pretrain_path is not None), "no pretrain model A {}".format(model_A_type)
-    model_A = model_A_class(channels=channels, points=points, num_classes=n_classes)
-    model_A.load_state_dict(load_checkpoint(model_A_pretrain_path))
-    model_A = model_A.cuda()
-    # train_accuracy = model_eval(model_A, train_loader)
-    # test_accuracy = model_eval(model_A, test_loader)
-    # print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
-    # print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
 
-    print(log_msg("Loading model B {}".format(model_B_type), "INFO"))
-    model_B_class, model_B_pretrain_path = model_dict[dataset][model_B_type]
-    assert (model_B_pretrain_path is not None), "no pretrain model B {}".format(model_B_type)
-    model_B = model_B_class(channels=channels, points=points, num_classes=n_classes)
-    model_B.load_state_dict(load_checkpoint(model_B_pretrain_path))
-    model_B = model_B.cuda()
-    # train_accuracy = model_eval(model_B, train_loader)
-    # test_accuracy = model_eval(model_B, test_loader)
-    # print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
-    # print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
+
+    def load_pretrained_model(model_type):
+        print(log_msg("Loading model {}".format(model_type), "INFO"))
+        model_class, model_pretrain_path = model_dict[dataset][model_type]
+        assert (model_pretrain_path is not None), "no pretrain model A {}".format(model_A_type)
+        pretrained_model = None
+        if model_type in scikit_models:
+            pretrained_model = load_checkpoint(model_pretrain_path)
+        elif model_type in torch_models:
+            pretrained_model = model_class(channels=channels, points=points, num_classes=n_classes)
+            pretrained_model.load_state_dict(load_checkpoint(model_pretrain_path))
+            pretrained_model = pretrained_model.cuda()
+        else:
+            print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
+        assert pretrained_model is not None
+        return pretrained_model
+
+
+    def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=1024, softmax=True):
+        output, predict_targets = None, None
+        if model_type in scikit_models:
+            predict_targets = model.predict(data.reshape((len(data), -1)))
+            output = model.predict_proba(data.reshape((len(data), -1)))
+        elif model_type in torch_models:
+            output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
+            _, predict_targets = output.topk(1, 1, True, True)
+            output = output.cpu().detach().numpy()
+            predict_targets = predict_targets.squeeze().cpu().detach().numpy()
+        else:
+            print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
+        assert output is not None
+        assert predict_targets is not None
+        return output, predict_targets
+
+
+    model_A = load_pretrained_model(model_A_type)
+    model_B = load_pretrained_model(model_B_type)
+    # print(log_msg("Loading model A {}".format(model_A_type), "INFO"))
+    # model_A_class, model_A_pretrain_path = model_dict[dataset][model_A_type]
+    # assert (model_A_pretrain_path is not None), "no pretrain model A {}".format(model_A_type)
+    # model_A = model_A_class(channels=channels, points=points, num_classes=n_classes)
+    # model_A.load_state_dict(load_checkpoint(model_A_pretrain_path))
+    # model_A = model_A.cuda()
+    # # train_accuracy = model_eval(model_A, train_loader)
+    # # test_accuracy = model_eval(model_A, test_loader)
+    # # print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
+    # # print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
+    #
+    # print(log_msg("Loading model B {}".format(model_B_type), "INFO"))
+    # model_B_class, model_B_pretrain_path = model_dict[dataset][model_B_type]
+    # assert (model_B_pretrain_path is not None), "no pretrain model B {}".format(model_B_type)
+    # model_B = model_B_class(channels=channels, points=points, num_classes=n_classes)
+    # model_B.load_state_dict(load_checkpoint(model_B_pretrain_path))
+    # model_B = model_B.cuda()
+    # # train_accuracy = model_eval(model_B, train_loader)
+    # # test_accuracy = model_eval(model_B, test_loader)
+    # # print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
+    # # print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
 
     # init data augmentation
     augmentation_type = cfg.AUGMENTATION
     augmentation_method = am_dict[augmentation_type]()
 
-    # Normalization
-    normalize = cfg.NORMALIZATION
-
-    # Extraction
-    extract = cfg.EXTRACTION
-
     # init feature selection
     selection_type = cfg.SELECTION.TYPE
     selection_method = fsm_dict[selection_type]()
-    selection_rate = cfg.SELECTION.RATE
     selection_M = cfg.SELECTION.Diff.M
     selection_threshold = cfg.SELECTION.Diff.THRESHOLD
     # 预先计算所有样本的特征归因图，训练时只使用训练集样本的特征归因图
@@ -135,8 +162,8 @@ if __name__ == "__main__":
         writer.write("CONFIG:\n{}".format(cfg.dump()))
 
     # models predict differences
-    output_A, pred_target_A = output_predict_targets(model_A, data)
-    output_B, pred_target_B = output_predict_targets(model_B, data)
+    output_A, pred_target_A = output_predict_targets(model_A_type, model_A, data)
+    output_B, pred_target_B = output_predict_targets(model_B_type, model_B, data)
     delta_target = (pred_target_A != pred_target_B).astype(int)
 
     # K-Fold evaluation
@@ -147,10 +174,10 @@ if __name__ == "__main__":
     pd_test_metrics, pd_train_metrics = None, None
     for train_index, test_index in skf.split(data, delta_target):
         x_train = data[train_index]
-        output_A_train = output_A[train_index]
-        output_B_train = output_B[train_index]
-        pred_target_A_train = pred_target_A[train_index]
-        pred_target_B_train = pred_target_B[train_index]
+        # output_A_train = output_A[train_index]
+        # output_B_train = output_B[train_index]
+        # pred_target_A_train = pred_target_A[train_index]
+        # pred_target_B_train = pred_target_B[train_index]
 
         # selection_method.fit(x_train.reshape((-1, channels * points)), output_A[train_index], output_B[train_index])
 
@@ -165,8 +192,8 @@ if __name__ == "__main__":
         #     x_train_aug = np.concatenate((x_train, train_data), axis=0)
         # else:
         #     x_train_aug = x_train
-        output_A_train, pred_target_A_train = output_predict_targets(model_A, x_train_aug)
-        output_B_train, pred_target_B_train = output_predict_targets(model_B, x_train_aug)
+        output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug)
+        output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug)
 
         ydiff = (pred_target_A_train != pred_target_B_train).astype(int)
         print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
@@ -202,17 +229,17 @@ if __name__ == "__main__":
         # x_test = transformer.transform(x_test)
 
         # Execute Feature Selection
-        x_train_aug, _ = selection_method.transform(x_train_aug, selection_rate)
-        x_test, select_indices = selection_method.transform(x_test, selection_rate)
+        x_train_aug, _ = selection_method.transform(x_train_aug)
+        x_test, select_indices = selection_method.transform(x_test)
         x_feature_names = feature_names[select_indices]
 
-        # Feature Extraction
-        if extract:
-            x_train_aug = feature_extraction(x_train_aug, window_length)
-            x_test = feature_extraction(x_test, window_length)
-
-            # temp
-            x_feature_names = x_feature_names[::window_length]
+        # # Feature Extraction
+        # if extract:
+        #     x_train_aug = feature_extraction(x_train_aug, window_length)
+        #     x_test = feature_extraction(x_test, window_length)
+        #
+        #     # temp
+        #     x_feature_names = x_feature_names[::window_length]
 
         x_train = pd.DataFrame(x_train_aug, columns=x_feature_names)
         x_test = pd.DataFrame(x_test, columns=x_feature_names)

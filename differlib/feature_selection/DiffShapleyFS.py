@@ -280,8 +280,8 @@ def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES, n
 
 
     data_ = ray.put(data)
-    model1_ = ray.put(model1.cuda())
-    model2_ = ray.put(model2.cuda())
+    model1_ = ray.put(model1)
+    model2_ = ray.put(model2)
 
     rs = [run.remote(index, data_, model1_, model2_) for index in range(n_samples)]
     for index, sample_feature_maps in tqdm(ray.get(rs), total=n_samples, desc="Processing"):
