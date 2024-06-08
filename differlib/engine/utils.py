@@ -125,7 +125,6 @@ def validate(val_loader, distiller):
 def predict(model, data, num_classes=2, batch_size=1024, eval=False, softmax=True):
     if model.__class__.__name__ in ["GaussianNB", "RandomForestClassifier", "LogisticRegression"]:
         output = model.predict_proba(data.reshape((len(data), -1)))
-        output = torch.Tensor(output).cuda()
     else:
         model.cuda()
         data = torch.from_numpy(data)
@@ -154,6 +153,7 @@ def predict(model, data, num_classes=2, batch_size=1024, eval=False, softmax=Tru
                 output = torch.exp(output) / torch.sum(torch.exp(output), dim=-1, keepdim=True)
             if model.__class__.__name__ in ["HGRN", "ATCNet"]:
                 output = torch.exp(output)
+        output = output.cpu().detach().numpy()
     return output
 
 
