@@ -1,5 +1,9 @@
 import os
 
+from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+
 from .DNNClassifier import lfcnn, varcnn, hgrn, mlp, linear
 from .SoftDecisionTree import sdt
 from .atcnet.atcnet import atcnet
@@ -11,6 +15,9 @@ model_checkpoint_prefix = os.path.join(
 
 model_dict = {
     "CamCAN": {
+        "gnb": (GaussianNB, model_checkpoint_prefix + "CamCAN_GNB"),
+        "rf": (RandomForestClassifier, model_checkpoint_prefix + "CamCAN_RF1"),
+        "lr": (LogisticRegression, model_checkpoint_prefix + "CamCAN_LR"),
         "lfcnn": (lfcnn, model_checkpoint_prefix + "CamCAN_LFCNN_20220616160458_checkpoint.pt"),
         "varcnn": (varcnn, model_checkpoint_prefix + "CamCAN_VARCNN_20220616160458_checkpoint.pt"),
         "hgrn": (hgrn, model_checkpoint_prefix + "CamCAN_HGRN_20220616160458_checkpoint.pt"),
@@ -23,6 +30,9 @@ model_dict = {
     },
 
     "DecMeg2014": {
+        "gnb": (GaussianNB, model_checkpoint_prefix + "DecMeg2014_GNB"),
+        "rf": (RandomForestClassifier, model_checkpoint_prefix + "DecMeg2014_RF1"),
+        "lr": (LogisticRegression, model_checkpoint_prefix + "DecMeg2014_LR"),
         "lfcnn": (lfcnn, model_checkpoint_prefix + "DecMeg2014_LFCNN_20230601182643_checkpoint.pt"),     # "DecMeg2014_LFCNN_20220616192753_checkpoint.pt" "DecMeg2014_LFCNN_20230601182643_checkpoint.pt"
         "varcnn": (varcnn, model_checkpoint_prefix + "DecMeg2014_VARCNN_20230601184341_checkpoint.pt"),  # "DecMeg2014_VARCNN_20220616192753_checkpoint.pt" "DecMeg2014_VARCNN_20230601184341_checkpoint.pt"
         "hgrn": (hgrn, model_checkpoint_prefix + "DecMeg2014_HGRN_20220616192753_checkpoint.pt"),

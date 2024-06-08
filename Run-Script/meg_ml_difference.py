@@ -30,7 +30,10 @@ ccp_alpha = 0.001
 setup_seed(random_state)
 
 # datasets
-datasets = ["CamCAN", "DecMeg2014"]
+datasets = [
+    # "CamCAN",
+    "DecMeg2014"
+]
 models = {
     'LR': LogisticRegression(random_state=random_state),
     # 'KN1': KNeighborsClassifier(n_neighbors=3),
@@ -39,14 +42,16 @@ models = {
     # 'MLP2': MLPClassifier(hidden_layer_sizes=(100, 100), random_state=random_state),
     # 'DT2': DecisionTreeClassifier(max_depth=10, random_state=random_state),
     # 'GB': GradientBoostingClassifier(random_state=random_state),
-    # 'RF1': RandomForestClassifier(random_state=random_state),
+    'RF1': RandomForestClassifier(random_state=random_state),
     # 'KN2': KNeighborsClassifier(),
     'RF2': RandomForestClassifier(max_depth=6, random_state=random_state),
     'GNB': GaussianNB()
 }
 dataset_diff_models = {
-    'CamCAN': [('MLP1', 'DT1'), ('LR', 'MLP1')],
-    'DecMeg2014': [('RF2', 'GNB'), ('DT1', 'RF2'), ('MLP1', 'RF2')],
+    # 'CamCAN': [('MLP1', 'DT1'), ('LR', 'MLP1'), ('RF2', 'GNB'), ('DT1', 'RF2')],
+    # 'DecMeg2014': [('RF2', 'GNB'), ('DT1', 'RF2'), ('MLP1', 'RF2')],
+    'CamCAN': [('LR', 'RF1'), ('RF1', 'GNB'), ('LR', 'GNB')],
+    'DecMeg2014': [('LR', 'RF1'), ('RF1', 'GNB'),],
 }
 explainers = {
     # "SS": SeparateSurrogate,
