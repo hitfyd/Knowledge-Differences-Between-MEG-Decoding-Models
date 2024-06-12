@@ -70,7 +70,7 @@ class DiffShapleyFS(FSMethod):
         # x = x.reshape((n_samples, channels, points))
         assert points % window_length == 0
         self.logit_delta = predict(model1, x, n_classes, eval=True) - predict(model2, x, n_classes, eval=True)
-        self.logit_delta = self.logit_delta.cpu().detach().numpy()
+        # self.logit_delta = self.logit_delta.cpu().detach().numpy()
         self.sample_weights = self.logit_delta[:, 0]
         # if parallel:
         #     if not ray.is_initialized():

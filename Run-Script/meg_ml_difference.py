@@ -6,7 +6,7 @@ import pandas as pd
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
@@ -31,7 +31,7 @@ setup_seed(random_state)
 
 # datasets
 datasets = [
-    # "CamCAN",
+    "CamCAN",
     "DecMeg2014"
 ]
 models = {
@@ -39,9 +39,9 @@ models = {
     # 'KN1': KNeighborsClassifier(n_neighbors=3),
     'DT1': DecisionTreeClassifier(max_depth=5, random_state=random_state),
     'MLP1': MLPClassifier(alpha=1e-05, hidden_layer_sizes=(15,), random_state=random_state, solver='lbfgs'),
-    # 'MLP2': MLPClassifier(hidden_layer_sizes=(100, 100), random_state=random_state),
-    # 'DT2': DecisionTreeClassifier(max_depth=10, random_state=random_state),
-    # 'GB': GradientBoostingClassifier(random_state=random_state),
+    'MLP2': MLPClassifier(hidden_layer_sizes=(100, 100), random_state=random_state),
+    'DT2': DecisionTreeClassifier(max_depth=10, random_state=random_state),
+    'GB': GradientBoostingClassifier(random_state=random_state),
     'RF1': RandomForestClassifier(random_state=random_state),
     # 'KN2': KNeighborsClassifier(),
     'RF2': RandomForestClassifier(max_depth=6, random_state=random_state),
@@ -50,13 +50,13 @@ models = {
 dataset_diff_models = {
     # 'CamCAN': [('MLP1', 'DT1'), ('LR', 'MLP1'), ('RF2', 'GNB'), ('DT1', 'RF2')],
     # 'DecMeg2014': [('RF2', 'GNB'), ('DT1', 'RF2'), ('MLP1', 'RF2')],
-    'CamCAN': [('LR', 'RF1'), ('RF1', 'GNB'), ('LR', 'GNB')],
-    'DecMeg2014': [('LR', 'RF1'), ('RF1', 'GNB'),],
+    'CamCAN': [('LR', 'RF1'),],
+    'DecMeg2014': [('LR', 'RF1'), ],
 }
 explainers = {
     # "SS": SeparateSurrogate,
     # "IMD": IMDExplainer,
-    "Delta": DeltaExplainer,
+    # "Delta": DeltaExplainer,
     "Logit": LogitDeltaRule,
     # "MERLIN": MERLINXAI,
 }
@@ -99,6 +99,11 @@ for dataset in datasets:
 
         for explainer_type in explainers.keys():
             pd_test_metrics, pd_train_metrics = None, None
+            # skf = StratifiedShuffleSplit(n_splits=n_times, test_size=0.25)
+            # skf_id = 0
+            # for train_index, test_index in skf.split(x_test_all, y_test_all):
+            #     x_train, x_test, y_train, y_test = x_test_all.iloc[train_index], x_test_all.iloc[test_index], y_test_all[train_index], y_test_all[test_index]
+
             for skf_id in range(n_times):
                 x_train, x_test, y_train, y_test = train_test_split(x_test_all, y_test_all, train_size=train_size, random_state=random_state+skf_id)
 
