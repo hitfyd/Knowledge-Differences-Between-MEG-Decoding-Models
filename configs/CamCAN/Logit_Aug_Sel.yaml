@@ -1,9 +1,8 @@
 EXPERIMENT:
   PROJECT: "CamCAN"
   TAG: "Logit,Aug,Sel"
-  CPU_COUNT: 8
 DATASET: "CamCAN"
-NUM_SPLITS: 3
+NUM_SPLITS: 5
 WINDOW_LENGTH: 5
 MODEL_A: "hgrn"
 MODEL_B: "atcnet"

@@ -2,7 +2,7 @@ EXPERIMENT:
   PROJECT: "CamCAN"
   TAG: "Logit,Aug"
 DATASET: "CamCAN"
-NUM_SPLITS: 3
+NUM_SPLITS: 5
 WINDOW_LENGTH: 5
 MODEL_A: "sdt_hgrn_fakd"
 MODEL_B: "sdt"
