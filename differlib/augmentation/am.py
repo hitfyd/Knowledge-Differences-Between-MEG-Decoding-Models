@@ -376,7 +376,7 @@ multi_input_algorithm = [segment_recombine_time, segment_recombine_channel, segm
 class BaseAM(AMethod):
 
     def augment(self, origin_data, delta_labels, *argv, rand_state=0, **kwargs):
-        setup_seed(rand_state)
+        # setup_seed(rand_state)
         ag_data, ag_label = [], []
         for i in range(len(delta_labels)):
             # if delta_labels[i] == 0:
