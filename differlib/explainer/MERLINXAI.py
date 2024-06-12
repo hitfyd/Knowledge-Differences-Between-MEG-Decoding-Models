@@ -119,7 +119,7 @@ class MERLINXAI(DISExplainer):
         # metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target)
         # metrics[name + "-recall"] = sklearn.metrics.recall_score(delta_target, pred_target)
         # metrics[name + "-f1"] = sklearn.metrics.f1_score(delta_target, pred_target)
-        metrics[name + "-confusion_matrix"] = 0
+        metrics[name + "-confusion_matrix"] = np.zeros((2, 2))
         metrics[name + "-accuracy"] = 0
         metrics[name + "-precision"] = 0
         metrics[name + "-recall"] = 0
