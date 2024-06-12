@@ -11,6 +11,6 @@ SELECTION:
   TYPE: "DiffShapley"
   Diff:
     M: 8
-    THRESHOLD: 3.0
+    THRESHOLD: 6.0
 EXPLAINER:
   TYPE: "Logit"
