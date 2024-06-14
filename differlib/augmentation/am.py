@@ -368,14 +368,21 @@ ALL_TRANSFORMS = [
     # translation_left,
     # translation_right,
     # mask,
+    # segment_recombine_time,
+    # segment_recombine_frequency,
 ]
 
-multi_input_algorithm = [segment_recombine_time, segment_recombine_channel, segment_recombine_frequency, epochs_average]
+multi_input_algorithm = [
+    segment_recombine_time,
+    # segment_recombine_channel,
+    segment_recombine_frequency,
+    # epochs_average,
+]
 
 
 class BaseAM(AMethod):
 
-    def augment(self, origin_data, delta_labels, *argv, augment_factor=1, label_ratio="1", **kwargs):
+    def augment(self, origin_data, delta_labels, *argv, augment_factor=0.5, label_ratio="1", **kwargs):
         # label_ratio："balance"表示数据增广后，预测标签一致和不一致的样本比例调整为[0.5:0.5]，否则为原始标签比例
         n_labels = len(delta_labels)
         n_true_labels = delta_labels.sum()
@@ -393,20 +400,24 @@ class BaseAM(AMethod):
 
         def _aug_label_data(data, number):
             ag_data, ag_label = [], []
-            # for i in range(number):
-            #     op = ALL_TRANSFORMS[random.randint(0, 3)]
-            #     data_index = random.randint(0, len(data) - 1)
-            #     ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(data[data_index]))
-            #     ag_label.append(delta_labels[data_index])
-            #
-            #     # augment_func = multi_input_algorithm[random.randint(0, 3)]
-            #     # ag_data.extend(augment_func(data, 1))
-            #     # ag_label.append(1)
+            for i in range(number):
+                op = ALL_TRANSFORMS[random.randint(0, len(ALL_TRANSFORMS)-1)]
+                if op in multi_input_algorithm:
+                    ag_data.extend(op(data, 1))
+                    ag_label.append(1)
+                else:
+                    data_index = random.randint(0, len(data) - 1)
+                    ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(data[data_index]))
+                    ag_label.append(delta_labels[data_index])
 
-            n = number // 4
-            for augment_func in multi_input_algorithm:
-                ag_data.extend(augment_func(data, n))
-                ag_label.extend(np.full(n, 1))
+                # augment_func = multi_input_algorithm[random.randint(0, len(multi_input_algorithm)-1)]
+                # ag_data.extend(augment_func(data, 1))
+                # ag_label.append(1)
+
+            # n = number // len(multi_input_algorithm)
+            # for augment_func in multi_input_algorithm:
+            #     ag_data.extend(augment_func(data, n))
+            #     ag_label.extend(np.full(n, 1))
             return np.array(ag_data), np.array(ag_label)
 
         ag_data, ag_label = _aug_label_data(true_data, n_aug_true)
