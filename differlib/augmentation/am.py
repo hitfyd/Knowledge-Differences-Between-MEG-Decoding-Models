@@ -335,7 +335,7 @@ def segment_recombine_frequency(train_data, ag_number, sfreq=125):
         gen_data.append(recombine0_data)
 
     gen_data = np.array(gen_data)
-    print(gen_data.shape)
+    # print(gen_data.shape)
 
     return gen_data
 
@@ -375,26 +375,77 @@ multi_input_algorithm = [segment_recombine_time, segment_recombine_channel, segm
 
 class BaseAM(AMethod):
 
-    def augment(self, origin_data, delta_labels, *argv, rand_state=0, **kwargs):
-        # setup_seed(rand_state)
-        ag_data, ag_label = [], []
-        for i in range(len(delta_labels)):
-            # if delta_labels[i] == 0:
-            #     continue
-            for op in ALL_TRANSFORMS:
-                ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(origin_data[i]))
-                ag_label.append(delta_labels[i])
-                # ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(origin_data[i]))
-                # ag_label.append(delta_labels[i])
+    def augment(self, origin_data, delta_labels, *argv, augment_factor=1, label_ratio="1", **kwargs):
+        # label_ratio："balance"表示数据增广后，预测标签一致和不一致的样本比例调整为[0.5:0.5]，否则为原始标签比例
+        n_labels = len(delta_labels)
+        n_true_labels = delta_labels.sum()
+        n_false_labels = n_labels - n_true_labels
+        if label_ratio == "balance":
+            n_augmented = int(n_labels * augment_factor)
+            n_aug_true = (n_augmented + n_labels) // 2 - n_true_labels
+            n_aug_false = n_augmented - n_aug_true
+        else:
+            n_aug_true = int(n_true_labels * augment_factor)
+            n_aug_false = int(n_false_labels * augment_factor)
 
-        data_dict = divide_by_labels(origin_data, delta_labels)
-        for label in data_dict.keys():
-            label_data = data_dict[label]
+        true_data = origin_data[np.where(delta_labels == 1)]
+        false_data = origin_data[np.where(delta_labels == 0)]
+
+        def _aug_label_data(data, number):
+            ag_data, ag_label = [], []
+            # for i in range(number):
+            #     op = ALL_TRANSFORMS[random.randint(0, 3)]
+            #     data_index = random.randint(0, len(data) - 1)
+            #     ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(data[data_index]))
+            #     ag_label.append(delta_labels[data_index])
+            #
+            #     # augment_func = multi_input_algorithm[random.randint(0, 3)]
+            #     # ag_data.extend(augment_func(data, 1))
+            #     # ag_label.append(1)
+
+            n = number // 4
             for augment_func in multi_input_algorithm:
-                ag_data.extend(augment_func(label_data, len(label_data)))
-                ag_label.extend(np.full(len(label_data), label))
+                ag_data.extend(augment_func(data, n))
+                ag_label.extend(np.full(n, 1))
+            return np.array(ag_data), np.array(ag_label)
 
-        ag_data, ag_label = np.array(ag_data), np.array(ag_label)
+        ag_data, ag_label = _aug_label_data(true_data, n_aug_true)
         all_data = np.concatenate((origin_data, ag_data), axis=0)
         all_label = np.concatenate((delta_labels, ag_label), axis=0)
+        ag_data, ag_label = _aug_label_data(false_data, n_aug_false)
+        all_data = np.concatenate((all_data, ag_data), axis=0)
+        all_label = np.concatenate((all_label, ag_label), axis=0)
         return all_data, all_label
+
+
+        # ag_data, ag_label = [], []
+        # data_dict = divide_by_labels(origin_data, delta_labels)
+        # for label in data_dict.keys():
+        #     label_data = data_dict[label]
+        #
+        #     for augment_func in multi_input_algorithm:
+        #         ag_data.extend(augment_func(label_data, len(label_data)))
+        #         ag_label.extend(np.full(len(label_data), label))
+        #
+        #
+        # ag_data, ag_label = [], []
+        # for i in range(len(delta_labels)):
+        #     # if delta_labels[i] == 0:
+        #     #     continue
+        #     for op in ALL_TRANSFORMS:
+        #         ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(origin_data[i]))
+        #         ag_label.append(delta_labels[i])
+        #         # ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(origin_data[i]))
+        #         # ag_label.append(delta_labels[i])
+        #
+        # data_dict = divide_by_labels(origin_data, delta_labels)
+        # for label in data_dict.keys():
+        #     label_data = data_dict[label]
+        #     for augment_func in multi_input_algorithm:
+        #         ag_data.extend(augment_func(label_data, len(label_data)))
+        #         ag_label.extend(np.full(len(label_data), label))
+        #
+        # ag_data, ag_label = np.array(ag_data), np.array(ag_label)
+        # all_data = np.concatenate((origin_data, ag_data), axis=0)
+        # all_label = np.concatenate((delta_labels, ag_label), axis=0)
+        # return all_data, all_label
