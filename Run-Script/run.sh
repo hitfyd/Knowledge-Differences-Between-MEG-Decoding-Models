@@ -1,8 +1,8 @@
 #!/bin/bash
 
 dataset='DecMeg2014'  # CamCAN or DecMeg2014
-models=('gnb' 'rf' 'lr' 'mlp' 'lfcnn' 'varcnn' 'hgrn' 'atcnet') # 'gnb' 'rf' 'lr' 'mlp' 'lfcnn' 'varcnn' 'hgrn' 'atcnet'
-explainers=('Logit_Sel')  # 'SS' 'IMD' 'Delta' 'MERLIN' 'Logit' 'Logit_Aug' 'Logit_Sel' 'Logit_Aug_Sel'
+models=('rf' 'mlp' 'varcnn' 'hgrn' 'atcnet') # 'gnb' 'rf' 'lr' 'mlp' 'lfcnn' 'varcnn' 'hgrn' 'atcnet'
+explainers=('Logit' 'Delta' 'MERLIN' 'SS' 'IMD')  # 'SS' 'IMD' 'Delta' 'MERLIN' 'Logit'
 
 N_M=${#models[@]}
 N_E=${#explainers[@]}

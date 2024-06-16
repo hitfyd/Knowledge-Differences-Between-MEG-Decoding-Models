@@ -1,8 +1,8 @@
 #!/bin/bash
 
-dataset='DecMeg2014'  # CamCAN or DecMeg2014
-explainers=('Logit_Aug_Sel')  # 'SS' 'IMD' 'Delta' 'MERLIN' 'Logit' 'Logit_Aug' 'Logit_Sel' 'Logit_Aug_Sel'
-depths=(4 5 6 7)
+dataset='CamCAN'  # CamCAN or DecMeg2014
+explainers=('Delta' 'SS' 'IMD')  # 'SS' 'IMD' 'Delta' 'MERLIN' 'Logit'
+depths=(4)
 augment_factor=(0.0 1.0)
 threshold=(0.0 6.0)
 
