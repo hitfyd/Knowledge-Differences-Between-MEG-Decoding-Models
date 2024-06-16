@@ -137,6 +137,7 @@ if __name__ == "__main__":
 
     # init data augmentation
     augmentation_type = cfg.AUGMENTATION
+    augment_factor = cfg.AUGMENT_FACTOR
     augmentation_method = am_dict[augmentation_type]()
 
     # init feature selection
@@ -188,7 +189,7 @@ if __name__ == "__main__":
         pred_target_A_test = pred_target_A[test_index]
         pred_target_B_test = pred_target_B[test_index]
 
-        x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index])
+        x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor,)
         # if augmentation_type != 'NONE':
         #     x_train_aug = np.concatenate((x_train, train_data), axis=0)
         # else:
