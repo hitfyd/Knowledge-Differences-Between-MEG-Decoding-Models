@@ -2,7 +2,7 @@
 
 dataset='DecMeg2014'  # CamCAN or DecMeg2014
 explainers=('Logit')  # 'SS' 'IMD' 'Delta' 'MERLIN' 'Logit'
-depths=(4 5 6 7)
+depths=(3 4 5 6 7)
 augment_factor=(0.0 0.5 1.0 2.0 4.0)
 threshold=(0.0 2.0 4.0 6.0 8.0)
 

@@ -8,6 +8,6 @@ MODEL_A: "rf"
 MODEL_B: "atcnet"
 AUGMENTATION: "BASE"
 SELECTION:
-  TYPE: "NONE"
+  TYPE: "DiffShapley"
 EXPLAINER:
   TYPE: "MERLIN"
