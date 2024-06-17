@@ -1,8 +1,8 @@
 #!/bin/bash
 
-dataset='CamCAN'  # CamCAN or DecMeg2014
-explainers=('Delta' 'SS' 'IMD')  # 'SS' 'IMD' 'Delta' 'MERLIN' 'Logit'
-depths=(4)
+dataset='DecMeg2014'  # CamCAN or DecMeg2014
+explainers=('Delta' 'IMD' 'SS')  # 'SS' 'IMD' 'Delta' 'MERLIN' 'Logit'
+depths=(6)
 augment_factor=(0.0 1.0)
 threshold=(0.0 6.0)
 
@@ -14,6 +14,10 @@ N_T=${#threshold[@]}
 # max rf-atcnet
 model_a='rf'
 model_b='atcnet'
+
+## min varcnn-hgrn
+#model_a='varcnn'
+#model_b='hgrn'
 
 for (( e=0 ; e<N_E ; $(( e++ )) ))
 do
@@ -29,7 +33,3 @@ do
     done
   done
 done
-
-## min varcnn-hgrn
-#model_a='varcnn'
-#model_b='hgrn'
