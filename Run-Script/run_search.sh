@@ -29,7 +29,3 @@ do
     done
   done
 done
-
-## min varcnn-hgrn
-#model_a='varcnn'
-#model_b='hgrn'
