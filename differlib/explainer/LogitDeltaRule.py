@@ -1,10 +1,11 @@
 import numpy as np
 import pandas as pd
 import sklearn
+from matplotlib import pyplot as plt, gridspec
 from rulefit import RuleFit
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.model_selection import RandomizedSearchCV
-from sklearn.tree import _tree, DecisionTreeRegressor
+from sklearn.tree import _tree, DecisionTreeRegressor, plot_tree, export_graphviz
 from catboost import CatBoostRegressor
 
 from .dise import DISExplainer
@@ -147,6 +148,15 @@ class LogitDeltaRule(DISExplainer):
 
         self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
         self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
+        fig = plt.figure(figsize=(5, 5))
+        gridlayout = gridspec.GridSpec(ncols=25, nrows=6, figure=fig, top=None, bottom=None, wspace=None, hspace=0)
+        axs1 = fig.add_subplot(gridlayout[:, :24])
+        plot_tree(self.delta_tree, feature_names=self.feature_names, label='none', impurity=False, ax=axs1)
+        format_list = ["eps", "pdf", "svg"]
+        plt.rcParams['savefig.dpi'] = 300  # 图片保存像素
+        for save_format in format_list:
+            fig.savefig('1.{}'.format(save_format), format=save_format,bbox_inches='tight', transparent=False)
+        print(self.diffrules)
         # print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
         # plot_tree(self.delta_tree)
 
