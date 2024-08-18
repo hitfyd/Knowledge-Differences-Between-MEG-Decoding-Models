@@ -1,4 +1,4 @@
-# Knowledge-Distillation-to-MEG-Glassbox-Models
+# Interpretable Differencing Rules of Magnetoencephalography Decoding Models
 
 ## Experimental Preparation
 
@@ -14,28 +14,7 @@ conda install tqdm yacs
 conda install numpy pandas scikit-learn matplotlib networkx graphviz pygraphviz
 # The graphviz library needs to be installed on your operating system as well, see https://pygraphviz.github.io/documentation/stable/install.html
 pip install -U "ray"
-pip install Boruta
-conda install -c conda-forge imbalanced-learn
 pip install einops
-conda install catboost
-pip install pyeda rulefit pydot stopit apyori
-```
-
-Major dependency packages:
-
-```
-python==3.11.8
-pytorch==2.2.1
-tqdm==4.65.0
-yacs==0.1.6
-numpy==1.24.3
-pandas==2.2.1
-scikit-learn==1.3.0
-matplotlib==3.8.0
-networkx==3.1
-graphviz==2.50.0
-pygraphviz==1.9
-ray==2.9.3
 ```
 
 ### Dataset Preprocessing
@@ -57,57 +36,61 @@ cd ./Dataset-Preprocessing-Script
 python DecMeg2Dataset.py
 ```
 
-Generating the topographic map location information of the gradient sensors:
-```angular2html
-cd ./Dataset-Preprocessing-Script
-python CreateGradChannelsInfo.py
-```
+### Performance of the Pre-trained Models
 
-### Baseline Performance of the Pre-trained Teacher Models
-
-| Model\Dataset | CamCAN |                   | DecMeg2014 |                   |
-| ----------- | ------ | ----------------- | ---------- | ----------------- |
-|             | Loss   | Top-1 Accuracy(%) | Loss       | Top-1 Accuracy(%) |
-| LFCNN       | 0.1167 | 95.6131           | 0.5895     | 81.6498           |
-| VARCNN      | 0.1214 | 95.6640           | 0.6250     | 79.2929           |
-| HGRN        | 0.1286 | 95.1897           | 0.5574     | 80.4714           |
+| Dataset    | RF    | MLP   | VARCNN | HGRN  | ATCNet |
+| ---------- | ----- | ----- | ------ | ----- | ------ |
+| CamCAN     | 90.29 | 94.36 | 95.66  | 95.17 | 96.16  |
+| DecMeg2014 | 64.48 | 75.76 | 79.29  | 80.47 | 83.00  |
 
 ## Experimental Running
 
-### Evaluation on the CamCAN dataset
+### Benchmark
+
+```angular2html
+cd ./Run-Script
+export PYTHONPATH=$PYTHONPATH:../
+bash run.sh
+```
+
+### Hyperparameters Selection
+
+```angular2html
+cd ./Run-Script
+export PYTHONPATH=$PYTHONPATH:../
+bash run_search.sh
+```
+
+### Ablation
+
+```angular2html
+cd ./Run-Script
+export PYTHONPATH=$PYTHONPATH:../
+bash run_ablation.sh
+```
+
+### TABULAR DATASETS
+
+```angular2html
+cd ./Run-Script
+export PYTHONPATH=$PYTHONPATH:../
+python tabular_difference_analysis.py
+```
+
+### Individual Model Pair Evaluation
 
 ```angular2html
 cd ./Run-Script
 export PYTHONPATH=$PYTHONPATH:../
 
-# for instance, our FAKD approach.
-python train.py --cfg ../configs/CamCAN/ShapleyFAKD/varcnn_sdt.yaml
+# for our proposed approach
+python difference_analysis.py --cfg ../configs/CamCAN/Logit.yaml
+python difference_analysis.py --cfg ../configs/DecMeg2014/Logit.yaml
 
 # you can also change settings at command line
-python train.py --cfg ../configs/CamCAN/ShapleyFAKD/lfcnn_sdt.yaml  SOLVER.BATCH_SIZE 128 ShapleyFAKD.M 2
-```
-
-### Evaluation on the DecMeg2014 dataset
-
-```angular2html
-cd ./Run-Script
-export PYTHONPATH=$PYTHONPATH:../
-
-# for instance, our FAKD approach.
-python train.py --cfg ../configs/DecMeg2014/ShapleyFAKD/hgrn_sdt.yaml
-
-# you can also change settings at command line
-python train.py --cfg ../configs/DecMeg2014/ShapleyFAKD/hgrn_sdt.yaml  SOLVER.BATCH_SIZE 256 ShapleyFAKD.LOSS.FA_WEIGHT 100
-```
-
-### Validation of Feature Attribution Map Knowledge Transfer
-
-```angular2html
-cd ./Run-Script
-python attribution.py
+python difference_analysis.py --cfg ../configs/CamCAN/Logit.yaml  MODEL_A mlp
+python difference_analysis.py --cfg ../configs/DecMeg2014/Logit.yaml  EXPLAINER.MAX_DEPTH 3
 ```
 
 ## Acknowledgement
 
-1. https://github.com/megvii-research/mdistiller
-2. https://github.com/xuyxu/Soft-Decision-Tree
