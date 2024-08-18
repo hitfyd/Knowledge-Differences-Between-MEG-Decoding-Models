@@ -2,11 +2,8 @@ import numpy as np
 import pandas as pd
 import sklearn
 from matplotlib import pyplot as plt, gridspec
-from rulefit import RuleFit
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.tree import _tree, DecisionTreeRegressor, plot_tree, export_graphviz
-from catboost import CatBoostRegressor
 
 from .dise import DISExplainer
 from .imd.rule import Rule
@@ -121,31 +118,6 @@ class LogitDeltaRule(DISExplainer):
 
         self.delta_tree = DecisionTreeRegressor(max_depth=max_depth, min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
 
-        # search_space = {
-        #     'criterion': ['squared_error', ],
-        #     # restrict the minimum % of samples before splitting
-        #     # 'min_samples_split': [2, 0.01, 0.02, 0.03],
-        #     # restrict the minimum number of samples in a leaf
-        #     'min_samples_leaf': [1, 0.01, 0.02],
-        #     # 'max_depth': [3, 5, 7],  # helps in reducing the depth of the tree
-        #     'ccp_alpha': [0, 0.001, 0.01],
-        # }
-        # random_search_estimator = RandomizedSearchCV(estimator=self.delta_tree, cv=3,
-        #                                              param_distributions=search_space,
-        #                                              scoring='f1_weighted', n_iter=10, n_jobs=-1,
-        #                                              random_state=42, verbose=4)
-        # # train a surrogate DT
-        # random_search_estimator.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
-        # # access the best estimator
-        # self.delta_tree = random_search_estimator.best_estimator_
-        #
-        # self.hyperparameters['criterion'] = self.delta_tree.criterion
-        # self.hyperparameters['min_samples_split'] = self.delta_tree.min_samples_split
-        # self.hyperparameters['min_samples_leaf'] = self.delta_tree.min_samples_leaf
-        # self.hyperparameters['max_depth'] = self.delta_tree.max_depth
-        # self.hyperparameters['ccp_alpha'] = self.delta_tree.ccp_alpha
-        # print(self.hyperparameters)
-
         self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
         self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
         fig = plt.figure(figsize=(5, 5))
@@ -157,30 +129,6 @@ class LogitDeltaRule(DISExplainer):
         for save_format in format_list:
             fig.savefig('1.{}'.format(save_format), format=save_format,bbox_inches='tight', transparent=False)
         print(self.diffrules)
-        # print(export_text(self.delta_tree, feature_names=self.feature_names, show_weights=True))
-        # plot_tree(self.delta_tree)
-
-        # self.delta_tree = GradientBoostingRegressor(n_estimators=5, min_samples_leaf=min_samples_leaf, max_depth=None, ccp_alpha=0.001)
-        # self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
-        # self.diffrules = dtree_to_rule(self.delta_tree.estimators_[0][0], feature_names=self.feature_names)
-
-        # self.delta_tree = CatBoostRegressor(iterations=100, depth=None, learning_rate=0.1, loss_function='RMSE', task_type="GPU", devices='0', feature_weights=feature_weights)
-        # self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
-        # self.diffrules = []
-
-        # gb = GradientBoostingRegressor(
-        #     n_estimators=100,
-        #     # max_depth=5,
-        #     # learning_rate=0.01,
-        #     # random_state=42,
-        #     min_samples_leaf=min_samples_leaf, ccp_alpha=0.001,
-        # )
-        # self.delta_tree = RuleFit(tree_generator=gb)
-        # self.delta_tree.fit(X_train.to_numpy(), np.array(delta_output[:, 0]), feature_names=np.array(self.feature_names))
-        # self.diffrules = []
-        # rules = self.delta_tree.get_rules()
-        # rules = rules[(rules.coef != 0) & (rules['type'] == 'rule')]
-        # print(len(rules))
 
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
@@ -272,33 +220,7 @@ class LogitRuleFit(LogitDeltaRule):
         self.delta_tree = GradientBoostingRegressor(n_estimators=10, min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
         self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
 
-        # self.delta_tree = CatBoostRegressor(iterations=10, depth=5, learning_rate=0.01, loss_function='RMSE',
-        #                                     task_type="GPU", devices='0', feature_weights=feature_weights)
-        # self.delta_tree = CatBoostRegressor(iterations=2, depth=3, learning_rate=0.01, loss_function='RMSE',
-        #                                     task_type="GPU", devices='0', )
-        # self.delta_tree.fit(X_train, delta_output[:, 0], sample_weight=abs(delta_output[:, 0]))
         self.diffrules = []
-
-        # gb = GradientBoostingRegressor(
-        #     n_estimators=10,
-        #     max_depth=3,
-        #     learning_rate=0.01,
-        #     # random_state=42,
-        #     # min_samples_leaf=min_samples_leaf,
-        #     # ccp_alpha=0.001,
-        # )
-        # self.delta_tree = RuleFit(tree_generator=gb)
-        # self.delta_tree.fit(X_train.to_numpy(), np.array(delta_output[:, 0]), feature_names=np.array(self.feature_names))
-        # self.diffrules = []
-        # rules = self.delta_tree.get_rules()
-        # rules = rules[(rules.coef != 0) & (rules['type'] == 'rule')]
-        # self.diffrules = []
-        # id = 0
-        # for rule_str, rule_support in rules[['rule', 'support']].values:
-        #     predicates = rule_str.split('&')
-        #     rule = Rule(id, predicates, rule_support)
-        #     self.diffrules.append(rule)
-        #     id += 1
 
     def metrics(self, x_test: pd.DataFrame, y_test1, y_test2, name="test"):
         assert len(y_test1.shape) == len(y_test2.shape) == 2 and y_test1.shape[0] == y_test2.shape[0], \

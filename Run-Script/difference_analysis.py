@@ -113,27 +113,6 @@ if __name__ == "__main__":
 
     model_A = load_pretrained_model(model_A_type)
     model_B = load_pretrained_model(model_B_type)
-    # print(log_msg("Loading model A {}".format(model_A_type), "INFO"))
-    # model_A_class, model_A_pretrain_path = model_dict[dataset][model_A_type]
-    # assert (model_A_pretrain_path is not None), "no pretrain model A {}".format(model_A_type)
-    # model_A = model_A_class(channels=channels, points=points, num_classes=n_classes)
-    # model_A.load_state_dict(load_checkpoint(model_A_pretrain_path))
-    # model_A = model_A.cuda()
-    # # train_accuracy = model_eval(model_A, train_loader)
-    # # test_accuracy = model_eval(model_A, test_loader)
-    # # print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
-    # # print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
-    #
-    # print(log_msg("Loading model B {}".format(model_B_type), "INFO"))
-    # model_B_class, model_B_pretrain_path = model_dict[dataset][model_B_type]
-    # assert (model_B_pretrain_path is not None), "no pretrain model B {}".format(model_B_type)
-    # model_B = model_B_class(channels=channels, points=points, num_classes=n_classes)
-    # model_B.load_state_dict(load_checkpoint(model_B_pretrain_path))
-    # model_B = model_B.cuda()
-    # # train_accuracy = model_eval(model_B, train_loader)
-    # # test_accuracy = model_eval(model_B, test_loader)
-    # # print(log_msg("Train Set: Accuracy {:.6f}".format(train_accuracy), "INFO"))
-    # # print(log_msg("Test Set: Accuracy {:.6f}".format(test_accuracy), "INFO"))
 
     # init data augmentation
     augmentation_type = cfg.AUGMENTATION
@@ -176,12 +155,6 @@ if __name__ == "__main__":
     pd_test_metrics, pd_train_metrics = None, None
     for train_index, test_index in skf.split(data, delta_target):
         x_train = data[train_index]
-        # output_A_train = output_A[train_index]
-        # output_B_train = output_B[train_index]
-        # pred_target_A_train = pred_target_A[train_index]
-        # pred_target_B_train = pred_target_B[train_index]
-
-        # selection_method.fit(x_train.reshape((-1, channels * points)), output_A[train_index], output_B[train_index])
 
         x_test = data[test_index]
         output_A_test = output_A[test_index]
@@ -190,18 +163,12 @@ if __name__ == "__main__":
         pred_target_B_test = pred_target_B[test_index]
 
         x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor,)
-        # if augmentation_type != 'NONE':
-        #     x_train_aug = np.concatenate((x_train, train_data), axis=0)
-        # else:
-        #     x_train_aug = x_train
+
         output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug)
         output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug)
 
         ydiff = (pred_target_A_train != pred_target_B_train).astype(int)
         print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
-        # delta_diff = (ydiff != delta_target_aug).astype(int)
-        # print(
-        #     f"delta_diffs in X_train = {delta_diff.sum()} / {len(delta_diff)} = {(delta_diff.sum() / len(delta_diff) * 100):.2f}%")
 
         x_train_aug = x_train_aug.reshape((len(x_train_aug), -1))
         x_test = x_test.reshape((len(test_index), -1))
@@ -215,33 +182,10 @@ if __name__ == "__main__":
         else:
             selection_method.fit(x_train_aug, output_A_train, output_B_train)
 
-        # Normalization
-        # if normalize:
-        #     data_normalize = DatasetNormalization(x_train_aug)
-        #     x_train_aug = data_normalize(x_train_aug)
-        #     x_test = data_normalize(x_test)
-        #     # x_train_aug = sample_normalize(x_train_aug)
-        #     # x_test = sample_normalize(x_test)
-        # from sklearn.preprocessing import Binarizer, KBinsDiscretizer
-        #
-        # transformer = Binarizer()
-        # # transformer = KBinsDiscretizer(n_bins=10, encode='ordinal', strategy='uniform', subsample=None)
-        # transformer.fit(x_train_aug)
-        # x_train_aug = transformer.transform(x_train_aug)
-        # x_test = transformer.transform(x_test)
-
         # Execute Feature Selection
         x_train_aug, _ = selection_method.transform(x_train_aug)
         x_test, select_indices = selection_method.transform(x_test)
         x_feature_names = feature_names[select_indices]
-
-        # # Feature Extraction
-        # if extract:
-        #     x_train_aug = feature_extraction(x_train_aug, window_length)
-        #     x_test = feature_extraction(x_test, window_length)
-        #
-        #     # temp
-        #     x_feature_names = x_feature_names[::window_length]
 
         x_train = pd.DataFrame(x_train_aug, columns=x_feature_names)
         x_test = pd.DataFrame(x_test, columns=x_feature_names)
