@@ -12,7 +12,6 @@ from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, get_data_loader,
                                     save_checkpoint, dataset_info_dict, predict)
 from differlib.explainer import explainer_dict
-from differlib.feature_extraction import feature_extraction
 from differlib.feature_selection import fsm_dict
 from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature_maps
 from differlib.models import model_dict, scikit_models, torch_models

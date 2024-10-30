@@ -1,0 +1,13 @@
+EXPERIMENT:
+  PROJECT: "DecMeg2014"
+  TAG: "Delta_Official"
+DATASET: "DecMeg2014"
+NUM_SPLITS: 5
+WINDOW_LENGTH: 10
+MODEL_A: "rf"
+MODEL_B: "atcnet"
+AUGMENTATION: "BASE"
+SELECTION:
+  TYPE: "DiffShapley"
+EXPLAINER:
+  TYPE: "Delta_Official"

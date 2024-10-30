@@ -1,0 +1,13 @@
+EXPERIMENT:
+  PROJECT: "CamCAN"
+  TAG: "Delta_Official"
+DATASET: "CamCAN"
+NUM_SPLITS: 5
+WINDOW_LENGTH: 5
+MODEL_A: "rf"
+MODEL_B: "atcnet"
+AUGMENTATION: "BASE"
+SELECTION:
+  TYPE: "DiffShapley"
+EXPLAINER:
+  TYPE: "Delta_Official"
