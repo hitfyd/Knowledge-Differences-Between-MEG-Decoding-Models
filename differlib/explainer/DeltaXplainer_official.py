@@ -116,9 +116,9 @@ class DeltaExplainer_Official(DISExplainer):
         delta_target = (Y1 != Y2).astype(int)
 
         params = {
-            "max_depth": 6,
+            "max_depth": max_depth,
             "criterion": "gini",
-            "min_samples_leaf": 1,
+            "min_samples_leaf": min_samples_leaf,
             "min_impurity_decrease": 0,
         }
 
