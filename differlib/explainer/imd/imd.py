@@ -104,6 +104,75 @@ class IMDExplainer(DISExplainer):
             for _, rule in diffruledict.items()
         ]
 
+    def fit_detail(self, X_train: pd.DataFrame, Y1, Y2, max_depth, split_criterion=1, alpha=0.0, verbose=True, **kwargs):
+        """
+        Fit joint surrogate tree to input data, and outputs from two models.
+        Args:
+            X_train: input dataframe
+            Y1: model1 outputs
+            Y2: model2 outputs
+            max_depth: maximum depth of the joint surrogate tree to be built
+            feature_names: list of input feature names
+            alpha: parameter to control degree of favouring common nodes vs. separate nodes
+            split_criterion: which divergence criterion to use? (see paper for more details)
+            verbose:
+            **kwargs:
+        Returns:
+            self
+        """
+        feature_names = X_train.columns.to_list()
+        self.feature_names = feature_names
+
+        x1 = x2 = X_train.to_numpy()
+
+        if not isinstance(Y1, np.ndarray):
+            Y1 = Y1.to_numpy()
+        if not isinstance(Y2, np.ndarray):
+            Y2 = Y2.to_numpy()
+
+        y1 = Y1
+        y2 = Y2
+
+        ydiff = (y1 != y2).astype(int)
+        if verbose:
+            print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
+
+        jstobj = JointSurrogateTree(max_depth=max_depth,
+                                    feature_names=feature_names,
+                                    split_criterion=split_criterion,
+                                    alpha=alpha)
+        t1, t2 = jstobj.fit(x1, y1, x2, y2)
+        ct = jstobj.common_trunk(t1, t2)
+        diffrules = jstobj.get_diffrules_from_jst(ct)
+
+        self.jst = ct
+        self.diffrules = diffrules
+
+        acc1 = jstobj.predict(x1, t1)
+        acc2 = jstobj.predict(x1, t2)
+        print(acc1, acc2)
+
+        # prepare regions from the rules
+        cat_dict, nums = _parse_feature_names(feature_names)
+        is_int_col = dict()
+        for num_feature in nums:
+            is_int_col[num_feature] = np.array_equal(X_train[num_feature], X_train[num_feature].astype(int))
+        self.is_int_col = is_int_col
+
+        minimums = X_train.to_numpy().min(0)
+        maximums = X_train.to_numpy().max(0)
+
+        fd = [[minimums[i], maximums[i]] for i in range(len(minimums))]
+        total_region_dict = {feature_names[i]: fd[i] for i in range(len(feature_names))}
+
+        # some unnecessary wrapping to reuse some code
+        diffruledict = dict(enumerate(self.diffrules))
+        self.diffregions = [
+            rule.as_dict(feature_names=self.feature_names, total_region=total_region_dict, only_preds=False)
+            for _, rule in diffruledict.items()
+        ]
+        return jstobj, t1, t2
+
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
         """

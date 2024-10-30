@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 import arff
+import sklearn
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
@@ -17,28 +18,6 @@ from differlib.engine.utils import save_checkpoint, load_checkpoint, setup_seed
 from differlib.explainer import DeltaExplainer, IMDExplainer, LogitDeltaRule, SeparateSurrogate, MERLINXAI
 
 
-def load_bc_dataset():
-    from sklearn.datasets import load_breast_cancer
-    data = load_breast_cancer(as_frame=True)
-    return data["data"], data["target"]
-
-
-def load_banknote_dataset():
-    # fetch dataset
-    waveform_database_generator_version_1 = fetch_ucirepo(id=267)
-    # data (as pandas dataframes)
-    X = waveform_database_generator_version_1.data.features
-    y = waveform_database_generator_version_1.data.targets.values
-    return X, np.squeeze(y)
-
-    # data = arff.load("../dataset/tabular/banknote.arff")
-    # df = pd.DataFrame(data)
-    # X = df.iloc[:, :-1]
-    # y = df.iloc[:, -1].values
-    # y = [0 if y[i] == '1' else 1 for i in range(len(y))]
-    # return X, np.array(y)
-
-
 def load_magic_dataset():
     # fetch dataset
     waveform_database_generator_version_1 = fetch_ucirepo(id=159)
@@ -47,26 +26,6 @@ def load_magic_dataset():
     y = waveform_database_generator_version_1.data.targets.values
     y = np.squeeze(y)
     y = [0 if y[i] == 'g' else 1 for i in range(len(y))]
-    return X, np.array(y)
-
-
-def load_waveform_dataset():
-    data = arff.load("../dataset/tabular/waveform-5000.arff")
-    df = pd.DataFrame(data)
-    X = df.iloc[:, :-1]
-    y = df.iloc[:, -1].values
-    y = [0 if y[i] == 'N' else 1 for i in range(len(y))]
-    return X, np.array(y)
-
-
-def load_heloc_dataset():
-    data = arff.load("../dataset/tabular/dataset_HELOC")
-    df = pd.DataFrame(data)
-    X = df.iloc[:, 1:]
-    X[[10, 11]] = X[[10, 11]].astype(int)
-    y = df.iloc[:, 0].values
-    y = np.squeeze(y)
-    y = [0 if y[i] == 'Bad' else 1 for i in range(len(y))]
     return X, np.array(y)
 
 
@@ -88,6 +47,12 @@ def load_eye_movements_dataset():
     return X, y
 
 
+def disagreement_measure(out1, out2):
+    n = len(out1)
+    disagreement = np.sum(out1 != out2) / n
+    return disagreement
+
+
 # Data preparation
 random_state = 1234
 train_size = 0.7
@@ -97,12 +62,8 @@ min_samples_leaf = 0.001
 ccp_alpha = 0.001
 datasets = {
     'bank_marketing': load_bank_marketing_dataset(),
-    # 'banknote': load_banknote_dataset(),
-    'bc': load_bc_dataset(),
     'eye_movements': load_eye_movements_dataset(),
-    'heloc': load_heloc_dataset(),
-    'magic': load_magic_dataset(),
-    'waveform': load_waveform_dataset(),
+    # 'magic': load_magic_dataset(),
 }
 models = {
     'LR': LogisticRegression(random_state=random_state),
@@ -137,9 +98,9 @@ dataset_diff_models = {
 }
 explainers = {
     "SS": SeparateSurrogate,
-    "IMD": IMDExplainer,
-    "Delta": DeltaExplainer,
-    "Logit": LogitDeltaRule,
+    # "IMD": IMDExplainer,
+    # "Delta": DeltaExplainer,
+    # "Logit": LogitDeltaRule,
     # "MERLIN": MERLINXAI,
 }
 
@@ -197,9 +158,28 @@ for dataset in datasets.keys():
                     train_metrics = explainer.metrics(x_train, output1, output2, name="train")
                     test_metrics = explainer.metrics(x_test, t_output1, t_output2)
                 else:
-                    explainer.fit(x_train, y1, y2, max_depth, min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
+                    jstobj, t1, t2 = explainer.fit_detail(x_train, y1, y2, max_depth, min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
                     train_metrics = explainer.metrics(x_train, y1, y2, name="train")
                     test_metrics = explainer.metrics(x_test, t_y1, t_y2)
+
+                    surr1_out = jstobj.predict(x_train.to_numpy(), t1)
+                    surr2_out = jstobj.predict(x_train.to_numpy(), t2)
+
+                    origin1_accuracy = sklearn.metrics.accuracy_score(y_train, y1)
+                    origin2_accuracy = sklearn.metrics.accuracy_score(y_train, y2)
+                    surr1_accuracy = sklearn.metrics.accuracy_score(y_train, surr1_out)
+                    surr2_accuracy = sklearn.metrics.accuracy_score(y_train, surr2_out)
+                    print(origin1_accuracy, origin2_accuracy, surr1_accuracy, surr2_accuracy)
+
+                    dis1 = disagreement_measure(y1, y2)
+                    dis2 = disagreement_measure(y1, surr2_out)
+                    dis3 = disagreement_measure(surr1_out, y2)
+                    dis4 = disagreement_measure(surr1_out, surr2_out)
+                    print(dis1, dis2, dis3, dis4)
+
+                    dis5 = disagreement_measure(y1, surr1_out)
+                    dis6 = disagreement_measure(y2, surr2_out)
+                    print(dis5, dis6)
 
                 # 打印单次实验结果
                 print(dataset, explainer_type, model1_name, model2_name, skf_id)
