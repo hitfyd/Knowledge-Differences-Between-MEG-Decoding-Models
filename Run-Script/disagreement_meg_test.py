@@ -1,60 +1,34 @@
 import os
-from statistics import mean
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
-import arff
 import sklearn
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
+from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.metrics import accuracy_score
-from ucimlrepo import fetch_ucirepo
 
-from differlib.engine.utils import save_checkpoint, load_checkpoint, setup_seed
-from differlib.explainer import DeltaExplainer, IMDExplainer, LogitDeltaRule, SeparateSurrogate, MERLINXAI
+from differlib.engine.utils import get_data_labels_from_dataset, save_checkpoint, get_data_loader, setup_seed, \
+    load_checkpoint
+from differlib.explainer import SeparateSurrogate, IMDExplainer, DeltaExplainer, LogitDeltaRule
 
+# run time
+run_time = datetime.now().strftime("%Y%m%d%H%M%S")
 
-def load_waveform_dataset():
-    data = arff.load("../dataset/tabular/waveform-5000.arff")
-    df = pd.DataFrame(data)
-    X = df.iloc[:, :-1]
-    y = df.iloc[:, -1].values
-    y = [0 if y[i] == 'N' else 1 for i in range(len(y))]
-    return X, np.array(y)
-
-
-def load_heloc_dataset():
-    data = arff.load("../dataset/tabular/dataset_HELOC")
-    df = pd.DataFrame(data)
-    X = df.iloc[:, 1:]
-    X[[10, 11]] = X[[10, 11]].astype(int)
-    y = df.iloc[:, 0].values
-    y = np.squeeze(y)
-    y = [0 if y[i] == 'Bad' else 1 for i in range(len(y))]
-    return X, np.array(y)
-
-
-def load_bank_marketing_dataset():
-    data = arff.load("../dataset/tabular/dataset_bank-marketing")
-    df = pd.DataFrame(data)
-    X = df.iloc[:, :-1]
-    y = df.iloc[:, -1].values
-    y = [0 if y[i] == '1' else 1 for i in range(len(y))]
-    return X, np.array(y)
-
-
-def load_eye_movements_dataset():
-    data = arff.load("../dataset/tabular/dataset_eye_movements")
-    df = pd.DataFrame(data)
-    X = df.iloc[:, :-1]
-    X[[20, 21, 22]] = X[[20, 21, 22]].astype(int)
-    y = df.iloc[:, -1].values
-    return X, y
+# setup the random number seed
+# Data preparation
+random_state = 1234
+train_size = 0.7
+n_times = 5
+max_depth = 6
+min_samples_leaf = 0.001
+ccp_alpha = 0.001
+setup_seed(random_state)
 
 
 def disagreement_measure(out1, out2):
@@ -63,50 +37,50 @@ def disagreement_measure(out1, out2):
     return disagreement
 
 
-# Data preparation
-random_state = 1234
-train_size = 0.7
-n_times = 5
-max_depth = 6
-min_samples_leaf = 0.001
-ccp_alpha = 0.001
-datasets = {
-    'bank_marketing': load_bank_marketing_dataset(),
-    'eye_movements': load_eye_movements_dataset(),
-    'heloc': load_heloc_dataset(),
-    'waveform': load_waveform_dataset(),
-}
+# datasets
+datasets = [
+    "CamCAN",
+    "DecMeg2014"
+]
 models = {
     'LR': LogisticRegression(random_state=random_state),
-    'KN1': KNeighborsClassifier(n_neighbors=3),
-    'DT1': DecisionTreeClassifier(max_depth=5, random_state=random_state),
-    'MLP1': MLPClassifier(alpha=1e-05, hidden_layer_sizes=(15,), random_state=random_state, solver='lbfgs'),
-    'MLP2': MLPClassifier(hidden_layer_sizes=(100, 100), random_state=random_state),
-    'DT2': DecisionTreeClassifier(max_depth=10, random_state=random_state),
-    'GB': GradientBoostingClassifier(random_state=random_state),
+    # # 'KN1': KNeighborsClassifier(n_neighbors=3),
+    # 'DT1': DecisionTreeClassifier(max_depth=5, random_state=random_state),
+    # 'MLP1': MLPClassifier(alpha=1e-05, hidden_layer_sizes=(15,), random_state=random_state, solver='lbfgs'),
+    # 'MLP2': MLPClassifier(hidden_layer_sizes=(100, 100), random_state=random_state),
+    # 'DT2': DecisionTreeClassifier(max_depth=10, random_state=random_state),
+    # 'GB': GradientBoostingClassifier(random_state=random_state),
     'RF1': RandomForestClassifier(random_state=random_state),
-    'KN2': KNeighborsClassifier(),
-    'RF2': RandomForestClassifier(max_depth=6, random_state=random_state),
+    # # 'KN2': KNeighborsClassifier(),
+    # 'RF2': RandomForestClassifier(max_depth=6, random_state=random_state),
     'GNB': GaussianNB()
 }
 dataset_diff_models = {
-    'bank_marketing': [('RF1', 'MLP1'), ('LR', 'GNB')],
-    'eye_movements': [('RF1', 'MLP1'), ('LR', 'GNB')],
-    'heloc': [('RF1', 'MLP1'), ('LR', 'GNB')],
-    'waveform': [('RF1', 'MLP1'), ('LR', 'GNB')],
+    # 'CamCAN': [('MLP1', 'DT1'), ('LR', 'MLP1'), ('RF2', 'GNB'), ('DT1', 'RF2')],
+    # 'DecMeg2014': [('RF2', 'GNB'), ('DT1', 'RF2'), ('MLP1', 'RF2')],
+    'CamCAN': [('LR', 'RF1'),],
+    'DecMeg2014': [('LR', 'RF1'), ],
 }
 explainers = {
     "SS": SeparateSurrogate,
     # "IMD": IMDExplainer,
 }
 
-log_path = './output/tabular/'
+# log config
+log_path = f"./output/MEG_ML/"
 if not os.path.exists(log_path):
     os.makedirs(log_path)
 
-for dataset in datasets.keys():
-    data, target = datasets[dataset]
-    x_train, x_test, y_train, y_test = train_test_split(data, target, train_size=train_size, random_state=random_state)
+# init dataset & models
+for dataset in datasets:
+    x_train, y_train = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
+    x_test_all, y_test_all = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
+    _, channels, points = x_train.shape
+    num_classes = len(set(y_train))
+    x_train = x_train.reshape(x_train.shape[0], channels * points)
+    x_test_all = x_test_all.reshape(x_test_all.shape[0], channels * points)
+    x_train = pd.DataFrame(x_train)
+    x_test_all = pd.DataFrame(x_test_all)
 
     # Training models and save checkpoints
     for model_name in models.keys():
@@ -119,7 +93,7 @@ for dataset in datasets.keys():
             model = load_checkpoint(save_path)
         models[model_name] = model
 
-        t_acc = accuracy_score(y_true=y_test, y_pred=model.predict(x_test))
+        t_acc = accuracy_score(y_true=y_test_all, y_pred=model.predict(x_test_all))
         print(f"dataset: {dataset} model: {model_name} test accuracy: {(t_acc * 100):.2f}%")
         with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
             writer.write(f"dataset: {dataset} model: {model_name} test accuracy: {(t_acc * 100):.2f}%" + os.linesep)
@@ -131,8 +105,13 @@ for dataset in datasets.keys():
         for explainer_type in explainers.keys():
             pd_test_metrics, pd_train_metrics = None, None
             pd_accuracy_list, pd_disagreement_list = None, None
+            # skf = StratifiedShuffleSplit(n_splits=n_times, test_size=0.25)
+            # skf_id = 0
+            # for train_index, test_index in skf.split(x_test_all, y_test_all):
+            #     x_train, x_test, y_train, y_test = x_test_all.iloc[train_index], x_test_all.iloc[test_index], y_test_all[train_index], y_test_all[test_index]
+
             for skf_id in range(n_times):
-                x_train, x_test, y_train, y_test = train_test_split(data, target, train_size=train_size, random_state=random_state+skf_id)
+                x_train, x_test, y_train, y_test = train_test_split(x_test_all, y_test_all, train_size=train_size, random_state=random_state+skf_id)
 
                 # Calculate diff-samples
                 y1 = model1.predict(x_train)
@@ -147,10 +126,12 @@ for dataset in datasets.keys():
                 t_output1 = model1.predict_proba(x_test)
                 t_output2 = model2.predict_proba(x_test)
                 ydifftest = (t_y1 != t_y2).astype(int)
-                print(f"diffs in X_test = {ydifftest.sum()} / {len(ydifftest)} = {(ydifftest.sum() / len(ydifftest)):.2f}")
+                print(
+                    f"diffs in X_test = {ydifftest.sum()} / {len(ydifftest)} = {(ydifftest.sum() / len(ydifftest)):.2f}")
 
                 explainer = explainers[explainer_type]()
-                jstobj, t1, t2 = explainer.fit_detail(x_train, y1, y2, max_depth, min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
+                jstobj, t1, t2 = explainer.fit_detail(x_train, y1, y2, max_depth, min_samples_leaf=min_samples_leaf,
+                                                      ccp_alpha=ccp_alpha)
                 train_metrics = explainer.metrics(x_train, y1, y2, name="train")
                 test_metrics = explainer.metrics(x_test, t_y1, t_y2)
 
@@ -206,9 +187,9 @@ for dataset in datasets.keys():
             partial_pd_metrics_mean, partial_pd_metrics_std = partial_pd_metrics.mean(), partial_pd_metrics.std()
             record_mean_std = pd.Series(index=partial_pd_metrics_mean.index, dtype=str)
             for v in range(len(partial_pd_metrics_mean.values)):
-                record_mean_std.iloc[v] = f"{partial_pd_metrics_mean.iloc[v]:.2f} ± {partial_pd_metrics_std.iloc[v]:.2f}"
+                record_mean_std.iloc[
+                    v] = f"{partial_pd_metrics_mean.iloc[v]:.2f} ± {partial_pd_metrics_std.iloc[v]:.2f}"
             print(record_mean_std.to_string())
-
             with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
                 writer.write(os.linesep + "-" * 25 + os.linesep)
                 writer.write(f"{dataset} {model1_name} {model2_name} {explainer_type}" + os.linesep)
