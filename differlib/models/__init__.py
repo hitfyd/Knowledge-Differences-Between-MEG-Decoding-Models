@@ -4,7 +4,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 
-from .DNNClassifier import lfcnn, varcnn, hgrn, mlp, linear
+from .DNNClassifier import lfcnn, varcnn, hgrn, mlp, linear, eegnetv4, eegnetv1
 from .SoftDecisionTree import sdt
 from .atcnet.atcnet import atcnet
 
@@ -14,7 +14,7 @@ model_checkpoint_prefix = os.path.join(
 )
 
 scikit_models = ["gnb", "rf", "lr"]
-torch_models = ["mlp", "lfcnn", "varcnn", "hgrn", "atcnet", "linear", "sdt"]
+torch_models = ["mlp", "lfcnn", "varcnn", "hgrn", "atcnet", "linear", "sdt", "eegnetv1", "eegnetv4"]
 
 model_dict = {
     "CamCAN": {
@@ -46,4 +46,9 @@ model_dict = {
         "sdt_hgrn_kd": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_HGRN_KD"),
         "sdt_hgrn_fakd": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_HGRN_FAKD"),
     },
+
+    "BCIIV2a": {
+        "eegnetv4": (eegnetv4, model_checkpoint_prefix + "BCIIV2a_eegnetv4"),
+        "eegnetv1": (eegnetv1, model_checkpoint_prefix + "BCIIV2a_eegnetv1"),
+    }
 }

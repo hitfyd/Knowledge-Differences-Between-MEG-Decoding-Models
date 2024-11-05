@@ -168,6 +168,7 @@ def _awgn_frequency(epoch_data, level):
     noise = np.random.randn(*x.shape) * np.sqrt(npower)
     aug_data = x + noise
     _, aug_data_time = signal.istft(aug_data, fs=sfreq)
+    aug_data_time = np.pad(aug_data_time, ((0, 0), (0, epoch_data.shape[1] - aug_data_time.shape[1])), 'constant')
     return aug_data_time
 
 

@@ -142,8 +142,8 @@ if __name__ == "__main__":
         writer.write("CONFIG:\n{}".format(cfg.dump()))
 
     # models predict differences
-    output_A, pred_target_A = output_predict_targets(model_A_type, model_A, data)
-    output_B, pred_target_B = output_predict_targets(model_B_type, model_B, data)
+    output_A, pred_target_A = output_predict_targets(model_A_type, model_A, data, num_classes=n_classes)
+    output_B, pred_target_B = output_predict_targets(model_B_type, model_B, data, num_classes=n_classes)
     delta_target = (pred_target_A != pred_target_B).astype(int)
 
     # K-Fold evaluation
@@ -163,8 +163,8 @@ if __name__ == "__main__":
 
         x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor,)
 
-        output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug)
-        output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug)
+        output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug, num_classes=n_classes)
+        output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug, num_classes=n_classes)
 
         ydiff = (pred_target_A_train != pred_target_B_train).astype(int)
         print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")

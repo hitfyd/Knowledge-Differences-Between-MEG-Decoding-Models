@@ -14,6 +14,7 @@ from tqdm import tqdm
 dataset_info_dict = {
     "CamCAN": {"CHANNELS": 204, "POINTS": 100, "NUM_CLASSES": 2},
     "DecMeg2014": {"CHANNELS": 204, "POINTS": 250, "NUM_CLASSES": 2},
+    "BCIIV2a": {"CHANNELS": 22, "POINTS": 1125, "NUM_CLASSES": 4},
 }
 
 
