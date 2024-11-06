@@ -118,7 +118,10 @@ class LogitDeltaRule(DISExplainer):
 
         self.delta_tree = DecisionTreeRegressor(max_depth=max_depth, min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
 
-        self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
+        if delta_output.shape[1] == 2:
+            self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
+        else:
+            self.delta_tree.fit(X_train, delta_output)
         self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
         fig = plt.figure(figsize=(5, 5))
         gridlayout = gridspec.GridSpec(ncols=25, nrows=6, figure=fig, top=None, bottom=None, wspace=None, hspace=0)
