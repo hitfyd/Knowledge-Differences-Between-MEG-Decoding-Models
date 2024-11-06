@@ -9,5 +9,7 @@ MODEL_B: "eegnetv4"
 AUGMENTATION: "BASE"
 SELECTION:
   TYPE: "DiffShapley"
+  Diff:
+    THRESHOLD: 3.0
 EXPLAINER:
   TYPE: "Logit"

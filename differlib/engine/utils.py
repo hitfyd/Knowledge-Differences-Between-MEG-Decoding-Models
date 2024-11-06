@@ -152,7 +152,7 @@ def predict(model, data, num_classes=2, batch_size=1024, eval=False, softmax=Tru
         if softmax:
             if model.__class__.__name__ in ["LFCNN", "VARCNN"]:
                 output = torch.exp(output) / torch.sum(torch.exp(output), dim=-1, keepdim=True)
-            if model.__class__.__name__ in ["HGRN", "ATCNet"]:
+            if model.__class__.__name__ in ["HGRN", "ATCNet"]:  #, "EEGNetv4", "NewEEGNetv1"
                 output = torch.exp(output)
         output = output.cpu().detach().numpy()
     return output

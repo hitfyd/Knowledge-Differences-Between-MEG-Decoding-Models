@@ -6,7 +6,7 @@ from torch import nn, optim
 
 from differlib.engine.utils import get_data_labels_from_dataset, save_checkpoint, get_data_loader, setup_seed
 from differlib.models import sdt
-from differlib.models.DNNClassifier import mlp, linear, lfcnn, varcnn, hgrn
+from differlib.models.DNNClassifier import mlp, linear, lfcnn, varcnn, hgrn, eegnetv1, eegnetv4
 from differlib.models.atcnet.atcnet import atcnet
 
 
@@ -78,15 +78,18 @@ setup_seed(seed)
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 criterion = nn.CrossEntropyLoss()
 # train hyperparameters
-batch_size_list = [64, 128]
-learn_rate_list = [3e-4, 1e-3, 3e-3]
-MAX_TRAIN_EPOCHS = 50
+batch_size_list = [128]
+learn_rate_list = [3e-3]
+# batch_size_list = [64, 128]
+# learn_rate_list = [3e-4, 1e-3, 3e-3]
+MAX_TRAIN_EPOCHS = 200
 learn_rate_decay = 0.1
-decay_epochs = [200]
+decay_epochs = [150]
 
 # datasets
-datasets = ["DecMeg2014", "CamCAN"]
-models = [atcnet, mlp, linear]
+datasets = ["BCIIV2a"]     # "DecMeg2014", "CamCAN"
+models = [lfcnn, hgrn, eegnetv1, eegnetv4, atcnet]
+# models = [atcnet, mlp, linear]
 # models = [sdt, lfcnn, varcnn, hgrn]
 
 # log config
