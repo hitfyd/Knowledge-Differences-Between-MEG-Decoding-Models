@@ -2,7 +2,7 @@
 
 dataset='BCIIV2a'
 models=('eegnetv1' 'eegnetv4')
-explainers=('Logit' 'Delta' 'MERLIN' 'SS' 'IMD')  # 'SS' 'IMD' 'Delta' 'MERLIN' 'Logit'
+explainers=('Logit' 'Delta' 'SS' 'IMD' 'MERLIN')  # 'Logit' 'Delta' 'SS' 'IMD' 'MERLIN'
 
 N_M=${#models[@]}
 N_E=${#explainers[@]}

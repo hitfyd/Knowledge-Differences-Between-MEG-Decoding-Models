@@ -9,5 +9,8 @@ MODEL_B: "eegnetv4"
 AUGMENTATION: "BASE"
 SELECTION:
   TYPE: "DiffShapley"
+  Diff:
+    THRESHOLD: 8.0
 EXPLAINER:
   TYPE: "SS"
+  MAX_DEPTH: 4
