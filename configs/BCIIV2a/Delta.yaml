@@ -10,7 +10,7 @@ AUGMENTATION: "BASE"
 SELECTION:
   TYPE: "DiffShapley"
   Diff:
-    THRESHOLD: 8.0
+    THRESHOLD: 6.0
 EXPLAINER:
   TYPE: "Delta"
-  MAX_DEPTH: 4
+  MAX_DEPTH: 6

@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import sklearn
 from matplotlib import pyplot as plt, gridspec
+from numpy.ma.core import argmax
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.tree import _tree, DecisionTreeRegressor, plot_tree, export_graphviz
 
@@ -121,7 +122,8 @@ class LogitDeltaRule(DISExplainer):
         if delta_output.shape[1] == 2:
             self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))
         else:
-            self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, 0]))  # abs(delta_output).sum(axis=1)  TODO: 可以考虑更有效的多分类情况下的权重处理
+            label_delta_output = abs(delta_output).sum(axis=0)
+            self.delta_tree.fit(X_train, delta_output, sample_weight=abs(delta_output[:, argmax(label_delta_output)]))  # abs(delta_output).sum(axis=1)
         self.diffrules = dtree_to_rule(self.delta_tree, feature_names=self.feature_names)
         fig = plt.figure(figsize=(5, 5))
         gridlayout = gridspec.GridSpec(ncols=25, nrows=6, figure=fig, top=None, bottom=None, wspace=None, hspace=0)

@@ -4,6 +4,7 @@ import time
 import numpy as np
 import ray
 import torch
+from numpy import argmax
 from scipy import stats
 from tqdm import tqdm
 
@@ -71,7 +72,11 @@ class DiffShapleyFS(FSMethod):
         assert points % window_length == 0
         self.logit_delta = predict(model1, x, n_classes, eval=True) - predict(model2, x, n_classes, eval=True)
         # self.logit_delta = self.logit_delta.cpu().detach().numpy()
-        self.sample_weights = self.logit_delta[:, 0]
+        label_logit_delta = abs(self.logit_delta).sum(axis=0)
+        if self.logit_delta.shape[1] == 2:
+            self.sample_weights = self.logit_delta[:, 0]
+        else:
+            self.sample_weights = self.logit_delta[:, argmax(label_logit_delta)]
         # if parallel:
         #     if not ray.is_initialized():
         #         ray.init(num_gpus=num_gpus, num_cpus=num_cpus,  # 计算资源
@@ -89,7 +94,10 @@ class DiffShapleyFS(FSMethod):
         # self.contributions = self.all_sample_feature_maps.mean(axis=0)
         # self.contributions = self.all_sample_feature_maps.sum(axis=0) / n_samples
         self.contributions = np.average(self.all_sample_feature_maps, axis=0, weights=self.sample_weights)
-        self.contributions = self.contributions[:, 0]
+        if self.logit_delta.shape[1] == 2:
+            self.contributions = self.contributions[:, 0]
+        else:
+            self.contributions = self.contributions[:, argmax(label_logit_delta)]
         self.contributions = np.repeat(self.contributions, window_length)
         # print(self.contributions.shape)
         # print(self.contributions)
