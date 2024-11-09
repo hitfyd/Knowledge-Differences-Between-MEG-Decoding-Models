@@ -1,20 +1,19 @@
 import os
 
+import arff
 import numpy as np
 import pandas as pd
-import arff
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.metrics import accuracy_score
-from ucimlrepo import fetch_ucirepo
 
-from differlib.engine.utils import save_checkpoint, load_checkpoint, setup_seed
-from differlib.explainer import DeltaExplainer, IMDExplainer, LogitDeltaRule, SeparateSurrogate, MERLINXAI
+from differlib.engine.utils import save_checkpoint, load_checkpoint
+from differlib.explainer import DeltaExplainer, IMDExplainer, LogitDeltaRule, SeparateSurrogate
 
 
 def load_bc_dataset():
@@ -23,39 +22,21 @@ def load_bc_dataset():
     return data["data"], data["target"]
 
 
-def load_banknote_dataset():
-    # fetch dataset
-    waveform_database_generator_version_1 = fetch_ucirepo(id=267)
-    # data (as pandas dataframes)
-    X = waveform_database_generator_version_1.data.features
-    y = waveform_database_generator_version_1.data.targets.values
-    return X, np.squeeze(y)
-
-    # data = arff.load("../dataset/tabular/banknote.arff")
-    # df = pd.DataFrame(data)
-    # X = df.iloc[:, :-1]
-    # y = df.iloc[:, -1].values
-    # y = [0 if y[i] == '1' else 1 for i in range(len(y))]
-    # return X, np.array(y)
-
-
 def load_magic_dataset():
-    # fetch dataset
-    waveform_database_generator_version_1 = fetch_ucirepo(id=159)
-    # data (as pandas dataframes)
-    X = waveform_database_generator_version_1.data.features
-    y = waveform_database_generator_version_1.data.targets.values
-    y = np.squeeze(y)
+    df = pd.read_csv("../dataset/tabular/magic04.data", header=None)
+    X = df.iloc[:, :-1]
+    y = df.iloc[:, -1].values
     y = [0 if y[i] == 'g' else 1 for i in range(len(y))]
     return X, np.array(y)
 
 
 def load_waveform_dataset():
-    data = arff.load("../dataset/tabular/waveform-5000.arff")
-    df = pd.DataFrame(data)
+    # data = arff.load("../dataset/tabular/waveform-5000.arff")
+    # df = pd.DataFrame(data)
+    df = pd.read_csv("../dataset/tabular/waveform-+noise.data", header=None)
     X = df.iloc[:, :-1]
     y = df.iloc[:, -1].values
-    y = [0 if y[i] == 'N' else 1 for i in range(len(y))]
+    # y = [0 if y[i] == 'N' else 1 for i in range(len(y))]
     return X, np.array(y)
 
 
@@ -88,21 +69,50 @@ def load_eye_movements_dataset():
     return X, y
 
 
+# def load_whitewine_dataset():
+#     # data = arff.load("../dataset/tabular/whitewine.arff")
+#     # df = pd.DataFrame(data)
+#     df = pd.read_csv("../dataset/tabular/winequality-white.csv", delimiter=';')
+#     X = df.iloc[:, :-1]
+#     y = df.iloc[:, -1].values
+#     y = y.astype(int) - 3
+#     return X, np.array(y)
+
+
+def load_redwine_dataset():
+    # data = arff.load("../dataset/tabular/wine-quality-red.arff")
+    # df = pd.DataFrame(data, dtype=float)
+    df = pd.read_csv("../dataset/tabular/winequality-red.csv", delimiter=';')
+    X = df.iloc[:, :-1]
+    y = df.iloc[:, -1].values
+    y = y.astype(int) - 3
+    return X, np.array(y)
+
+
+def load_parkinsons_dataset():
+    df = pd.read_csv("../dataset/tabular/parkinsons.data")
+    X = df.iloc[:, 1:]
+    X.pop('status')
+    y = df.iloc[:, 17].values
+    return X, np.array(y)
+
+
 # Data preparation
 random_state = 1234
 train_size = 0.7
 n_times = 5
 max_depth = 6
-min_samples_leaf = 0.001
-ccp_alpha = 0.001
+min_samples_leaf = 1
+ccp_alpha = 0.0001
 datasets = {
-    'bank_marketing': load_bank_marketing_dataset(),
-    # 'banknote': load_banknote_dataset(),
     'bc': load_bc_dataset(),
+    'parkinsons': load_parkinsons_dataset(),
     'eye_movements': load_eye_movements_dataset(),
-    'heloc': load_heloc_dataset(),
-    'magic': load_magic_dataset(),
     'waveform': load_waveform_dataset(),
+    'heloc': load_heloc_dataset(),
+    'bank_marketing': load_bank_marketing_dataset(),
+    'magic': load_magic_dataset(),
+    'redwine': load_redwine_dataset(),
 }
 models = {
     'LR': LogisticRegression(random_state=random_state),
@@ -117,23 +127,16 @@ models = {
     'RF2': RandomForestClassifier(max_depth=6, random_state=random_state),
     'GNB': GaussianNB()
 }
-# dataset_diff_models = {
-#     'bank_marketing': [('MLP2', 'GB'), ('MLP1', 'GNB')],
-#     'banknote': [('KN1', 'GNB'), ('LR', 'DT1')],
-#     'bc': [('DT1', 'GNB'), ('KN2', 'RF2')],
-#     'eye_movements': [('RF1', 'GNB'), ('LR', 'MLP1')],
-#     'heloc': [('KN1', 'RF2'), ('GB', 'RF1')],
-#     'magic': [('RF1', 'GNB'), ('MLP2', 'DT2')],
-#     'waveform': [('LR', 'DT1'), ('MLP1', 'RF2')],
-# }
 dataset_diff_models = {
     'bank_marketing': [('MLP2', 'GB'), ('LR', 'KN2')],
-    'banknote': [('KN1', 'GNB'), ('GB', 'RF2')],
     'bc': [('DT1', 'GNB'), ('KN2', 'RF2')],
     'eye_movements': [('RF1', 'MLP1'), ('KN1', 'DT1')],     # min应改为KN1-KN2，但是由于两者模型架构一致，改为次min对KN1-DT1
     'heloc': [('KN1', 'GB'), ('GB', 'RF1')],
     'magic': [('RF1', 'GNB'), ('MLP2', 'DT1')],
-    'waveform': [('MLP1', 'DT1'), ('LR', 'GNB')],
+    'waveform': [('LR', 'DT2'), ('MLP1', 'RF2')],
+    'whitewine': [('RF1', 'GNB'), ('LR', 'KN2')],
+    'redwine': [('RF1', 'KN2'), ('LR', 'MLP1')],
+    'parkinsons': [('RF1', 'GNB'), ('MLP1', 'LR')],
 }
 explainers = {
     "SS": SeparateSurrogate,
@@ -165,7 +168,7 @@ for dataset in datasets.keys():
         t_acc = accuracy_score(y_true=y_test, y_pred=model.predict(x_test))
         print(f"dataset: {dataset} model: {model_name} test accuracy: {(t_acc * 100):.2f}%")
         with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-            writer.write(f"dataset: {dataset} model: {model_name} test accuracy: {(t_acc * 100):.2f}%" + os.linesep)
+            writer.write(f"dataset: {dataset} model: {model_name} test accuracy: {(t_acc * 100)}%" + os.linesep)
 
     # Computing differencing
     for model1_name, model2_name in dataset_diff_models[dataset]:
@@ -230,6 +233,8 @@ for dataset in datasets.keys():
                 writer.write(f"{dataset} {model1_name} {model2_name} {explainer_type}" + os.linesep)
                 writer.write(pd_train_metrics.to_string() + os.linesep)
                 writer.write(pd_test_metrics.to_string() + os.linesep)
+                writer.write(partial_pd_metrics_mean.to_string() + os.linesep)
+                writer.write(partial_pd_metrics_std.to_string() + os.linesep)
                 writer.write(record_mean_std.to_string() + os.linesep)
                 writer.write(os.linesep + "-" * 25 + os.linesep)
 
