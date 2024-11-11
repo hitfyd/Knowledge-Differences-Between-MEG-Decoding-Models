@@ -253,6 +253,8 @@ if __name__ == "__main__":
         writer.write(pd_train_metrics.to_string() + os.linesep)
         writer.write(pd_test_metrics.to_string() + os.linesep)
         writer.write(record_mean_std.to_string() + os.linesep)
+        writer.write(partial_pd_metrics_mean.to_string() + os.linesep)
+        writer.write(partial_pd_metrics_std.to_string() + os.linesep)
         writer.write(os.linesep + "-" * 25 + os.linesep)
 
     # 根据模型A、B，记录不同解释器配置下的测试集实验结果用于对比
@@ -261,9 +263,9 @@ if __name__ == "__main__":
     record_mean_std['model_B'] = model_B_type
     record_mean_std['explainer'] = tags
     if os.path.exists(record_file):
-        all_record_mean_std = pd.read_csv(record_file)
+        all_record_mean_std = pd.read_csv(record_file, encoding="utf_8_sig")
         assert all_record_mean_std.columns.tolist() == record_mean_std.index.tolist()
     else:
         all_record_mean_std = pd.DataFrame(columns=record_mean_std.index)
     all_record_mean_std.loc[len(all_record_mean_std)] = record_mean_std.values
-    all_record_mean_std.to_csv(record_file, index=False)
+    all_record_mean_std.to_csv(record_file, index=False, encoding="utf_8_sig")

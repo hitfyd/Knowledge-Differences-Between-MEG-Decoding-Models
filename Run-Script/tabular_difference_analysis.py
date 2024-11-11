@@ -103,7 +103,7 @@ train_size = 0.7
 n_times = 5
 max_depth = 6
 min_samples_leaf = 1
-ccp_alpha = 0.0001
+ccp_alpha = 0.001
 datasets = {
     'bc': load_bc_dataset(),
     'parkinsons': load_parkinsons_dataset(),
@@ -244,9 +244,9 @@ for dataset in datasets.keys():
             record_mean_std['model2'] = model2_name
             record_mean_std['explainer'] = explainer_type
             if os.path.exists(record_file):
-                all_record_mean_std = pd.read_csv(record_file)
+                all_record_mean_std = pd.read_csv(record_file, encoding="utf_8_sig")
                 assert all_record_mean_std.columns.tolist() == record_mean_std.index.tolist()
             else:
                 all_record_mean_std = pd.DataFrame(columns=record_mean_std.index)
             all_record_mean_std.loc[len(all_record_mean_std)] = record_mean_std.values
-            all_record_mean_std.to_csv(record_file, index=False)
+            all_record_mean_std.to_csv(record_file, index=False, encoding="utf_8_sig")

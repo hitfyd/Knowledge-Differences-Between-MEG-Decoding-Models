@@ -16,7 +16,7 @@ conda install numpy pandas scikit-learn matplotlib networkx graphviz pygraphviz
 pip install -U "ray"
 pip install einops
 pip install braindecode==0.7
-pip install pyeda rulefit pydot stopit apyori graphviz
+pip install pyeda rulefit pydot stopit apyori graphviz arff
 ```
 
 ### Dataset Preprocessing
