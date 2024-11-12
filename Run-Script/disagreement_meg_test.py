@@ -4,18 +4,15 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import sklearn
-from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
+from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.neural_network import MLPClassifier
-from sklearn.tree import DecisionTreeClassifier
 
-from differlib.engine.utils import get_data_labels_from_dataset, save_checkpoint, get_data_loader, setup_seed, \
+from differlib.engine.utils import get_data_labels_from_dataset, save_checkpoint, setup_seed, \
     load_checkpoint
-from differlib.explainer import SeparateSurrogate, IMDExplainer, DeltaExplainer, LogitDeltaRule
+from differlib.explainer import SeparateSurrogate
 
 # run time
 run_time = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -39,7 +36,7 @@ def disagreement_measure(out1, out2):
 
 # datasets
 datasets = [
-    "CamCAN",
+    # "CamCAN",
     "DecMeg2014"
 ]
 models = {
@@ -53,12 +50,12 @@ models = {
     'RF1': RandomForestClassifier(random_state=random_state),
     # # 'KN2': KNeighborsClassifier(),
     # 'RF2': RandomForestClassifier(max_depth=6, random_state=random_state),
-    'GNB': GaussianNB()
+    # 'GNB': GaussianNB()
 }
 dataset_diff_models = {
     # 'CamCAN': [('MLP1', 'DT1'), ('LR', 'MLP1'), ('RF2', 'GNB'), ('DT1', 'RF2')],
     # 'DecMeg2014': [('RF2', 'GNB'), ('DT1', 'RF2'), ('MLP1', 'RF2')],
-    'CamCAN': [('LR', 'RF1'),],
+    # 'CamCAN': [('LR', 'RF1'),],
     'DecMeg2014': [('LR', 'RF1'), ],
 }
 explainers = {
