@@ -160,10 +160,6 @@ class LogitDeltaRule(DISExplainer):
         delta_target = (pred_target_1 != pred_target_2).astype(int)
         logit_delta = self.delta_tree.predict(x_test)
         y_test2_ = y_test1 - logit_delta
-        # logit_delta = self.delta_tree.predict(np.array(x_test))
-        # y_test2_ = np.zeros_like(y_test1)
-        # y_test2_[:, 0] = y_test1[:, 0] - logit_delta
-        # y_test2_[:, 1] = y_test1[:, 1] + logit_delta
         pred_target_2_ = y_test2_.argmax(axis=1)
         pred_target = (pred_target_1 != pred_target_2_).astype(int)
         metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)

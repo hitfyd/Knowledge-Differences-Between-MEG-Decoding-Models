@@ -31,8 +31,6 @@ def load_magic_dataset():
 
 
 def load_waveform_dataset():
-    # data = arff.load("../dataset/tabular/waveform-5000.arff")
-    # df = pd.DataFrame(data)
     df = pd.read_csv("../dataset/tabular/waveform-+noise.data", header=None)
     X = df.iloc[:, :-1]
     y = df.iloc[:, -1].values
@@ -67,16 +65,6 @@ def load_eye_movements_dataset():
     X[[20, 21, 22]] = X[[20, 21, 22]].astype(int)
     y = df.iloc[:, -1].values
     return X, y
-
-
-# def load_whitewine_dataset():
-#     # data = arff.load("../dataset/tabular/whitewine.arff")
-#     # df = pd.DataFrame(data)
-#     df = pd.read_csv("../dataset/tabular/winequality-white.csv", delimiter=';')
-#     X = df.iloc[:, :-1]
-#     y = df.iloc[:, -1].values
-#     y = y.astype(int) - 3
-#     return X, np.array(y)
 
 
 def load_redwine_dataset():
