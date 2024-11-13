@@ -4,6 +4,7 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+import sklearn
 import torch
 from sklearn.model_selection import StratifiedShuffleSplit
 
@@ -197,6 +198,19 @@ if __name__ == "__main__":
             explainer.fit(x_train, output_A_train, output_B_train,
                           max_depth, min_samples_leaf=min_samples_leaf,
                           feature_weights=contributions[select_indices])
+        elif explainer_type in ["SS", "IMD"]:
+            jstobj, t1, t2 = explainer.fit_detail(x_train, pred_target_A_train, pred_target_B_train, max_depth, min_samples_leaf=min_samples_leaf)
+
+            surrogate_test_data, _ = selection_method.transform(test_data.reshape((len(test_data), -1)))
+            y_surrogate1 = jstobj.predict(surrogate_test_data, t1)
+            y_surrogate2 = jstobj.predict(surrogate_test_data, t2)
+
+            surrogate1_accuracy = sklearn.metrics.accuracy_score(test_labels, y_surrogate1) * 100
+            surrogate2_accuracy = sklearn.metrics.accuracy_score(test_labels, y_surrogate2) * 100
+            print('surrogate1_accuracy: {:.2f}\tsurrogate2_accuracy: {:.2f}'.format(surrogate1_accuracy,surrogate2_accuracy))
+
+            with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                writer.write('surrogate1_accuracy: {}\tsurrogate2_accuracy: {}'.format(surrogate1_accuracy,surrogate2_accuracy) + os.linesep)
         else:
             explainer.fit(x_train, pred_target_A_train, pred_target_B_train,
                           max_depth, min_samples_leaf=min_samples_leaf)
