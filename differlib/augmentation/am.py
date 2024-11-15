@@ -212,7 +212,7 @@ class BaseAM(AMethod):
             for i in range(number):
                 op = ALL_TRANSFORMS[random.randint(0, len(ALL_TRANSFORMS)-1)]
                 data_index = random.randint(0, len(data) - 1)
-                ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(data[data_index]))
+                ag_data.append(op.meg_transformer(1., PARAMETER_MAX - 1)(data[data_index])) # 考虑data[i]
                 ag_label.append(delta_labels[data_index])
 
             return np.array(ag_data), np.array(ag_label)
