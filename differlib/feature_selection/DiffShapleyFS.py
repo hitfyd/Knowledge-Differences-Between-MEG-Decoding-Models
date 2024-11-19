@@ -92,14 +92,11 @@ class DiffShapleyFS(FSMethod):
 
     def transform(self, x: np.ndarray, rate=0.1, *args, **kwargs):
         assert len(x.shape) == 2
-        lmax = stats.yeojohnson_normmax(self.contributions)
-        yj_contributions = stats.yeojohnson(self.contributions, lmbda=lmax)
-        yj_contributions = self.contributions
-        mean = yj_contributions.mean()
-        std = yj_contributions.std()
-        z_contributions = (yj_contributions) / std
+        mean = self.contributions.mean()
+        std = self.contributions.std()
+        print("mean", mean, "std", std)
+        z_contributions = (self.contributions-mean) / std   # (self.contributions) / std
         abs_contributions = np.abs(z_contributions)
-        # condition = (z_contributions > self.threshold) | (z_contributions < -self.threshold)
         condition = (abs_contributions > self.threshold)
         indices = np.where(condition)[0]
         return x[:, indices], indices
