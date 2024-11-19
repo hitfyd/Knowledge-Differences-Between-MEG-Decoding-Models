@@ -3,8 +3,7 @@ import pandas as pd
 import sklearn
 from matplotlib import pyplot as plt, gridspec
 from numpy.ma.core import argmax
-from sklearn.model_selection import RandomizedSearchCV
-from sklearn.tree import _tree, DecisionTreeRegressor, plot_tree, export_graphviz
+from sklearn.tree import _tree, DecisionTreeRegressor, plot_tree
 
 from .dise import DISExplainer
 from .imd.rule import Rule
@@ -162,6 +161,13 @@ class LogitDeltaRule(DISExplainer):
         y_test2_ = y_test1 - logit_delta
         pred_target_2_ = y_test2_.argmax(axis=1)
         pred_target = (pred_target_1 != pred_target_2_).astype(int)
+
+        # calcuate loss
+        y_logit_delta = y_test1 - y_test2
+        loss = ((logit_delta - y_logit_delta)**2).sum()
+        squared_loss = sklearn.metrics.mean_squared_error(logit_delta, y_logit_delta)
+        print(loss, squared_loss)
+
         metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
         metrics[name + "-accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
         metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target)
