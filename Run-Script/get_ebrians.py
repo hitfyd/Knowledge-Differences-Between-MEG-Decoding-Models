@@ -1,0 +1,27 @@
+import os
+
+from ebrains_drive import BucketApiClient
+
+dataset_id = "d55146e8-fc86-44dd-95db-7191fdca7f30"
+token="eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJLYU01NTRCM2RmMHBIamZYWi1aRl94bUUwMThPS1R0RkNjMjR3aVVqQmFvIn0.eyJleHAiOjE3MzIzMjIwMjUsImlhdCI6MTczMjI3ODgyNCwiYXV0aF90aW1lIjoxNzMyMjc4ODIzLCJqdGkiOiJjZjNjMTQ3Yi1lNDJiLTQ2YTctOWM4MS0wZGVlYjdmZWFiOWUiLCJpc3MiOiJodHRwczovL2lhbS5lYnJhaW5zLmV1L2F1dGgvcmVhbG1zL2hicCIsImF1ZCI6WyJqdXB5dGVyaHViIiwianVweXRlcmh1Yi1qc2MiLCJ4d2lraSIsInRlYW0iLCJncm91cCJdLCJzdWIiOiIyYmM3MTYyMC1iNzc5LTRjNzUtYTRhOC1hYmU5MTEyMTgwZDUiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJsYWItanNjIiwic2Vzc2lvbl9zdGF0ZSI6IjZkNzZmMTRiLTVhYmEtNGI0OS05NDFmLTI4ZTJhM2Y3Y2U1YyIsInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyJdfSwic2NvcGUiOiJwcm9maWxlIGNvbGxhYi5kcml2ZSBvZmZsaW5lX2FjY2VzcyBjbGIud2lraS53cml0ZSByb2xlcyBlbWFpbCBvcGVuaWQgZ3JvdXAgY2xiLndpa2kucmVhZCB0ZWFtIiwic2lkIjoiNmQ3NmYxNGItNWFiYS00YjQ5LTk0MWYtMjhlMmEzZjdjZTVjIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5hbWUiOiJZb25nZG9uZyBGYW4iLCJtaXRyZWlkLXN1YiI6IjMyMjYwMzI4Mjg5NzYyNzQiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJoaXRmeWQiLCJnaXZlbl9uYW1lIjoiWW9uZ2RvbmciLCJmYW1pbHlfbmFtZSI6IkZhbiIsImVtYWlsIjoiaGl0ZnlkQGhpdC5lZHUuY24ifQ.KO0Cu-Lt_A1CP_Ne-fF_VeLXPreTu89V3Gl7ojW1cqqUWtSGkr60piCYUDuYKQMpwft00NPuh1VXN4cUfMUECqBarDKgd2fMy1YWs7UQH8_Jwtmvi3Ak9HzM6can2KIzzK_qOaV3m7XXehbyOaNu9EPZB-bam95Q2rXBCujeLaN1ZoPQoh9QyKHIV_gUiph3a8HXhnAPbY-TLjewRpPs0W0Gfz_lqpb96QKeFPDw06rBCmzjumhmGMtUi2g9D3pFhqqjFn0w8B8XyaqCZNJInNDpJFzl7vHJF6wKYQgsrqDxFEn2mJPJFyWfjleiLTqaLVTHBbmiceRoXdIgUwpBIw"
+root_dir = "D:/d55146e8-fc86-44dd-95db-7191fdca7f30"
+
+client = BucketApiClient(token=token)
+
+# access dataset bucket
+bucket = client.buckets.get_dataset(dataset_id)
+
+for file in bucket.ls():
+    # 保存文件到本地
+    path = os.path.join(root_dir, file.name)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    if os.path.exists(path):
+        print(file.name, "Exists")
+        continue
+
+    file_handle = bucket.get_file(file.name)
+    file_content = file_handle.get_content(progress=True)
+    with open(path, 'wb') as f:
+        f.write(file_content)
+    print(file.name, "Done")
