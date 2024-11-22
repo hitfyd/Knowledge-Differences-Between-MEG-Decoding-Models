@@ -11,6 +11,7 @@ client = BucketApiClient(token=token)
 # access dataset bucket
 bucket = client.buckets.get_dataset(dataset_id)
 
+# for file in bucket.ls(prefix="sub-004"):
 for file in bucket.ls():
     # 保存文件到本地
     path = os.path.join(root_dir, file.name)
