@@ -115,12 +115,15 @@ if __name__=='__main__':
     objlist = getobjlist(url, '')
     for obj in objlist:
         fname = obj.split('/')[-1]
-        fpath = obj[:len(obj)-len(fname)]        
-        print(' - Downloading file ' + fname + '... ',flush=True, end='')
-        content = getfile(dataset,obj)        
+        fpath = obj[:len(obj)-len(fname)]
         dld_path = os.path.join(dld_folder, fpath)
-        if not os.path.isdir(dld_path): os.makedirs(dld_path)           
+        if not os.path.isdir(dld_path): os.makedirs(dld_path)
         file_path = os.path.join(dld_folder, obj)
+        if os.path.exists(file_path):
+            print(fname, "Exists")
+            continue
+        print(' - Downloading file ' + fname + '... ',flush=True, end='')
+        content = getfile(dataset,obj)
         with open(file_path,'wb+') as outf:
             outf.write(content)           
         print('Done.')
