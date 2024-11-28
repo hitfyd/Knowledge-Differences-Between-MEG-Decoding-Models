@@ -82,13 +82,14 @@ batch_size_list = [128]
 learn_rate_list = [3e-3]
 # batch_size_list = [64, 128]
 # learn_rate_list = [3e-4, 1e-3, 3e-3]
-MAX_TRAIN_EPOCHS = 200
+MAX_TRAIN_EPOCHS = 100
 learn_rate_decay = 0.1
 decay_epochs = [150]
 
 # datasets
-datasets = ["BCIIV2a"]     # "DecMeg2014", "CamCAN"
-models = [lfcnn, hgrn, eegnetv1, eegnetv4, atcnet]
+datasets = ["ebrains"]     # "DecMeg2014", "CamCAN", "ebrains", "BCIIV2a"
+models = [atcnet]
+# models = [lfcnn, hgrn, eegnetv1, eegnetv4, atcnet]
 # models = [atcnet, mlp, linear]
 # models = [sdt, lfcnn, varcnn, hgrn]
 
