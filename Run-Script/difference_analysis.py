@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 from datetime import datetime
 
 import numpy as np
@@ -42,6 +43,7 @@ if __name__ == "__main__":
     # init loggers
     log_prefix = cfg.LOG.PREFIX
     log_path = os.path.join(log_prefix, experiment_name)
+    # log_path = re.sub(r'[:]', '_', log_path)
     record_path = os.path.join(log_prefix, project)
     if not os.path.exists(log_path):
         os.makedirs(log_path)
