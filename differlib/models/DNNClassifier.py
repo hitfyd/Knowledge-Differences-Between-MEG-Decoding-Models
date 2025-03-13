@@ -243,7 +243,7 @@ class MLP(nn.Sequential):
             nn.Linear(global_mlp_hidden_features, global_classes),
             nn.BatchNorm1d(global_classes),
             nn.Dropout(global_mlp_dropout),
-            nn.Softmax()
+            nn.Softmax(dim=1)
         )
 
 
@@ -252,5 +252,5 @@ class Linear(nn.Sequential):
         super().__init__(
             TensorView(),
             nn.Linear(global_channels * global_points, global_classes),
-            nn.Softmax()
+            nn.Softmax(dim=1)
         )
