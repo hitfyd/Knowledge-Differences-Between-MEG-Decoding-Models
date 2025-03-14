@@ -171,11 +171,11 @@ class EEGModuleMixin(metaclass=NumpyDocstringInheritanceInitMeta):
 
     @property
     def add_log_softmax(self):
-        if self._add_log_softmax:
-            warnings.warn(
-                "LogSoftmax final layer will be removed! "
-                + "Please adjust your loss function accordingly (e.g. CrossEntropyLoss)!"
-            )
+        # if self._add_log_softmax:
+        #     warnings.warn(
+        #         "LogSoftmax final layer will be removed! "
+        #         + "Please adjust your loss function accordingly (e.g. CrossEntropyLoss)!"
+        #     )
         return self._add_log_softmax
 
     @property

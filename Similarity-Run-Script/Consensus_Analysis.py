@@ -15,6 +15,14 @@ from MEG_Shapley_Values import ShapleyValueExplainer, DatasetInfo, SampleInfo, d
     compare_deletion_test, similar_analysis, additive_efficient_normalization, compare_insertion_test, insertion_test, \
     IterationLogger, contribution_smooth, torch_individual_predict
 
+
+def compute_sigma_based_on_std(a, b):
+    data = np.vstack([a, b])  # 假设 a 和 b 是两个向量
+    std = np.std(data)
+    std = np.sqrt(std)
+    return std if std != 0 else 1.0  # 避免除零错误
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for attribution consensus.")
     parser.add_argument("--cfg", type=str, default="../configs/Consensus/CamCAN.yaml")
@@ -70,68 +78,91 @@ if __name__ == "__main__":
     dataset_info = DatasetInfo(dataset=dataset, label_names=label_names, channels=channels, points=points,
                                classes=n_classes)
 
+    # 要分析的样本数量
+    sample_num = cfg.NUM_SAMPLES
+
     model_types = cfg.MODELS
+    num_models = len(model_types)
     model_list = torch.nn.ModuleList()
     for model_type in model_types:
         model_class, model_pretrain_path = model_dict[dataset][model_type]
-        assert (model_pretrain_path is not None), "no pretrain model A {}".format(model_class)
-        trained_model = model_class(channels=channels, points=points, num_classes=n_classes)
-        trained_model.load_state_dict(load_checkpoint(model_pretrain_path))
-        model_list.append(trained_model)
-
-    # 建立零基线
-    zero_baseline_input = np.zeros([channels, points])
-
-    # # 读取通道可视化信息
-    # channel_db = shelve.open(get_project_path() + '/dataset/grad_info')
-    # channels_info = channel_db['info']
-    # channel_db.close()
-
-    # 要分析的样本数量
-    sample_num = 1000
+        model_list.append(model_class(channels=channels, points=points, num_classes=n_classes))
 
     # AttributionExplainer参数
     explainer = cfg.EXPLAINER.TYPE
-    window_length = cfg.EXPLAINER.W
-    M = cfg.EXPLAINER.M
-    reference_num = 100
-    reference_dataset = origin_data[-1000:]     # 原始的参考数据集
-    reference_filter = False    # 对于模型比较来说，不应该启用；对于单一模型的特征归因有效果
-    antithetic_variables = False
 
     db_path = log_path + '/{}_{}_attribution'.format(dataset, explainer)
     db = shelve.open(db_path)
-    joint_explainer = ShapleyValueExplainer(dataset_info, model_list, reference_dataset,
-                                            reference_num, window_length, M, reference_filter, antithetic_variables)
 
-    logger = IterationLogger()
+    # 每个样本的特征归因共识
+    all_consensus_maps = np.zeros([sample_num, channels, points, n_classes], dtype=np.float32)
+    # 每个模型的特征归因与特征归因共识的相似度
+    similarity_maps = np.zeros([sample_num, num_models], dtype=np.float32)
+
+    # 逐样本迭代
     for sample_id in range(sample_num):
         origin_input, truth_label = origin_data[sample_id], labels[sample_id]
         sample_info = SampleInfo(sample_id=sample_id, origin_input=origin_input, truth_label=truth_label)
         print('sample_id:{}\ttruth_label:{}'.format(sample_id, truth_label))
 
-        time_start = time.perf_counter()
-        joint_maps, joint_maps_all = joint_explainer(origin_input)
-        time_end = time.perf_counter()  # 记录结束时间
-        joint_run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
+        # 读取每个模型的特征归因结果
+        all_model_maps = np.zeros([num_models, channels, points, n_classes], dtype=np.float32)
+        for model_id in range(num_models):
+            model_name = model_list[model_id].__class__.__name__
+            attribution_id = f"{sample_id}_{model_name}"
+            assert attribution_id in db
+            maps = db[attribution_id]
+            # maps = (maps - np.mean(maps)) / (np.std(maps))
+            all_model_maps[model_id] = maps
 
-        # 区分模型1和模型2的归因图，并计算对比归因图
-        for model_id in range(len(model_list)):
-            model = model_list[model_id]
-            # 计算样本的期望
-            prediction, pred_label = torch_individual_predict(model, torch.from_numpy(origin_input))
-            # 计算基线样本的预测，作为基线期望值
-            baseline, _ = torch_individual_predict(model, torch.from_numpy(zero_baseline_input))
-            prediction, pred_label, baseline = prediction.cpu().numpy(), pred_label.cpu().numpy(), baseline.cpu().numpy()
-            print('model:{}\tpredicted_label:{}\tprediction:{}\tbaseline_predicted_label:{}'.format(
-                model.__class__.__name__, pred_label, prediction, baseline))
-            attribution_maps = joint_maps[model_id]
-            attribution_maps = additive_efficient_normalization(prediction, baseline, attribution_maps)
-            # attribution_maps = contribution_smooth(attribution_maps)
+        # # 计算当前样本上的模型共识
+        # # 预先计算极值并保持维度以正确广播
+        # min_val = all_model_maps.min(axis=0)
+        # max_val = all_model_maps.max(axis=0)
+        # # 计算数值安全的范围值（避免除零）
+        # range_val = max_val - min_val
+        # range_val[range_val == 0] = 1  # 将零范围位置设为1（即该位置所有模型值相同）
+        # # 执行归一化并取平均
+        # normalized_maps = (all_model_maps - min_val) / range_val
+        # consensus_maps = normalized_maps.mean(axis=0)
+        consensus_maps = all_model_maps.mean(axis=0)
+        all_consensus_maps[sample_id] = consensus_maps
 
-            _, _, _, del_auc = deletion_test(model, origin_input, attribution_maps)
+        # 计算每个模型与样本共识的相似性
+        for model_id in range(num_models):
+            a = all_model_maps[model_id].reshape(-1)
+            b = consensus_maps.reshape(-1)
+            sigma = a.max()     # compute_sigma_based_on_std(a, b)
+            # 计算欧氏距离
+            distance = np.linalg.norm(a - b)
+            # 应用RBF公式进行标准化
+            similarity_score = np.exp(- (distance / sigma) ** 2 / 2)
+            similarity_maps[sample_id, model_id] = similarity_score
+            print('model:{}\tsimilarity:{}'.format(model_list[model_id].__class__.__name__, similarity_score))
 
-            attribution_id = f"{sample_id}_{model.__class__.__name__}"
-            db[attribution_id] = attribution_maps
+    # 计算每个模型的最终相似性
+    model_similarities = similarity_maps.mean(axis=0)
+    print('model_similarities:{}'.format(model_similarities))
+
+    # 计算所有的VARCNN归因结果，并计算最重要的top-k特征
+    k = 204*5
+    all_varcnn_maps = np.zeros([sample_num, channels, points, n_classes], dtype=np.float32)
+    for sample_id in range(sample_num):
+        attribution_id = f"{sample_id}_VARCNN"
+        assert attribution_id in db
+        maps = db[attribution_id]
+        all_varcnn_maps[sample_id] = maps
+    mean_varcnn_maps = all_varcnn_maps.mean(axis=0)
+    feature_contribution = np.abs(mean_varcnn_maps).sum(axis=-1).reshape(-1)
+    top_sort = np.argsort(feature_contribution)[::-1]
+    sort_contribution = feature_contribution[top_sort]
+    top_k = top_sort[:k]
+    top_masks = np.zeros_like(feature_contribution, dtype=np.bool_)
+    top_masks[top_k] = 1
+    top_masks = top_masks.reshape(channels, points)
+
+    file = '{}_{}_top_k.npy'.format(dataset, "VARCNN")
+    np.save(file, top_masks)
+    top_masks = np.load(file)
 
     db.close()

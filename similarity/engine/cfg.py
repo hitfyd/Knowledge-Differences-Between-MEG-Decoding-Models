@@ -28,12 +28,14 @@ CFG.LOG.PREFIX = "./output"
 
 # Dataset
 CFG.DATASET = "CamCAN"  # "DecMeg2014"
+CFG.NUM_SAMPLES = 300
 
 # Models
-CFG.MODELS = ["mlp", "lfcnn", "varcnn", "hgrn", "atcnet", "linear", "sdt"]
+CFG.MODELS = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]  # 按CamCAN测试集上的精度升序排列
 
 # Explainer
 CFG.EXPLAINER = CN()
 CFG.EXPLAINER.TYPE = "ShapleyValueExplainer"
 CFG.EXPLAINER.W = 1
 CFG.EXPLAINER.M = 64
+CFG.EXPLAINER.NUM_REFERENCES = 100
