@@ -25,7 +25,7 @@ def compute_sigma_based_on_std(a, b):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for attribution consensus.")
-    parser.add_argument("--cfg", type=str, default="../configs/Consensus/CamCAN.yaml")
+    parser.add_argument("--cfg", type=str, default="../configs/Consensus/DecMeg2014.yaml")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     print('model_similarities:{}'.format(model_similarities))
 
     # 计算所有的VARCNN归因结果，并计算最重要的top-k特征
-    k = 204*5
+    k = 5100    # CamCAN 2040, DecMeg2014 5100
     all_varcnn_maps = np.zeros([sample_num, channels, points, n_classes], dtype=np.float32)
     for sample_id in range(sample_num):
         attribution_id = f"{sample_id}_VARCNN"

@@ -7,3 +7,4 @@ EXPLAINER:
   TYPE: "ShapleyValueExplainer"
   W: 5
   M: 64
+  RANGE_REFERENCES: -200  # 测试集较小，为避免重叠改小

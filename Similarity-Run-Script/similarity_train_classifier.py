@@ -83,16 +83,14 @@ batch_size_list = [128]
 learn_rate_list = [3e-3]
 # batch_size_list = [64, 128]
 # learn_rate_list = [3e-4, 1e-3, 3e-3]
-MAX_TRAIN_EPOCHS = 100
+MAX_TRAIN_EPOCHS = 30
 learn_rate_decay = 0.1
 decay_epochs = [150]
 
 # datasets
-datasets = ["CamCAN"]     # "DecMeg2014", "CamCAN"
-models = [linear, mlp, hgrn, lfcnn]
-# models = [lfcnn, hgrn, eegnetv1, eegnetv4, atcnet]
-# models = [atcnet, mlp, linear]
-# models = [sdt, lfcnn, varcnn, hgrn]
+datasets = ["DecMeg2014"]     # "DecMeg2014", "CamCAN"
+models = [linear, mlp, hgrn, lfcnn, varcnn]
+# models = [linear, mlp, hgrn, lfcnn, varcnn, atcnet]
 
 # log config
 log_path = f"./output/Train_Classifier_{run_time}/"
