@@ -147,21 +147,36 @@ if __name__ == "__main__":
     # 计算所有的VARCNN归因结果，并计算最重要的top-k特征
     k = 5100    # CamCAN 2040, DecMeg2014 5100
     all_varcnn_maps = np.zeros([sample_num, channels, points, n_classes], dtype=np.float32)
+    all_linear_maps = np.zeros([sample_num, channels, points, n_classes], dtype=np.float32)
     for sample_id in range(sample_num):
-        attribution_id = f"{sample_id}_VARCNN"
+        attribution_id = f"{sample_id}_LFCNN"
         assert attribution_id in db
         maps = db[attribution_id]
         all_varcnn_maps[sample_id] = maps
-    mean_varcnn_maps = all_varcnn_maps.mean(axis=0)
+        attribution_id = f"{sample_id}_MLP"
+        assert attribution_id in db
+        maps = db[attribution_id]
+        all_linear_maps[sample_id] = maps
+    mean_varcnn_maps = np.abs(all_varcnn_maps).mean(axis=0)
     feature_contribution = np.abs(mean_varcnn_maps).sum(axis=-1).reshape(-1)
-    top_sort = np.argsort(feature_contribution)[::-1]
-    sort_contribution = feature_contribution[top_sort]
-    top_k = top_sort[:k]
+    varcnn_top_sort = np.argsort(feature_contribution)[::-1]
+    sort_contribution = feature_contribution[varcnn_top_sort]
+
+    mean_linear_maps = np.abs(all_linear_maps).mean(axis=0)
+    feature_contribution = np.abs(mean_linear_maps).sum(axis=-1).reshape(-1)
+    linear_top_sort = np.argsort(feature_contribution)[::-1]
+
     top_masks = np.zeros_like(feature_contribution, dtype=np.bool_)
-    top_masks[top_k] = 1
+    for id in range(k):
+        if linear_top_sort[id] in varcnn_top_sort[:k]:
+            top_masks[linear_top_sort[id]] = True
+
+    # top_k = top_sort[:k]
+    # top_masks = np.zeros_like(feature_contribution, dtype=np.bool_)
+    # top_masks[top_k] = 1
     top_masks = top_masks.reshape(channels, points)
 
-    file = '{}_{}_top_k.npy'.format(dataset, "VARCNN")
+    file = '{}_{}_top_k.npy'.format(dataset, "LFCNN")
     np.save(file, top_masks)
     top_masks = np.load(file)
 

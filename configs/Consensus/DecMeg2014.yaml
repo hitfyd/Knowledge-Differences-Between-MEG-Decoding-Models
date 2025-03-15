@@ -2,6 +2,7 @@ EXPERIMENT:
   PROJECT: "Consensus"
   TAG: "DecMeg2014"
 DATASET: "DecMeg2014"
+NUM_SAMPLES: 300
 MODELS: ["linear", "mlp", "hgrn", "lfcnn", "varcnn"]  # "atcnet"处理速度过慢，可能需要修改实现
 EXPLAINER:
   TYPE: "ShapleyValueExplainer"

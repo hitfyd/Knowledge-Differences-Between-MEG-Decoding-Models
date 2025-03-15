@@ -2,8 +2,10 @@ EXPERIMENT:
   PROJECT: "Consensus"
   TAG: "CamCAN"
 DATASET: "CamCAN"
+NUM_SAMPLES: 3000
 MODELS: ["linear", "mlp", "hgrn", "lfcnn", "varcnn"]  # "atcnet"处理速度过慢，可能需要修改实现
 EXPLAINER:
   TYPE: "ShapleyValueExplainer"
   W: 1
   M: 64
+  RANGE_REFERENCES: -1000

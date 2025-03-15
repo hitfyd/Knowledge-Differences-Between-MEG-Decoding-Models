@@ -110,7 +110,7 @@ for dataset in datasets:
     _, channels, points = data.shape
     num_classes = len(set(labels_test))
 
-    file = '{}_{}_top_k.npy'.format(dataset, "VARCNN")
+    file = '{}_{}_top_k.npy'.format(dataset, "LFCNN")
     top_masks = np.load(file)
     data =  data * top_masks
     data_test = data_test * top_masks
