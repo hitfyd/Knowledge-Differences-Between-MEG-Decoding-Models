@@ -18,7 +18,7 @@ from MEG_Shapley_Values import ShapleyValueExplainer, DatasetInfo, SampleInfo, d
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for attribution consensus.")
-    parser.add_argument("--cfg", type=str, default="../configs/Consensus/CamCAN_atcnet.yaml")
+    parser.add_argument("--cfg", type=str, default="../configs/Consensus/DecMeg2014_atcnet.yaml")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
