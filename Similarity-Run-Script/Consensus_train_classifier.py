@@ -122,7 +122,7 @@ MAX_TRAIN_EPOCHS = 30
 # datasets
 datasets = ["CamCAN", "DecMeg2014"]     # "DecMeg2014", "CamCAN"
 # top-k
-top_k_list = [0.01, 0.05, 0.1, 0.2]
+top_k_list = [0.05, 0.1, 0.2]
 model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]
 compare_model_name = "ATCNet"
 
