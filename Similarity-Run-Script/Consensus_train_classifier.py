@@ -1,15 +1,12 @@
 import os
-from datetime import datetime
 
 import numpy as np
 import torch
 from torch import nn, optim
 
-from differlib.models import model_dict
 from differlib.engine.utils import get_data_labels_from_dataset, save_checkpoint, get_data_loader, setup_seed
-from differlib.models.SoftDecisionTree import sdt
-from differlib.models.DNNClassifier import mlp, linear, lfcnn, varcnn, hgrn
-from differlib.models.atcnet.atcnet import atcnet
+from differlib.models import model_dict
+from MEG_Explanation_Comparison import top_k_consensus, top_k_disagreement
 
 
 def __l1_regularization__(model, l1_penalty=3e-4):
@@ -19,7 +16,7 @@ def __l1_regularization__(model, l1_penalty=3e-4):
     return l1_penalty * regularization_loss
 
 
-def train(model, train_loader, epoch, lr=3e-4, l1_penalty=0, l2_penalty=0):
+def train(model, train_loader, epoch, DEVICE, lr=3e-4, l1_penalty=0, l2_penalty=0):
     model.to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=l2_penalty)
     model.train()
@@ -43,7 +40,7 @@ def train(model, train_loader, epoch, lr=3e-4, l1_penalty=0, l2_penalty=0):
     return train_accuracy, train_loss
 
 
-def test(model, test_loader, validate=False):
+def test(model, test_loader, DEVICE, validate=False):
     model.to(DEVICE)
     model.eval()
     test_loss = 0
@@ -69,8 +66,46 @@ def test(model, test_loader, validate=False):
     return test_accuracy, test_loss
 
 
-# run time
-run_time = datetime.now().strftime("%Y%m%d%H%M%S")
+def train_pipeline(model_class, train_data, train_labels, test_data, test_labels, DEVICE, learn_rate, batch_size, epochs, top_k, compare_model_name=None):
+    setup_seed(seed)
+    model = model_class(channels=channels, points=points, num_classes=num_classes)
+    model_name = model.__class__.__name__
+
+    if compare_model_name == model_name:
+        return
+
+    train_loader = get_data_loader(train_data, train_labels, batch_size=batch_size, shuffle=True)
+    test_loader = get_data_loader(test_data, test_labels)
+    print(f"Dataset: {dataset}\tModel: {model_name}\tLearning Rate: {learn_rate}\tBatch Size: {batch_size}")
+    with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+        writer.write(f"Dataset: {dataset}\tModel: {model_name}\t"
+                     f"Learning Rate: {learn_rate}\tBatch Size: {batch_size}\n")
+
+    best_test_accuracy = 0.0
+    best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_checkpoint.pt")
+    for epoch in range(epochs):
+        train_accuracy, train_loss = train(model, train_loader, epoch, DEVICE, learn_rate)
+        test_accuracy, test_loss = test(model, test_loader, DEVICE)
+
+        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+            writer.write(f"epoch: {epoch}\tlearn_rate: {learn_rate}\t"
+                         f"train_accuracy: {train_accuracy:.6f}\ttrain_loss: {train_loss:.6f}\t"
+                         f"test_accuracy: {test_accuracy:.6f}\ttest_loss: {test_loss:.6f}\n")
+
+        if test_accuracy > best_test_accuracy:
+            print(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}')
+            with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                writer.write(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}\n')
+            best_test_accuracy = test_accuracy
+            save_checkpoint(model.state_dict(), best_checkpoint_path)
+    print(f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\tCompared Model {compare_model_name}\t'
+          f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
+          f'Best Test Accuracy: {best_test_accuracy:.6f}\tCheckpoint: {best_checkpoint_path}')
+    with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+        writer.write(f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\tCompared Model {compare_model_name}\t'
+                     f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
+                     f'Best Test Accuracy: {best_test_accuracy:.6f}\tCheckpoint: {best_checkpoint_path}\n')
+
 
 # setup the random number seed
 seed = 2024
@@ -83,25 +118,24 @@ criterion = nn.CrossEntropyLoss()
 batch_size_list = [128]
 learn_rate_list = [3e-3]
 MAX_TRAIN_EPOCHS = 30
-learn_rate_decay = 0.1
-decay_epochs = [150]
 
 # datasets
-datasets = ["DecMeg2014"]     # "DecMeg2014", "CamCAN"
+datasets = ["CamCAN", "DecMeg2014"]     # "DecMeg2014", "CamCAN"
+# top-k
+top_k_list = [0.01, 0.05, 0.1, 0.2]
 model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]
-
-top_k = 0.1
+compare_model_name = "ATCNet"
 
 # log config
-log_path = f"./output/Train_Classifier_{run_time}/"
+log_path = f"./output/Train_Classifier_{datasets}/"
 if not os.path.exists(log_path):
     os.makedirs(log_path)
 with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-    writer.write(f"Run time: {run_time}\t Seed: {seed}\t Top-k: {top_k}\n")
+    writer.write(f"Seed: {seed}\t Top-k: {top_k_list}\n")
     writer.write(f"batch_size_list: {batch_size_list}\tlearn_rate_list: {learn_rate_list}\t"
                  f"MAX_TRAIN_EPOCHS: {MAX_TRAIN_EPOCHS}\t"
-                 f"learn_rate_decay: {learn_rate_decay}\tdecay_epochs: {decay_epochs}\t"
-                 f"datasets: {datasets}\tmodels: {model_names}\n")
+                 f"datasets: {datasets}\tmodels: {model_names}\t"
+                 f"compare_model_name: {compare_model_name}\n")
 
 # init dataset & models
 for dataset in datasets:
@@ -109,119 +143,45 @@ for dataset in datasets:
     data_test, labels_test = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
     _, channels, points = data.shape
     num_classes = len(set(labels_test))
-    k = int(channels * points * top_k)
 
+    for top_k in top_k_list:
+        k = int(channels * points * top_k)
 
-    model_list = torch.nn.ModuleList()
-    for model_type in model_names:
-        model_class, model_pretrain_path = model_dict[dataset][model_type]
-        assert (model_pretrain_path is not None), "no pretrain model A {}".format(model_class)
-        model_list.append(model_class(channels=channels, points=points, num_classes=num_classes))
-    model_list.to(DEVICE)
-    assert len(model_list) >= 2
+        for model_type in model_names:
+            model_class, model_pretrain_path = model_dict[dataset][model_type]
+            model = model_class(channels=channels, points=points, num_classes=num_classes)
+            model_name = model.__class__.__name__
+            top_sort = np.load('{}_{}_top_sort.npy'.format(dataset, model_name))
+            top_sort_compare = np.load('{}_{}_top_sort.npy'.format(dataset, compare_model_name))
 
-    for model_type in model_names:
-        model_class, model_pretrain_path = model_dict[dataset][model_type]
-        model = model_class(channels=channels, points=points, num_classes=num_classes)
-        model_name = model.__class__.__name__
-        top_sort = np.load('{}_{}_top_sort.npy'.format(dataset, model_name))
+            # top-k控制组训练结果
+            top_masks = np.zeros_like(top_sort, dtype=np.bool_)
+            top_masks[top_sort[:k]] = True
+            top_masks = top_masks.reshape(channels, points)
+            print("fixed_features:", top_masks.sum())
+            fixed_data = data * top_masks
+            fixed_data_test = data_test * top_masks
+            for batch_size in batch_size_list:
+                for learn_rate in learn_rate_list:
+                    train_pipeline(model_class, fixed_data, labels, fixed_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k)
 
-        # top-k控制组训练结果
-        top_masks = np.zeros_like(top_sort, dtype=np.bool_)
-        top_masks[top_sort[:k]] = True
-        top_masks = top_masks.reshape(channels, points)
-        print("fixed_features:", top_masks.sum())
-        fixed_data = data * top_masks
-        fixed_data_test = data_test * top_masks
-        for batch_size in batch_size_list:
-            for learn_rate in learn_rate_list:
-                setup_seed(seed)
-                train_loader = get_data_loader(fixed_data, labels, batch_size=batch_size, shuffle=True)
-                test_loader = get_data_loader(fixed_data_test, labels_test)
-                print(f"Dataset: {dataset}\tModel: {model_name}\tLearning Rate: {learn_rate}\tBatch Size: {batch_size}")
-                with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                    writer.write(f"Dataset: {dataset}\tModel: {model_name}\t"
-                                 f"Learning Rate: {learn_rate}\tBatch Size: {batch_size}\n")
+            # top-k consensus with atcnet
+            consensus_list, consensus_masks = top_k_consensus(top_sort, top_sort_compare, k)
+            consensus_masks = consensus_masks.reshape(channels, points)
+            print("consensus_features:", len(consensus_list))
+            consensus_data = data * consensus_masks
+            consensus_data_test = data_test * consensus_masks
+            for batch_size in batch_size_list:
+                for learn_rate in learn_rate_list:
+                    train_pipeline(model_class, consensus_data, labels, consensus_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, compare_model_name)
 
-                best_test_accuracy = 0.0
-                best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_"
-                                                              f"{run_time}_checkpoint.pt")
-                for epoch in range(MAX_TRAIN_EPOCHS):
-                    if epoch in decay_epochs:
-                        learn_rate = learn_rate * learn_rate_decay
+            # top-k disagreement with atcnet
+            disagreement_list, disagreement_masks = top_k_disagreement(top_sort, top_sort_compare, k)
+            disagreement_masks = disagreement_masks.reshape(channels, points)
+            print("disagreement_features:", len(disagreement_list))
+            disagreement_data = data * disagreement_masks
+            disagreement_data_test = data_test * disagreement_masks
+            for batch_size in batch_size_list:
+                for learn_rate in learn_rate_list:
+                    train_pipeline(model_class, disagreement_data, labels, disagreement_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, compare_model_name)
 
-                    train_accuracy, train_loss = train(model, train_loader, epoch, learn_rate)
-                    test_accuracy, test_loss = test(model, test_loader)
-
-                    with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                        writer.write(f"epoch: {epoch}\tlearn_rate: {learn_rate}\t"
-                                     f"train_accuracy: {train_accuracy:.6f}\ttrain_loss: {train_loss:.6f}\t"
-                                     f"test_accuracy: {test_accuracy:.6f}\ttest_loss: {test_loss:.6f}\n")
-
-                    if test_accuracy > best_test_accuracy:
-                        print(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}')
-                        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                            writer.write(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}\n')
-                        best_test_accuracy = test_accuracy
-                        save_checkpoint(model.state_dict(), best_checkpoint_path)
-                print(f'Dataset: {dataset}\tModel: {model_name}\tTop-k: {top_k}\t'
-                      f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
-                      f'Best Test Accuracy: {best_test_accuracy:.6f}\tCheckpoint: {best_checkpoint_path}')
-                with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                    writer.write(f'Dataset: {dataset}\tModel: {model_name}\tTop-k: {top_k}\t'
-                                 f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
-                                 f'Best Test Accuracy: {best_test_accuracy:.6f}\tCheckpoint: {best_checkpoint_path}\n')
-
-        # top-k consensus with atcnet
-        model = model_class(channels=channels, points=points, num_classes=num_classes)
-        model_compare = model_list[-1]
-        model_compare_name = model_compare.__class__.__name__
-        top_sort_compare = np.load('{}_{}_top_sort.npy'.format(dataset, model_compare_name))
-        # top-k控制组训练结果
-        top_masks_compare = np.zeros_like(top_sort, dtype=np.bool_)
-        for i in range(k):
-            if top_sort[i] in top_sort_compare[:k]:
-                top_masks_compare[top_sort[i]] = True
-        top_masks_compare = top_masks_compare.reshape(channels, points)
-        print("consensus_features:", top_masks_compare.sum())
-        consensus_data = data * top_masks_compare
-        consensus_data_test = data_test * top_masks_compare
-        for batch_size in batch_size_list:
-            for learn_rate in learn_rate_list:
-                setup_seed(seed)
-                train_loader = get_data_loader(consensus_data, labels, batch_size=batch_size, shuffle=True)
-                test_loader = get_data_loader(consensus_data_test, labels_test)
-                print(
-                    f"Dataset: {dataset}\tModel: {model_name}\tLearning Rate: {learn_rate}\tBatch Size: {batch_size}")
-                with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                    writer.write(f"Dataset: {dataset}\tModel: {model_name}\t"
-                                 f"Learning Rate: {learn_rate}\tBatch Size: {batch_size}\n")
-
-                best_test_accuracy = 0.0
-                best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_"
-                                                              f"{run_time}_checkpoint.pt")
-                for epoch in range(MAX_TRAIN_EPOCHS):
-                    if epoch in decay_epochs:
-                        learn_rate = learn_rate * learn_rate_decay
-
-                    train_accuracy, train_loss = train(model, train_loader, epoch, learn_rate)
-                    test_accuracy, test_loss = test(model, test_loader)
-
-                    with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                        writer.write(f"epoch: {epoch}\tlearn_rate: {learn_rate}\t"
-                                     f"train_accuracy: {train_accuracy:.6f}\ttrain_loss: {train_loss:.6f}\t"
-                                     f"test_accuracy: {test_accuracy:.6f}\ttest_loss: {test_loss:.6f}\n")
-
-                    if test_accuracy > best_test_accuracy:
-                        print(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}')
-                        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                            writer.write(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}\n')
-                        best_test_accuracy = test_accuracy
-                        save_checkpoint(model.state_dict(), best_checkpoint_path)
-                print(f'Dataset: {dataset}\tModel: {model_name}\tTop-k: {top_k}\tCompared Model\t {model_compare_name}\t'
-                      f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
-                      f'Best Test Accuracy: {best_test_accuracy:.6f}\tCheckpoint: {best_checkpoint_path}')
-                with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                    writer.write(f'Dataset: {dataset}\tModel: {model_name}\tTop-k: {top_k}\tCompared Model\t {model_compare_name}\t'
-                                 f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
-                                 f'Best Test Accuracy: {best_test_accuracy:.6f}\tCheckpoint: {best_checkpoint_path}\n')
