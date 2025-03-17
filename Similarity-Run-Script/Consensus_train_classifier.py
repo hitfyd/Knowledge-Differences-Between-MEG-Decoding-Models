@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from torch import nn, optim
 
+from differlib.models import model_dict
 from differlib.engine.utils import get_data_labels_from_dataset, save_checkpoint, get_data_loader, setup_seed
 from differlib.models.SoftDecisionTree import sdt
 from differlib.models.DNNClassifier import mlp, linear, lfcnn, varcnn, hgrn
@@ -76,32 +77,31 @@ seed = 2024
 setup_seed(seed)
 
 # trainer hyperparameters
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 criterion = nn.CrossEntropyLoss()
 # train hyperparameters
 batch_size_list = [128]
 learn_rate_list = [3e-3]
-# batch_size_list = [64, 128]
-# learn_rate_list = [3e-4, 1e-3, 3e-3]
 MAX_TRAIN_EPOCHS = 30
 learn_rate_decay = 0.1
 decay_epochs = [150]
 
 # datasets
 datasets = ["DecMeg2014"]     # "DecMeg2014", "CamCAN"
-models = [linear, mlp, hgrn, lfcnn, varcnn]
-# models = [linear, mlp, hgrn, lfcnn, varcnn, atcnet]
+model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]
+
+top_k = 0.1
 
 # log config
 log_path = f"./output/Train_Classifier_{run_time}/"
 if not os.path.exists(log_path):
     os.makedirs(log_path)
 with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-    writer.write(f"Run time: {run_time}\t Seed: {seed}\n")
+    writer.write(f"Run time: {run_time}\t Seed: {seed}\t Top-k: {top_k}\n")
     writer.write(f"batch_size_list: {batch_size_list}\tlearn_rate_list: {learn_rate_list}\t"
                  f"MAX_TRAIN_EPOCHS: {MAX_TRAIN_EPOCHS}\t"
                  f"learn_rate_decay: {learn_rate_decay}\tdecay_epochs: {decay_epochs}\t"
-                 f"datasets: {datasets}\tmodels: {models}\n")
+                 f"datasets: {datasets}\tmodels: {model_names}\n")
 
 # init dataset & models
 for dataset in datasets:
@@ -109,20 +109,35 @@ for dataset in datasets:
     data_test, labels_test = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
     _, channels, points = data.shape
     num_classes = len(set(labels_test))
+    k = int(channels * points * top_k)
 
-    file = '{}_{}_top_k.npy'.format(dataset, "LFCNN")
-    top_masks = np.load(file)
-    data =  data * top_masks
-    data_test = data_test * top_masks
 
-    for model_ in models:
+    model_list = torch.nn.ModuleList()
+    for model_type in model_names:
+        model_class, model_pretrain_path = model_dict[dataset][model_type]
+        assert (model_pretrain_path is not None), "no pretrain model A {}".format(model_class)
+        model_list.append(model_class(channels=channels, points=points, num_classes=num_classes))
+    model_list.to(DEVICE)
+    assert len(model_list) >= 2
+
+    for model_type in model_names:
+        model_class, model_pretrain_path = model_dict[dataset][model_type]
+        model = model_class(channels=channels, points=points, num_classes=num_classes)
+        model_name = model.__class__.__name__
+        top_sort = np.load('{}_{}_top_sort.npy'.format(dataset, model_name))
+
+        # top-k控制组训练结果
+        top_masks = np.zeros_like(top_sort, dtype=np.bool_)
+        top_masks[top_sort[:k]] = True
+        top_masks = top_masks.reshape(channels, points)
+        print("fixed_features:", top_masks.sum())
+        fixed_data = data * top_masks
+        fixed_data_test = data_test * top_masks
         for batch_size in batch_size_list:
             for learn_rate in learn_rate_list:
                 setup_seed(seed)
-                train_loader = get_data_loader(data, labels, batch_size=batch_size, shuffle=True)
-                test_loader = get_data_loader(data_test, labels_test)
-                model = model_(channels=channels, points=points, num_classes=num_classes)
-                model_name = model.__class__.__name__
+                train_loader = get_data_loader(fixed_data, labels, batch_size=batch_size, shuffle=True)
+                test_loader = get_data_loader(fixed_data_test, labels_test)
                 print(f"Dataset: {dataset}\tModel: {model_name}\tLearning Rate: {learn_rate}\tBatch Size: {batch_size}")
                 with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
                     writer.write(f"Dataset: {dataset}\tModel: {model_name}\t"
@@ -149,10 +164,64 @@ for dataset in datasets:
                             writer.write(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}\n')
                         best_test_accuracy = test_accuracy
                         save_checkpoint(model.state_dict(), best_checkpoint_path)
-                print(f'Dataset: {dataset}\tModel: {model_name}\t'
+                print(f'Dataset: {dataset}\tModel: {model_name}\tTop-k: {top_k}\t'
                       f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
                       f'Best Test Accuracy: {best_test_accuracy:.6f}\tCheckpoint: {best_checkpoint_path}')
                 with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                    writer.write(f'Dataset: {dataset}\tModel: {model_name}\t'
+                    writer.write(f'Dataset: {dataset}\tModel: {model_name}\tTop-k: {top_k}\t'
+                                 f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
+                                 f'Best Test Accuracy: {best_test_accuracy:.6f}\tCheckpoint: {best_checkpoint_path}\n')
+
+        # top-k consensus with atcnet
+        model = model_class(channels=channels, points=points, num_classes=num_classes)
+        model_compare = model_list[-1]
+        model_compare_name = model_compare.__class__.__name__
+        top_sort_compare = np.load('{}_{}_top_sort.npy'.format(dataset, model_compare_name))
+        # top-k控制组训练结果
+        top_masks_compare = np.zeros_like(top_sort, dtype=np.bool_)
+        for i in range(k):
+            if top_sort[i] in top_sort_compare[:k]:
+                top_masks_compare[top_sort[i]] = True
+        top_masks_compare = top_masks_compare.reshape(channels, points)
+        print("consensus_features:", top_masks_compare.sum())
+        consensus_data = data * top_masks_compare
+        consensus_data_test = data_test * top_masks_compare
+        for batch_size in batch_size_list:
+            for learn_rate in learn_rate_list:
+                setup_seed(seed)
+                train_loader = get_data_loader(consensus_data, labels, batch_size=batch_size, shuffle=True)
+                test_loader = get_data_loader(consensus_data_test, labels_test)
+                print(
+                    f"Dataset: {dataset}\tModel: {model_name}\tLearning Rate: {learn_rate}\tBatch Size: {batch_size}")
+                with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                    writer.write(f"Dataset: {dataset}\tModel: {model_name}\t"
+                                 f"Learning Rate: {learn_rate}\tBatch Size: {batch_size}\n")
+
+                best_test_accuracy = 0.0
+                best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_"
+                                                              f"{run_time}_checkpoint.pt")
+                for epoch in range(MAX_TRAIN_EPOCHS):
+                    if epoch in decay_epochs:
+                        learn_rate = learn_rate * learn_rate_decay
+
+                    train_accuracy, train_loss = train(model, train_loader, epoch, learn_rate)
+                    test_accuracy, test_loss = test(model, test_loader)
+
+                    with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                        writer.write(f"epoch: {epoch}\tlearn_rate: {learn_rate}\t"
+                                     f"train_accuracy: {train_accuracy:.6f}\ttrain_loss: {train_loss:.6f}\t"
+                                     f"test_accuracy: {test_accuracy:.6f}\ttest_loss: {test_loss:.6f}\n")
+
+                    if test_accuracy > best_test_accuracy:
+                        print(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}')
+                        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                            writer.write(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}\n')
+                        best_test_accuracy = test_accuracy
+                        save_checkpoint(model.state_dict(), best_checkpoint_path)
+                print(f'Dataset: {dataset}\tModel: {model_name}\tTop-k: {top_k}\tCompared Model\t {model_compare_name}\t'
+                      f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
+                      f'Best Test Accuracy: {best_test_accuracy:.6f}\tCheckpoint: {best_checkpoint_path}')
+                with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                    writer.write(f'Dataset: {dataset}\tModel: {model_name}\tTop-k: {top_k}\tCompared Model\t {model_compare_name}\t'
                                  f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
                                  f'Best Test Accuracy: {best_test_accuracy:.6f}\tCheckpoint: {best_checkpoint_path}\n')
