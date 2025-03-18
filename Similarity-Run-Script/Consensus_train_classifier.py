@@ -77,9 +77,9 @@ def train_pipeline(model_class, train_data, train_labels, test_data, test_labels
     train_loader = get_data_loader(train_data, train_labels, batch_size=batch_size, shuffle=True)
     test_loader = get_data_loader(test_data, test_labels)
     print(f"Dataset: {dataset}\tModel: {model_name}\tLearning Rate: {learn_rate}\tBatch Size: {batch_size}")
-    with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-        writer.write(f"Dataset: {dataset}\tModel: {model_name}\t"
-                     f"Learning Rate: {learn_rate}\tBatch Size: {batch_size}\n")
+    # with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+    #     writer.write(f"Dataset: {dataset}\tModel: {model_name}\t"
+    #                  f"Learning Rate: {learn_rate}\tBatch Size: {batch_size}\n")
 
     best_test_accuracy = 0.0
     best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_checkpoint.pt")
@@ -87,15 +87,18 @@ def train_pipeline(model_class, train_data, train_labels, test_data, test_labels
         train_accuracy, train_loss = train(model, train_loader, epoch, DEVICE, learn_rate)
         test_accuracy, test_loss = test(model, test_loader, DEVICE)
 
-        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-            writer.write(f"epoch: {epoch}\tlearn_rate: {learn_rate}\t"
-                         f"train_accuracy: {train_accuracy:.6f}\ttrain_loss: {train_loss:.6f}\t"
-                         f"test_accuracy: {test_accuracy:.6f}\ttest_loss: {test_loss:.6f}\n")
+        # with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+        #     writer.write(f"epoch: {epoch}\tlearn_rate: {learn_rate}\t"
+        #                  f"train_accuracy: {train_accuracy:.6f}\ttrain_loss: {train_loss:.6f}\t"
+        #                  f"test_accuracy: {test_accuracy:.6f}\ttest_loss: {test_loss:.6f}\n")
 
         if test_accuracy > best_test_accuracy:
             print(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}')
             with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
-                writer.write(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}\n')
+                writer.write(f'Best Test Accuracy: {best_test_accuracy:.6f} -> {test_accuracy:.6f}\t'
+                             f'epoch: {epoch}\tlearn_rate: {learn_rate}\t'
+                             f"train_accuracy: {train_accuracy:.6f}\ttrain_loss: {train_loss:.6f}\t"
+                             f"test_accuracy: {test_accuracy:.6f}\ttest_loss: {test_loss:.6f}\n")
             best_test_accuracy = test_accuracy
             save_checkpoint(model.state_dict(), best_checkpoint_path)
     print(f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\tCompared Model {compare_model_name}\t'
@@ -117,14 +120,18 @@ criterion = nn.CrossEntropyLoss()
 # train hyperparameters
 batch_size_list = [128]
 learn_rate_list = [1e-3]
-MAX_TRAIN_EPOCHS = 30
+MAX_TRAIN_EPOCHS = 50
 
 # datasets
 datasets = ["DecMeg2014", "CamCAN"]     # "DecMeg2014", "CamCAN"
 # top-k
 top_k_list = [0.05, 0.1, 0.2]    # 0.05, 0.1, 0.2
-model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]
+model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]    # "linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"
 compare_model_name = "ATCNet"
+
+control_train = True
+consensus_train = True
+disagreement_train = True
 
 # log config
 log_path = f"./output/Train_Classifier_{datasets}/"
@@ -151,37 +158,42 @@ for dataset in datasets:
             model_class, model_pretrain_path = model_dict[dataset][model_type]
             model = model_class(channels=channels, points=points, num_classes=num_classes)
             model_name = model.__class__.__name__
-            top_sort, sort_contribution, sign_sort_maps = np.load('./output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, model_name))
-            top_sort_compare, _, _ = np.load('./output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, compare_model_name))
+            npz = np.load('./output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, model_name))
+            top_sort, sort_contribution, sign_sort_maps = npz['abs_top_sort'], npz['abs_sort_contribution'], npz['sign_sort_maps']
+            npz_compare = np.load('./output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, compare_model_name))
+            top_sort_compare = npz_compare['abs_top_sort']
 
             # top-k控制组训练结果
-            top_masks = np.zeros_like(top_sort, dtype=np.bool_)
-            top_masks[top_sort[:k]] = True
-            top_masks = top_masks.reshape(channels, points)
-            print("fixed_features:", top_masks.sum())
-            fixed_data = data * top_masks
-            fixed_data_test = data_test * top_masks
-            for batch_size in batch_size_list:
-                for learn_rate in learn_rate_list:
-                    train_pipeline(model_class, fixed_data, labels, fixed_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k)
+            if control_train:
+                top_masks = np.zeros_like(top_sort, dtype=np.bool_)
+                top_masks[top_sort[:k]] = True
+                top_masks = top_masks.reshape(channels, points)
+                print("fixed_features:", top_masks.sum())
+                fixed_data = data * top_masks
+                fixed_data_test = data_test * top_masks
+                for batch_size in batch_size_list:
+                    for learn_rate in learn_rate_list:
+                        train_pipeline(model_class, fixed_data, labels, fixed_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k)
 
             # top-k consensus with atcnet
-            consensus_list, consensus_masks = top_k_consensus(top_sort, top_sort_compare, k)
-            consensus_masks = consensus_masks.reshape(channels, points)
-            print("consensus_features:", len(consensus_list))
-            consensus_data = data * consensus_masks
-            consensus_data_test = data_test * consensus_masks
-            for batch_size in batch_size_list:
-                for learn_rate in learn_rate_list:
-                    train_pipeline(model_class, consensus_data, labels, consensus_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, compare_model_name)
+            if consensus_train:
+                consensus_list, consensus_masks = top_k_consensus(top_sort, top_sort_compare, k)
+                consensus_masks = consensus_masks.reshape(channels, points)
+                print("consensus_features:", len(consensus_list))
+                consensus_data = data * consensus_masks
+                consensus_data_test = data_test * consensus_masks
+                for batch_size in batch_size_list:
+                    for learn_rate in learn_rate_list:
+                        train_pipeline(model_class, consensus_data, labels, consensus_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, compare_model_name)
 
             # top-k disagreement with atcnet
-            disagreement_list, disagreement_masks = top_k_disagreement(top_sort, top_sort_compare, k)
-            disagreement_masks = disagreement_masks.reshape(channels, points)
-            print("disagreement_features:", len(disagreement_list))
-            disagreement_data = data * disagreement_masks
-            disagreement_data_test = data_test * disagreement_masks
-            for batch_size in batch_size_list:
-                for learn_rate in learn_rate_list:
-                    train_pipeline(model_class, disagreement_data, labels, disagreement_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, compare_model_name)
+            if disagreement_train:
+                disagreement_list, disagreement_masks = top_k_disagreement(top_sort, top_sort_compare, k)
+                disagreement_masks = disagreement_masks.reshape(channels, points)
+                print("disagreement_features:", len(disagreement_list))
+                disagreement_data = data * disagreement_masks
+                disagreement_data_test = data_test * disagreement_masks
+                for batch_size in batch_size_list:
+                    for learn_rate in learn_rate_list:
+                        train_pipeline(model_class, disagreement_data, labels, disagreement_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, compare_model_name)
 

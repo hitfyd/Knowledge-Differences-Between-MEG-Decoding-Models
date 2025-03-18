@@ -54,6 +54,6 @@ if __name__ == "__main__":
         sign_sort_maps = sign_mean_maps.reshape(-1, n_classes)[abs_top_sort]
 
         file = './output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, model_name)
-        np.savez(file, abs_top_sort, abs_sort_contribution, sign_sort_maps)
+        np.savez(file, abs_top_sort=abs_top_sort, abs_sort_contribution=abs_sort_contribution, sign_sort_maps=sign_sort_maps)
 
     db.close()
