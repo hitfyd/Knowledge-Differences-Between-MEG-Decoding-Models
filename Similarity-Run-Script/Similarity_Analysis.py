@@ -1,27 +1,10 @@
-import argparse
 import os
 import shelve
-import time
 
 import numpy as np
-import torch
-from triton.language import dtype
 
+from differlib.engine.utils import setup_seed, get_data_labels_from_dataset, get_data_loader, dataset_info_dict
 from similarity.engine.cfg import CFG as cfg
-from similarity.engine.utils import (log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, get_data_loader,
-                                    save_checkpoint, dataset_info_dict, predict)
-from differlib.models import model_dict
-from MEG_Shapley_Values import ShapleyValueExplainer, DatasetInfo, SampleInfo, deletion_test, \
-    compare_deletion_test, similar_analysis, additive_efficient_normalization, compare_insertion_test, insertion_test, \
-    IterationLogger, contribution_smooth, torch_individual_predict
-
-
-def compute_sigma_based_on_std(a, b):
-    data = np.vstack([a, b])  # 假设 a 和 b 是两个向量
-    std = np.std(data)
-    std = np.sqrt(std)
-    return std if std != 0 else 1.0  # 避免除零错误
-
 
 if __name__ == "__main__":
     # set the random number seed
@@ -32,7 +15,7 @@ if __name__ == "__main__":
 
     # 要分析的样本数量
     # datasets
-    dataset = "DecMeg2014"  # "DecMeg2014", "CamCAN"
+    dataset = "CamCAN"  # "DecMeg2014", "CamCAN"
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
     test_loader = get_data_loader(test_data, test_labels)
     origin_data, labels = test_data, test_labels
@@ -42,16 +25,11 @@ if __name__ == "__main__":
     assert points == dataset_info_dict[dataset]["POINTS"]
     assert n_classes == dataset_info_dict[dataset]["NUM_CLASSES"]
 
-    label_names = ['audio', 'visual']
+    sample_num = 3000
     if dataset == 'DecMeg2014':
-        label_names = ['Scramble', 'Face']
-    dataset_info = DatasetInfo(dataset=dataset, label_names=label_names, channels=channels, points=points,
-                               classes=n_classes)
+        sample_num = 300
 
-    sample_num = 160
     model_names = ["Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"]
-    top_k = 0.25
-    k = int(channels * points * top_k)
 
     # AttributionExplainer参数
     explainer = cfg.EXPLAINER.TYPE
@@ -68,25 +46,14 @@ if __name__ == "__main__":
             assert attribution_id in db
             maps = db[attribution_id]
             all_maps[sample_id] = maps
-        mean_maps = np.abs(all_maps).mean(axis=0)
-        feature_contribution = np.abs(mean_maps).sum(axis=-1).reshape(-1)
-        top_sort = np.argsort(feature_contribution)[::-1]
-        sort_contribution = feature_contribution[top_sort]
+        sign_mean_maps = all_maps.mean(axis=0)
+        abs_mean_maps = np.abs(all_maps).mean(axis=0)
+        abs_feature_contribution = abs_mean_maps.sum(axis=-1).reshape(-1)   # 合并一个特征对所有类别的绝对贡献
+        abs_top_sort = np.argsort(abs_feature_contribution)[::-1]
+        abs_sort_contribution = abs_feature_contribution[abs_top_sort]
+        sign_sort_maps = sign_mean_maps.reshape(-1, n_classes)[abs_top_sort]
 
-        file = '{}_{}_top_sort.npy'.format(dataset, model_name)
-        np.save(file, top_sort)
+        file = './output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, model_name)
+        np.savez(file, abs_top_sort, abs_sort_contribution, sign_sort_maps)
 
     db.close()
-
-    top_atcnet = np.load('{}_{}_top_sort.npy'.format(dataset, "MLP"))
-    top_linear = np.load('{}_{}_top_sort.npy'.format(dataset, "Linear"))
-    top_masks = np.zeros_like(feature_contribution, dtype=np.bool_)
-    for id in range(k):
-        if top_linear[id] in top_atcnet[:k]:
-            top_masks[top_linear[id]] = True
-    print("consensus_features:", top_masks.sum())
-
-    top_masks = top_masks.reshape(channels, points)
-
-    file = '{}_{}_top_k.npy'.format(dataset, "LFCNN")
-    np.save(file, top_masks)

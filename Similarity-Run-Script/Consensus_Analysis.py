@@ -1,19 +1,15 @@
 import argparse
 import os
 import shelve
-import time
 
 import numpy as np
 import torch
-from triton.language import dtype
 
-from similarity.engine.cfg import CFG as cfg
-from similarity.engine.utils import (log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, get_data_loader,
-                                    save_checkpoint, dataset_info_dict, predict)
+from MEG_Shapley_Values import DatasetInfo, SampleInfo
+from differlib.engine.utils import (setup_seed, get_data_labels_from_dataset, get_data_loader,
+                                    dataset_info_dict)
 from differlib.models import model_dict
-from MEG_Shapley_Values import ShapleyValueExplainer, DatasetInfo, SampleInfo, deletion_test, \
-    compare_deletion_test, similar_analysis, additive_efficient_normalization, compare_insertion_test, insertion_test, \
-    IterationLogger, contribution_smooth, torch_individual_predict
+from similarity.engine.cfg import CFG as cfg
 
 
 def compute_sigma_based_on_std(a, b):

@@ -116,13 +116,13 @@ DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 criterion = nn.CrossEntropyLoss()
 # train hyperparameters
 batch_size_list = [128]
-learn_rate_list = [3e-3]
+learn_rate_list = [1e-3]
 MAX_TRAIN_EPOCHS = 30
 
 # datasets
-datasets = ["CamCAN", "DecMeg2014"]     # "DecMeg2014", "CamCAN"
+datasets = ["DecMeg2014", "CamCAN"]     # "DecMeg2014", "CamCAN"
 # top-k
-top_k_list = [0.05, 0.1, 0.2]
+top_k_list = [0.05, 0.1, 0.2]    # 0.05, 0.1, 0.2
 model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]
 compare_model_name = "ATCNet"
 
@@ -151,8 +151,8 @@ for dataset in datasets:
             model_class, model_pretrain_path = model_dict[dataset][model_type]
             model = model_class(channels=channels, points=points, num_classes=num_classes)
             model_name = model.__class__.__name__
-            top_sort = np.load('{}_{}_top_sort.npy'.format(dataset, model_name))
-            top_sort_compare = np.load('{}_{}_top_sort.npy'.format(dataset, compare_model_name))
+            top_sort, sort_contribution, sign_sort_maps = np.load('./output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, model_name))
+            top_sort_compare, _, _ = np.load('./output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, compare_model_name))
 
             # top-k控制组训练结果
             top_masks = np.zeros_like(top_sort, dtype=np.bool_)

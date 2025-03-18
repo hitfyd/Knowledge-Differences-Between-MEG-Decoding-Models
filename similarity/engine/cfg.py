@@ -1,16 +1,4 @@
 from yacs.config import CfgNode as CN
-from .utils import log_msg
-
-
-def show_cfg(cfg):
-    dump_cfg = CN()
-    dump_cfg.EXPERIMENT = cfg.EXPERIMENT
-    dump_cfg.DATASET = cfg.DATASET
-    dump_cfg.MODELS = cfg.MODELS
-    dump_cfg.EXPLAINER = cfg.EXPLAINER
-    dump_cfg.LOG = cfg.LOG
-    print(log_msg("CONFIG:\n{}".format(dump_cfg.dump()), "INFO"))
-
 
 CFG = CN()
 
