@@ -269,3 +269,5 @@ dataset/*.npz
 /Run-Script/wandb/
 /Run-Script/output/
 /Run-Script/temp/
+
+/Similarity-Run-Script/output/

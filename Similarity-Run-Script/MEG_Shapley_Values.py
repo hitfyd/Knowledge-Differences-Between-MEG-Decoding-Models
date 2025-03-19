@@ -756,6 +756,69 @@ def generate_plot(sample_info: SampleInfo, attribution_maps: np.ndarray, channel
     return fig, heatmap, heatmap_channel, heatmap_time
 
 
+def topomap_plot(title, attribution_maps, channels_info, channels=204, top_channel_num=10, z_score=True):
+
+    heatmap = attribution_maps
+    heatmap_channel = heatmap.sum(axis=1)
+    heatmap_time = heatmap.sum(axis=0)
+    if z_score:
+        heatmap = (heatmap - np.mean(heatmap)) / (np.std(heatmap))
+        heatmap_channel = (heatmap_channel - np.mean(heatmap_channel)) / (np.std(heatmap_channel))
+        heatmap_time = (heatmap_time - np.mean(heatmap_time)) / (np.std(heatmap_time))
+
+    # 计算地形图中需要突出显示的通道及名称，注意：由于在绘制地形图时两两合并为一个位置，需要保证TOP通道的名称一定显示，其余通道对显示第一个通道的名称
+    mask_list = np.zeros(channels//2, dtype=bool)   # 由于通道类型为Grad，在绘制地形图时两两合并为一个位置
+    top_channel_index = np.argsort(-heatmap_channel)[:top_channel_num]
+    names_list = []     # 两两合并后对应的通道名称
+    for channel_index in range(channels//2):
+        if 2*channel_index in top_channel_index:
+            mask_list[channel_index] = True
+            names_list.append(channels_info.ch_names[2 * channel_index] + '\n')     # 避免显示标记遮挡通道名称
+            if 2 * channel_index + 1 in top_channel_index:
+                names_list[channel_index] += channels_info.ch_names[2 * channel_index+1] + '\n\n'
+        elif 2*channel_index+1 in top_channel_index:
+            mask_list[channel_index] = True
+            names_list.append(channels_info.ch_names[2 * channel_index+1] + '\n')
+        else:
+            names_list.append(channels_info.ch_names[2*channel_index])
+
+    # 打印TOP通道及其名称、贡献值
+    print(title)
+    print("index\tchannel name\tcontribution value")
+    top_channels = {}
+    for index in top_channel_index:
+        print(index, channels_info.ch_names[index], heatmap_channel[index])
+        top_channels[index] = (channels_info.ch_names[index], heatmap_channel[index])
+
+    fig = plt.figure(figsize=(5, 5))
+    gridlayout = gridspec.GridSpec(ncols=25, nrows=6, figure=fig, top=None, bottom=None, wspace=None, hspace=0)
+    axs1 = fig.add_subplot(gridlayout[:, :24])
+    axs1_colorbar = fig.add_subplot(gridlayout[1:, 24])
+
+    fontsize = 10
+    # 配色方案
+    # 贡献由大到小颜色由深变浅：'plasma' 'viridis'
+    # 有浅变深：'summer' 'YlGn' 'YlOrRd'
+    # 'Oranges'
+    cmap = 'Oranges'
+    plt.rcParams['font.size'] = fontsize
+
+    fig.suptitle(title, y=0.9, fontsize=fontsize+8)
+
+    # 绘制地形图
+    # 地形图中TOP通道的显示参数
+    mask_params = dict(marker='o', markerfacecolor='w', markeredgecolor='k', linewidth=0, markersize=4)
+    mne.viz.plot_topomap(heatmap_channel, channels_info, ch_type='grad', cmap=cmap, axes=axs1, outlines='head',
+                         show=False, names=names_list, mask=mask_list, mask_params=mask_params)
+    # axs1.set_title("Channel Contribution\n(Topomap)", y=0.9, fontsize=fontsize)
+    # 设置颜色条带
+    norm = colors.Normalize(vmin=heatmap_channel.min(), vmax=heatmap_channel.max())
+    colorbar.ColorbarBase(axs1_colorbar, cmap=cmap, norm=norm)
+
+    plt.show()
+    return fig, heatmap_channel, top_channels
+
+
 def similar_analysis(map1, map2):
     # map1 = map1 / (map1.sum() + 1e-8)
     # map2 = map2 / (map2.sum() + 1e-8)
