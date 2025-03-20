@@ -9,9 +9,9 @@ from MEG_Shapley_Values import topomap_plot
 from differlib.engine.utils import dataset_info_dict, save_figure
 
 # datasets
-datasets = ["CamCAN"]     # "DecMeg2014", "CamCAN"
+datasets = ["DecMeg2014", "CamCAN"]     # "DecMeg2014", "CamCAN"
 # top-k
-top_k_list = [0.1]    # 0.05, 0.1, 0.2
+top_k_list = [0.05, 0.1, 0.2]    # 0.05, 0.1, 0.2
 compared_model_names = ["Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"]    # "Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"
 num_models = len(compared_model_names)
 assert num_models >= 2
@@ -24,7 +24,7 @@ channel_db.close()
 # init dataset & models
 for dataset in datasets:
     # save config
-    save_path = f"./output/Consensus_and_Disagreement_{datasets}/"
+    save_path = f"./output/Consensus_and_Disagreement_{dataset}/"
 
     dataset_info = dataset_info_dict[dataset]
     channels, points, num_classes = dataset_info["CHANNELS"], dataset_info["POINTS"], dataset_info["NUM_CLASSES"]
@@ -62,7 +62,12 @@ for dataset in datasets:
         union_consensus_masks = union_consensus_masks.reshape(channels, points)
         print("union_consensus:", len(union_consensus))
         model_mean_contribution = abs_mean_contribution.mean(axis=0)
-        consensus_contribution = model_mean_contribution * union_consensus_masks
+        union_consensus_contribution = model_mean_contribution * union_consensus_masks
         consensus_title = 'Consensus of All Models'
-        fig, _, _ = topomap_plot(consensus_title, consensus_contribution, channels_info, channels=channels, top_channel_num=5)
+        fig, _, _ = topomap_plot(consensus_title, union_consensus_contribution, channels_info, channels=channels, top_channel_num=5)
         save_figure(fig, save_path, '{}_{}_all_models_consensus'.format(dataset, top_k))
+
+        # 保存union_consensus
+        file = '{}/{}_top_{}_union_consensus.npz'.format(save_path, dataset, top_k)
+        np.savez(file, union_consensus=union_consensus, union_consensus_masks=union_consensus_masks, union_consensus_contribution=union_consensus_contribution)
+

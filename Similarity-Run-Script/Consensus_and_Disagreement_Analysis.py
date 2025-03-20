@@ -9,10 +9,10 @@ from MEG_Shapley_Values import topomap_plot
 from differlib.engine.utils import dataset_info_dict, save_figure
 
 # datasets
-datasets = ["CamCAN"]     # "DecMeg2014", "CamCAN"
+datasets = ["DecMeg2014", "CamCAN"]     # "DecMeg2014", "CamCAN"
 # top-k
-top_k_list = [0.1]    # 0.05, 0.1, 0.2
-compared_model_names = ["Linear", "LFCNN", "ATCNet"]    # "Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"
+top_k_list = [0.05, 0.1, 0.2]    # 0.05, 0.1, 0.2
+compared_model_names = ["Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"]    # "Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"
 num_models = len(compared_model_names)
 assert num_models >= 2
 
@@ -24,7 +24,7 @@ channel_db.close()
 # init dataset & models
 for dataset in datasets:
     # save config
-    save_path = f"./output/Consensus_and_Disagreement_{datasets}/"
+    save_path = f"./output/Consensus_and_Disagreement_{dataset}/"
 
     dataset_info = dataset_info_dict[dataset]
     channels, points, num_classes = dataset_info["CHANNELS"], dataset_info["POINTS"], dataset_info["NUM_CLASSES"]

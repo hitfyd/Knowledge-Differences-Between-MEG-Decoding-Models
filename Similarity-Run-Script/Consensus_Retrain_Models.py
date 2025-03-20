@@ -129,9 +129,10 @@ top_k_list = [0.05, 0.1, 0.2]    # 0.05, 0.1, 0.2
 model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]    # "linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"
 compare_model_name = "ATCNet"
 
-control_train = True
-consensus_train = True
-disagreement_train = True
+consensus_all_models = True
+control_train = False
+consensus_train = False
+disagreement_train = False
 
 # log config
 log_path = f"./output/Train_Classifier_{datasets}/"
@@ -154,6 +155,11 @@ for dataset in datasets:
     for top_k in top_k_list:
         k = int(channels * points * top_k)
 
+        npz_consensus_all = np.load(
+            './output/Consensus_and_Disagreement_{}/{}_top_{}_union_consensus.npz'.format(dataset, dataset, top_k))
+        union_consensus, union_consensus_masks = npz_consensus_all['union_consensus'], npz_consensus_all[
+            'union_consensus_masks']
+
         for model_type in model_names:
             model_class, model_pretrain_path = model_dict[dataset][model_type]
             model = model_class(channels=channels, points=points, num_classes=num_classes)
@@ -162,6 +168,22 @@ for dataset in datasets:
             top_sort, sort_contribution, sign_sort_maps = npz['abs_top_sort'], npz['abs_sort_contribution'], npz['sign_sort_maps']
             npz_compare = np.load('./output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, compare_model_name))
             top_sort_compare = npz_compare['abs_top_sort']
+
+            # consensus of all models 重训练
+            if consensus_all_models:
+                print("fixed_features:", union_consensus_masks.sum())
+                fixed_data = data * union_consensus_masks
+                fixed_data_test = data_test * union_consensus_masks
+                for batch_size in batch_size_list:
+                    for learn_rate in learn_rate_list:
+                        train_pipeline(model_class, fixed_data, labels, fixed_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k)
+
+                fixed_data = data * ~union_consensus_masks
+                fixed_data_test = data_test * ~union_consensus_masks
+                for batch_size in batch_size_list:
+                    for learn_rate in learn_rate_list:
+                        train_pipeline(model_class, fixed_data, labels, fixed_data_test, labels_test, DEVICE,
+                                       learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k)
 
             # top-k控制组训练结果
             if control_train:
