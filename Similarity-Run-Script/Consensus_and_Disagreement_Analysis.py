@@ -53,6 +53,7 @@ for dataset in datasets:
 
 
             for top_k in top_k_list:
+                top_k_percent = int(top_k * 100)
                 k = int(channels * points * top_k)
 
                 # 计算共识
@@ -60,7 +61,7 @@ for dataset in datasets:
                 consensus_masks = consensus_masks.reshape(channels, points)
                 print("consensus_features:", len(consensus_list))
                 consensus_contribution = abs_mean_contribution_i * consensus_masks
-                consensus_title = 'Consensus of {} and {}'.format(model_i, model_j)
+                consensus_title = 'Top-{}% Consensus of {} and {}'.format(top_k_percent, model_i, model_j)
                 fig, _, _ = topomap_plot(consensus_title, consensus_contribution, channels_info, channels=channels, top_channel_num=5)
                 save_figure(fig, save_path, '{}_{}_{}_{}_consensus'.format(dataset, model_i, model_j, top_k))
 
@@ -69,12 +70,12 @@ for dataset in datasets:
                 disagreement_masks = disagreement_masks.reshape(channels, points)
                 print("disagreement_features:", len(disagreement_list))
                 disagreement_contribution_i = abs_mean_contribution_i * disagreement_masks
-                disagreement_title = '{} Disagreement with {}'.format(model_i, model_j)
+                disagreement_title = 'Top-{}% {} Disagreement with {}'.format(top_k_percent, model_i, model_j)
                 fig, _, _ = topomap_plot(disagreement_title, disagreement_contribution_i, channels_info, channels=channels, top_channel_num=5)
                 save_figure(fig, save_path, '{}_{}_{}_{}_disagreement'.format(dataset, model_i, model_j, top_k))
 
                 disagreement_contribution_j = abs_mean_contribution_j * disagreement_masks
-                disagreement_title = '{} Disagreement with {}'.format(model_j, model_i)
+                disagreement_title = 'Top-{}% {} Disagreement with {}'.format(top_k_percent, model_j, model_i)
                 fig, _, _ = topomap_plot(disagreement_title, disagreement_contribution_j, channels_info, channels=channels, top_channel_num=5)
                 save_figure(fig, save_path, '{}_{}_{}_{}_disagreement'.format(dataset, model_j, model_i, top_k))
 

@@ -47,6 +47,7 @@ for dataset in datasets:
 
 
     for top_k in top_k_list:
+        top_k_percent = int(top_k*100)
         k = int(channels * points * top_k)
         abs_top_sort_k = abs_top_sort[:, :k]
 
@@ -63,7 +64,7 @@ for dataset in datasets:
         print("union_consensus:", len(union_consensus))
         model_mean_contribution = abs_mean_contribution.mean(axis=0)
         union_consensus_contribution = model_mean_contribution * union_consensus_masks
-        consensus_title = 'Consensus of All Models'
+        consensus_title = f'Top-{top_k_percent}% Consensus of All Models'
         fig, _, _ = topomap_plot(consensus_title, union_consensus_contribution, channels_info, channels=channels, top_channel_num=5)
         save_figure(fig, save_path, '{}_{}_all_models_consensus'.format(dataset, top_k))
 
