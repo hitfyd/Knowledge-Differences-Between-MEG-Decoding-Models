@@ -756,7 +756,7 @@ def generate_plot(sample_info: SampleInfo, attribution_maps: np.ndarray, channel
     return fig, heatmap, heatmap_channel, heatmap_time
 
 
-def topomap_plot(title, attribution_maps, channels_info, channels=204, top_channel_num=10, z_score=True):
+def topomap_plot(title, attribution_maps, channels_info, channels=204, top_channel_num=10, z_score=True, minmax_scaler=False):
 
     heatmap = attribution_maps
     heatmap_channel = heatmap.sum(axis=1)
@@ -765,6 +765,10 @@ def topomap_plot(title, attribution_maps, channels_info, channels=204, top_chann
         heatmap = (heatmap - np.mean(heatmap)) / (np.std(heatmap))
         heatmap_channel = (heatmap_channel - np.mean(heatmap_channel)) / (np.std(heatmap_channel))
         heatmap_time = (heatmap_time - np.mean(heatmap_time)) / (np.std(heatmap_time))
+    if minmax_scaler:
+        heatmap = (heatmap - np.min(heatmap)) / (np.max(heatmap) - np.min(heatmap))
+        heatmap_channel = (heatmap_channel - np.min(heatmap_channel)) / (np.max(heatmap_channel) - np.min(heatmap_channel))
+        heatmap_time = (heatmap_time - np.min(heatmap_time)) / (np.max(heatmap_time) - np.min(heatmap_time))
 
     # 计算地形图中需要突出显示的通道及名称，注意：由于在绘制地形图时两两合并为一个位置，需要保证TOP通道的名称一定显示，其余通道对显示第一个通道的名称
     mask_list = np.zeros(channels//2, dtype=bool)   # 由于通道类型为Grad，在绘制地形图时两两合并为一个位置
@@ -790,33 +794,85 @@ def topomap_plot(title, attribution_maps, channels_info, channels=204, top_chann
         print(index, channels_info.ch_names[index], heatmap_channel[index])
         top_channels[index] = (channels_info.ch_names[index], heatmap_channel[index])
 
-    fig = plt.figure(figsize=(5, 5))
+    fig = plt.figure(figsize=(6, 6))
     gridlayout = gridspec.GridSpec(ncols=25, nrows=6, figure=fig, top=None, bottom=None, wspace=None, hspace=0)
     axs1 = fig.add_subplot(gridlayout[:, :24])
     axs1_colorbar = fig.add_subplot(gridlayout[1:, 24])
 
-    fontsize = 10
     # 配色方案
     # 贡献由大到小颜色由深变浅：'plasma' 'viridis'
     # 有浅变深：'summer' 'YlGn' 'YlOrRd'
     # 'Oranges'
     cmap = 'Oranges'
-    plt.rcParams['font.size'] = fontsize
-
-    fig.suptitle(title, y=0.9, fontsize=fontsize+8)
+    fontsize = 14
+    fig.suptitle(title, y=0.9, fontsize=fontsize+6)
 
     # 绘制地形图
     # 地形图中TOP通道的显示参数
     mask_params = dict(marker='o', markerfacecolor='w', markeredgecolor='k', linewidth=0, markersize=4)
-    mne.viz.plot_topomap(heatmap_channel, channels_info, ch_type='grad', cmap=cmap, axes=axs1, outlines='head',
+    mne.viz.plot_topomap(heatmap_channel, channels_info, ch_type='grad', cmap=cmap, axes=axs1, outlines='head', contours=3,
                          show=False, names=names_list, mask=mask_list, mask_params=mask_params)
-    # axs1.set_title("Channel Contribution\n(Topomap)", y=0.9, fontsize=fontsize)
+    for text in axs1.texts:  # 遍历所有文本对象
+        text.set_fontsize(fontsize)  # 单独设置字体大小
+
     # 设置颜色条带
     norm = colors.Normalize(vmin=heatmap_channel.min(), vmax=heatmap_channel.max())
-    colorbar.ColorbarBase(axs1_colorbar, cmap=cmap, norm=norm)
+    cbar = colorbar.ColorbarBase(axs1_colorbar, cmap=cmap, norm=norm)
+    # 设置刻度标签字体
+    cbar.ax.tick_params(
+        labelsize=fontsize,  # 刻度字体大小
+    )
+
 
     plt.show()
     return fig, heatmap_channel, top_channels
+
+
+def time_curve_plot(title, attribution_maps, points=100, z_score=True, minmax_scaler=False):
+    heatmap = attribution_maps
+    heatmap_channel = heatmap.sum(axis=1)
+    heatmap_time = heatmap.sum(axis=0)
+    if z_score:
+        heatmap = (heatmap - np.mean(heatmap)) / (np.std(heatmap))
+        heatmap_channel = (heatmap_channel - np.mean(heatmap_channel)) / (np.std(heatmap_channel))
+        heatmap_time = (heatmap_time - np.mean(heatmap_time)) / (np.std(heatmap_time))
+    if minmax_scaler:
+        heatmap = (heatmap - np.min(heatmap)) / (np.max(heatmap) - np.min(heatmap))
+        heatmap_channel = (heatmap_channel - np.min(heatmap_channel)) / (np.max(heatmap_channel) - np.min(heatmap_channel))
+        heatmap_time = (heatmap_time - np.min(heatmap_time)) / (np.max(heatmap_time) - np.min(heatmap_time))
+
+    fontsize = 12
+    linewidth = 2
+    # 配色方案
+    # 贡献由大到小颜色由深变浅：'plasma' 'viridis'
+    # 有浅变深：'summer' 'YlGn' 'YlOrRd'
+    # 'Oranges'
+    cmap = 'Oranges'
+    plt.rcParams['font.family'] = ["Times New Roman"]
+    plt.rcParams['font.size'] = fontsize
+    time_xticks = [0, 25, 50, 75, 100]
+    time_xticklabels = ['-0.2', '0', '0.2', '0.4', '0.6(s)']
+
+    fig = plt.figure(figsize=(5, 2.5))
+    gridlayout = gridspec.GridSpec(ncols=25, nrows=6, figure=fig, top=None, bottom=None, wspace=None, hspace=0)
+    axs1 = fig.add_subplot(gridlayout[:, :])
+
+    # 绘制时间贡献曲线
+    xx = np.arange(1, points + 1)
+    img_points = np.array([xx, heatmap_time]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([img_points[:-1], img_points[1:]], axis=1)
+    lc = LineCollection(segments, cmap=cmap, linewidths=(linewidth + 1,))
+    lc.set_array(heatmap_time)
+    axs1.add_collection(lc)
+    axs1.set_ylim(floor(heatmap_time.min()), ceil(heatmap_time.max()))
+    axs1.set_xticks(time_xticks)
+    axs1.set_xticklabels(time_xticklabels, fontsize=fontsize)
+    # axs1.set_ylabel('Contribution', fontsize=fontsize)
+    # axs1.set_xlabel('Time', fontsize=fontsize)
+    axs1.patch.set_facecolor('lightgreen')
+
+    plt.show()
+    return fig, heatmap_time
 
 
 def similar_analysis(map1, map2):
