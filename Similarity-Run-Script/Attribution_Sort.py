@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     # 要分析的样本数量
     # datasets
-    dataset = "DecMeg2014"  # "DecMeg2014", "CamCAN"
+    dataset = "CamCAN"  # "DecMeg2014", "CamCAN"
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
     test_loader = get_data_loader(test_data, test_labels)
     origin_data, labels = test_data, test_labels
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         fig, _, _ = topomap_plot(title, attribution_maps, channels_info, channels=channels, top_channel_num=5, z_score=False, minmax_scaler=True)
         save_figure(fig, save_path, '{}_{}_attribution_topomap'.format(dataset, model_name))
 
-        fig, _ = time_curve_plot(title, attribution_maps, points=points, z_score=False, minmax_scaler=True)
-        save_figure(fig, save_path, '{}_{}_attribution_time_curve'.format(dataset, model_name))
+        # fig, _ = time_curve_plot(title, attribution_maps, points=points, z_score=False, minmax_scaler=True)
+        # save_figure(fig, save_path, '{}_{}_attribution_time_curve'.format(dataset, model_name))
 
     db.close()

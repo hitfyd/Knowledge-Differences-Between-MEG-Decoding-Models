@@ -756,7 +756,8 @@ def generate_plot(sample_info: SampleInfo, attribution_maps: np.ndarray, channel
     return fig, heatmap, heatmap_channel, heatmap_time
 
 
-def topomap_plot(title, attribution_maps, channels_info, channels=204, top_channel_num=10, z_score=True, minmax_scaler=False):
+def topomap_plot(title, attribution_maps, channels_info, channels=204, top_channel_num=10,
+                 z_score=True, minmax_scaler=False):
 
     heatmap = attribution_maps
     heatmap_channel = heatmap.sum(axis=1)
@@ -804,8 +805,9 @@ def topomap_plot(title, attribution_maps, channels_info, channels=204, top_chann
     # 有浅变深：'summer' 'YlGn' 'YlOrRd'
     # 'Oranges'
     cmap = 'Oranges'
-    fontsize = 14
-    fig.suptitle(title, y=0.9, fontsize=fontsize+6)
+    fontsize = 18
+    plt.rcParams['font.size'] = fontsize  # 设置字体大小
+    fig.suptitle(title, y=0.9, fontdict={'size': fontsize+2})
 
     # 绘制地形图
     # 地形图中TOP通道的显示参数
@@ -814,6 +816,18 @@ def topomap_plot(title, attribution_maps, channels_info, channels=204, top_chann
                          show=False, names=names_list, mask=mask_list, mask_params=mask_params)
     for text in axs1.texts:  # 遍历所有文本对象
         text.set_fontsize(fontsize)  # 单独设置字体大小
+        pos = text.get_position()
+        # 调整部分通道名称位置，避免重叠
+        if "1913" in text._text or "2322" in text._text:
+            text.set_position((pos[0]-0.04, pos[1]))  # 微调位置
+        if "2333" in text._text:
+            text.set_position((pos[0]-0.02, pos[1]))  # 微调位置
+        if "2523" in text._text:
+            text.set_position((pos[0]+0.03, pos[1]))  # 微调位置
+        if ("2123" in text._text  or "2033" in text._text or "0242" in text._text or "1813" in text._text or
+                "2643" in text._text or "2543" in text._text):
+            text.set_position((pos[0], pos[1]-0.03))  # 微调位置
+
 
     # 设置颜色条带
     norm = colors.Normalize(vmin=heatmap_channel.min(), vmax=heatmap_channel.max())

@@ -125,14 +125,14 @@ MAX_TRAIN_EPOCHS = 50
 # datasets
 datasets = ["DecMeg2014", "CamCAN"]     # "DecMeg2014", "CamCAN"
 # top-k
-top_k_list = [0.05, 0.1, 0.2]    # 0.05, 0.1, 0.2
+top_k_list = [0.1]    # 0.05, 0.1, 0.2
 model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]    # "linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"
 compare_model_name = "ATCNet"
 
-consensus_all_models = True
-control_train = False
-consensus_train = False
-disagreement_train = False
+consensus_all_models = False
+control_train = True
+consensus_train = True
+disagreement_train = True
 
 # log config
 log_path = f"./output/Train_Classifier_{datasets}/"
@@ -203,7 +203,7 @@ for dataset in datasets:
                 consensus_masks = consensus_masks.reshape(channels, points)
                 print("consensus_features:", len(consensus_list))
                 consensus_data = data * consensus_masks
-                consensus_data_test = data_test * consensus_masks
+                consensus_data_test = data_test * consensus_masks # 测试集进行是否筛选对Linear、MLP影响不大，对其他模型影响明显，筛选效果更好
                 for batch_size in batch_size_list:
                     for learn_rate in learn_rate_list:
                         train_pipeline(model_class, consensus_data, labels, consensus_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, compare_model_name)
