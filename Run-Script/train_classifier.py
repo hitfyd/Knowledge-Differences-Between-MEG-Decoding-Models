@@ -8,6 +8,7 @@ from differlib.engine.utils import get_data_labels_from_dataset, save_checkpoint
 from differlib.models import sdt
 from differlib.models.DNNClassifier import mlp, linear, lfcnn, varcnn, hgrn, eegnetv1, eegnetv4
 from differlib.models.atcnet.atcnet import atcnet
+from differlib.models.meegnet.network import meegnet
 
 
 def __l1_regularization__(model, l1_penalty=3e-4):
@@ -17,7 +18,7 @@ def __l1_regularization__(model, l1_penalty=3e-4):
     return l1_penalty * regularization_loss
 
 
-def train(model, train_loader, epoch, lr=3e-4, l1_penalty=0, l2_penalty=0):
+def train(model, train_loader, epoch, lr=3e-4, l1_penalty=0.0, l2_penalty=0.0):
     model.to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=l2_penalty)
     model.train()
@@ -79,7 +80,9 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 criterion = nn.CrossEntropyLoss()
 # train hyperparameters
 batch_size_list = [128]
-learn_rate_list = [3e-3]
+learn_rate_list = [3e-4]
+l1_penalty= 0.0    # [0.0, 0.0003]
+l2_penalty= 0.000001    # [0.0, 0.000001]
 # batch_size_list = [64, 128]
 # learn_rate_list = [3e-4, 1e-3, 3e-3]
 MAX_TRAIN_EPOCHS = 100
@@ -87,11 +90,12 @@ learn_rate_decay = 0.1
 decay_epochs = [150]
 
 # datasets
-datasets = ["ebrains"]     # "DecMeg2014", "CamCAN", "ebrains", "BCIIV2a"
-models = [atcnet]
+datasets = ["CamCAN", "DecMeg2014"]     # "DecMeg2014", "CamCAN", "ebrains", "BCIIV2a"
+models = [meegnet]
 # models = [lfcnn, hgrn, eegnetv1, eegnetv4, atcnet]
 # models = [atcnet, mlp, linear]
 # models = [sdt, lfcnn, varcnn, hgrn]
+physical_channels = 102
 
 # log config
 log_path = f"./output/Train_Classifier_{run_time}/"
@@ -112,13 +116,14 @@ for dataset in datasets:
     num_classes = len(set(labels_test))
 
     for model_ in models:
+        model = model_(channels=channels, points=points, num_classes=num_classes)
+        model_name = model.__class__.__name__
         for batch_size in batch_size_list:
             for learn_rate in learn_rate_list:
                 setup_seed(seed)
                 train_loader = get_data_loader(data, labels, batch_size=batch_size, shuffle=True)
                 test_loader = get_data_loader(data_test, labels_test)
-                model = model_(channels=channels, points=points, num_classes=num_classes)
-                model_name = model.__class__.__name__
+
                 print(f"Dataset: {dataset}\tModel: {model_name}\tLearning Rate: {learn_rate}\tBatch Size: {batch_size}")
                 with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
                     writer.write(f"Dataset: {dataset}\tModel: {model_name}\t"
@@ -131,7 +136,7 @@ for dataset in datasets:
                     if epoch in decay_epochs:
                         learn_rate = learn_rate * learn_rate_decay
 
-                    train_accuracy, train_loss = train(model, train_loader, epoch, learn_rate)
+                    train_accuracy, train_loss = train(model, train_loader, epoch, learn_rate, l1_penalty, l2_penalty)
                     test_accuracy, test_loss = test(model, test_loader)
 
                     with open(os.path.join(log_path, "worklog.txt"), "a") as writer:

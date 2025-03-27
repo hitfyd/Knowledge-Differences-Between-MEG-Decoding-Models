@@ -19,7 +19,7 @@ CFG.DATASET = "CamCAN"  # "DecMeg2014"
 CFG.NUM_SAMPLES = 300
 
 # Models
-CFG.MODELS = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]  # 按CamCAN测试集上的精度升序排列
+CFG.MODELS = ["meegnet", "linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]  # 按CamCAN测试集上的精度升序排列
 
 # Explainer
 CFG.EXPLAINER = CN()
