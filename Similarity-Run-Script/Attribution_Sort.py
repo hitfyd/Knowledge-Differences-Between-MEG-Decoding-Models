@@ -37,7 +37,7 @@ if __name__ == "__main__":
     if dataset == 'DecMeg2014':
         sample_num = 300
 
-    model_names = ["Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"]
+    model_names = ["MEEGNet", "Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"]
 
     # AttributionExplainer参数
     explainer = cfg.EXPLAINER.TYPE
@@ -69,8 +69,8 @@ if __name__ == "__main__":
         abs_sort_contribution = abs_feature_contribution[abs_top_sort]
         sign_sort_maps = sign_mean_maps.reshape(-1, n_classes)[abs_top_sort]
 
-        # file = './output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, model_name)
-        # np.savez(file, abs_top_sort=abs_top_sort, abs_sort_contribution=abs_sort_contribution, sign_sort_maps=sign_sort_maps)
+        file = './output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, model_name)
+        np.savez(file, abs_top_sort=abs_top_sort, abs_sort_contribution=abs_sort_contribution, sign_sort_maps=sign_sort_maps)
 
         # 绘制特征绝对贡献地形图和时间曲线
         attribution_maps = abs_mean_maps.mean(axis=-1)

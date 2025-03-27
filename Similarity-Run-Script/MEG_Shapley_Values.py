@@ -825,7 +825,7 @@ def topomap_plot(title, attribution_maps, channels_info, channels=204, top_chann
         if "2523" in text._text:
             text.set_position((pos[0]+0.03, pos[1]))  # 微调位置
         if ("2123" in text._text  or "2033" in text._text or "0242" in text._text or "1813" in text._text or
-                "2643" in text._text or "2543" in text._text):
+                "2643" in text._text or "2543" in text._text):  # DecMeg2014下，“2643”不需要调整位置
             text.set_position((pos[0], pos[1]-0.03))  # 微调位置
 
 
