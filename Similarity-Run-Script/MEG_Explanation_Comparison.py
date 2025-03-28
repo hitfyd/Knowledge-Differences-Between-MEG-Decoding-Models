@@ -1,4 +1,6 @@
 import numpy as np
+from sklearn.metrics import ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
 
 
 def top_k_consensus(top_sort_1: np.ndarray, top_sort_2: np.ndarray, k1: int, k2: int) -> [np.ndarray, np.ndarray]:
@@ -27,8 +29,43 @@ def top_k_disagreement(top_sort_1: np.ndarray, top_sort_2: np.ndarray, k1: int, 
     return disagreement_list, disagreement_masks
 
 
-# Rank Correlation、Top-k 特征一致性、符号排序一致性等
+# Top-k 特征一致性
+def feature_agreement(top_sort_1: np.ndarray, top_sort_2: np.ndarray, top_k: int) -> float:
+    assert top_sort_1.shape == top_sort_2.shape
+    assert top_k <= len(top_sort_1)
+    consensus_list, _ = top_k_consensus(top_sort_1, top_sort_2, top_k, top_k)
+    num_feature_agreements = len(consensus_list)
+    similarity_score = num_feature_agreements / top_k
+    print(f'Top-{top_k} Feature Agreement: {similarity_score}({num_feature_agreements}/{top_k})')
+    return similarity_score
+
+
+# 符号一致性，在特征一致性的基础上，符号也要一致
+def sign_agreement(top_sort_1: np.ndarray, top_sort_2: np.ndarray, sign_sort_maps_1: np.ndarray, sign_sort_maps_2: np.ndarray, top_k: int) -> float:
+    assert top_sort_1.shape == top_sort_2.shape
+    assert top_k <= len(top_sort_1)
+    consensus_list, _ = top_k_consensus(top_sort_1, top_sort_2, top_k, top_k)
+    sign_1 = np.sign(sign_sort_maps_1[consensus_list, 0])   # TODO: 应该考虑所有类别下的符号一致性，当前简化为第一个类别的特征贡献符号
+    sign_2 = np.sign(sign_sort_maps_2[consensus_list, 0])
+    sign_consistent_mask = (sign_1 == sign_2)
+    sign_consensus_list = np.array(consensus_list)[np.where(sign_consistent_mask)[0]]
+    num_sign_agreements = len(sign_consensus_list)
+    sign_similarity_score = num_sign_agreements / top_k
+    print(f'Top-{top_k} Sign Agreement: {sign_similarity_score}({num_sign_agreements}/{top_k})')
+    return sign_similarity_score
+
 
 # 通道或时间平均贡献的rank correlation和成对排序一致性
 
 # 使用RDMs评估两个模型的通道或时间特征间交互关系
+
+
+def plot_similarity_matrix(similarity_matrix, model_names, title=None, colorbar=True, vmin=0.0, vmax=1.0):
+    assert similarity_matrix.shape == (len(model_names), len(model_names))
+    disp = ConfusionMatrixDisplay(confusion_matrix=similarity_matrix, display_labels=model_names)
+    disp.plot(cmap='Oranges', values_format='.3f', colorbar=colorbar, im_kw={'vmin': vmin, 'vmax': vmax})
+    disp.ax_.set_xlabel('')
+    disp.ax_.set_ylabel('')
+    disp.ax_.set_title(title)
+    plt.show()
+    return disp.ax_
