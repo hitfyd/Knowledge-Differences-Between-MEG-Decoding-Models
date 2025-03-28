@@ -108,7 +108,7 @@ def train_pipeline(model_class, train_data, train_labels, test_data, test_labels
         writer.write(f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\tCompared Model {compare_model_name}\t'
                      f'Final Best Test Accuracy: {best_test_accuracy:.6f}\t'
                      f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
-                     f'Checkpoint: {best_checkpoint_path}')
+                     f'Checkpoint: {best_checkpoint_path}\n')
     return best_test_accuracy
 
 
@@ -122,23 +122,23 @@ criterion = nn.CrossEntropyLoss()
 # train hyperparameters
 batch_size_list = [128]
 learn_rate_list = [1e-3]
-MAX_TRAIN_EPOCHS = 20
-n_times = 1
+MAX_TRAIN_EPOCHS = 50
+n_times = 3
 
 # datasets
-datasets = ["CamCAN"]     # "DecMeg2014", "CamCAN"
+datasets = ["DecMeg2014", "CamCAN"]     # "DecMeg2014", "CamCAN"
 # top-k
-top_k_list = [0.1]    # 0.05, 0.1, 0.2
-model_names = ["meegnet", "linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]    # "linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"
+top_k_list = [0.15]    # 0.05, 0.1, 0.2
+model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]    # "meegnet", "linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"
 compare_model_name = "ATCNet"
 
 consensus_all_models = False
-control_train = False
+control_train = True
 consensus_train = True
-disagreement_train = False
+disagreement_train = True
 
 # log config
-log_path = f"./output/Train_Classifier_{datasets}/"
+log_path = f"./output/Train_Classifier_{datasets}_1/"
 if not os.path.exists(log_path):
     os.makedirs(log_path)
 with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
@@ -159,19 +159,22 @@ for dataset in datasets:
     for top_k in top_k_list:
         k = int(channels * points * top_k)
 
-        npz_consensus_all = np.load(
-            './output/Consensus_and_Disagreement_{}/{}_top_{}_union_consensus.npz'.format(dataset, dataset, top_k))
-        union_consensus, union_consensus_masks = npz_consensus_all['union_consensus'], npz_consensus_all[
-            'union_consensus_masks']
+        # npz_consensus_all = np.load(
+        #     './output/Consensus_and_Disagreement_{}/{}_top_{}_union_consensus.npz'.format(dataset, dataset, top_k))
+        # union_consensus, union_consensus_masks = npz_consensus_all['union_consensus'], npz_consensus_all[
+        #     'union_consensus_masks']
 
         for model_type in model_names:
             model_class, model_pretrain_path = model_dict[dataset][model_type]
             model = model_class(channels=channels, points=points, num_classes=num_classes)
             model_name = model.__class__.__name__
             npz = np.load('./output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, model_name))
-            top_sort, sort_contribution, sign_sort_maps = npz['abs_top_sort'], npz['abs_sort_contribution'], npz['sign_sort_maps']
+            top_sort, sort_contribution, sign_sort_maps, top_k_1 = npz['abs_top_sort'], npz['abs_sort_contribution'], npz['sign_sort_maps'], npz['top_k']
+            # k1 = int(channels * points * top_k_1)
             npz_compare = np.load('./output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, compare_model_name))
-            top_sort_compare = npz_compare['abs_top_sort']
+            top_sort_compare, top_k_2 = npz_compare['abs_top_sort'], npz_compare['top_k']
+            # k2 = int(channels * points * top_k_2)
+            k1, k2 = k, k
 
             # # consensus of all models 重训练
             # if consensus_all_models:
@@ -213,12 +216,12 @@ for dataset in datasets:
                                 f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\tCompared Model {compare_model_name}\t'
                                 f'Control Accuracy Mean: {accuracy_list.mean():.6f}\tStd: {accuracy_list.std():.6f}\t'
                                 f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
-                                f'Checkpoint: {best_checkpoint_path}')
+                                f'Checkpoint: {best_checkpoint_path}\n')
 
 
             # top-k consensus with atcnet
             if consensus_train:
-                consensus_list, consensus_masks = top_k_consensus(top_sort, top_sort_compare, k)
+                consensus_list, consensus_masks = top_k_consensus(top_sort, top_sort_compare, k1, k2)
                 consensus_masks = consensus_masks.reshape(channels, points)
                 print("consensus_features:", len(consensus_list))
                 consensus_data = data * consensus_masks + mean_sample * ~consensus_masks
@@ -236,11 +239,11 @@ for dataset in datasets:
                                 f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\tCompared Model {compare_model_name}\t'
                                 f'Consensus Accuracy Mean: {accuracy_list.mean():.6f}\tStd: {accuracy_list.std():.6f}\t'
                                 f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
-                                f'Checkpoint: {best_checkpoint_path}')
+                                f'Checkpoint: {best_checkpoint_path}\n')
 
             # top-k disagreement with atcnet
             if disagreement_train:
-                disagreement_list, disagreement_masks = top_k_disagreement(top_sort, top_sort_compare, k)
+                disagreement_list, disagreement_masks = top_k_disagreement(top_sort, top_sort_compare, k1, k2)
                 disagreement_masks = disagreement_masks.reshape(channels, points)
                 print("disagreement_features:", len(disagreement_list))
                 disagreement_data = data * disagreement_masks + mean_sample * ~disagreement_masks
@@ -258,4 +261,4 @@ for dataset in datasets:
                                 f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\tCompared Model {compare_model_name}\t'
                                 f'Disagreement Accuracy Mean: {accuracy_list.mean():.6f}\tStd: {accuracy_list.std():.6f}\t'
                                 f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
-                                f'Checkpoint: {best_checkpoint_path}')
+                                f'Checkpoint: {best_checkpoint_path}\n')

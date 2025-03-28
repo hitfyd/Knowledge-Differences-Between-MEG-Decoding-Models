@@ -2,6 +2,7 @@ import os
 import shelve
 
 import numpy as np
+from kneed import KneeLocator
 
 from differlib.engine.utils import setup_seed, get_data_labels_from_dataset, get_data_loader, dataset_info_dict, \
     save_figure, model_eval, load_checkpoint
@@ -18,7 +19,7 @@ if __name__ == "__main__":
 
     # 要分析的样本数量
     # datasets
-    dataset = "CamCAN"  # "DecMeg2014", "CamCAN"
+    dataset = "DecMeg2014"  # "DecMeg2014", "CamCAN"
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
     test_loader = get_data_loader(test_data, test_labels)
     origin_data, labels = test_data, test_labels
@@ -38,6 +39,7 @@ if __name__ == "__main__":
         sample_num = 300
 
     model_names = ["MEEGNet", "Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"]
+    n_x = 100   # 百分比划分特征
 
     # AttributionExplainer参数
     explainer = cfg.EXPLAINER.TYPE
@@ -69,8 +71,13 @@ if __name__ == "__main__":
         abs_sort_contribution = abs_feature_contribution[abs_top_sort]
         sign_sort_maps = sign_mean_maps.reshape(-1, n_classes)[abs_top_sort]
 
+        y = abs_sort_contribution.reshape(-1, len(abs_sort_contribution) // n_x).sum(axis=-1)
+        x = range(1, n_x+1)
+        kl = KneeLocator(x, y, curve="convex", direction="decreasing")
+        top_k = kl.knee / n_x
+
         file = './output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, model_name)
-        np.savez(file, abs_top_sort=abs_top_sort, abs_sort_contribution=abs_sort_contribution, sign_sort_maps=sign_sort_maps)
+        np.savez(file, abs_top_sort=abs_top_sort, abs_sort_contribution=abs_sort_contribution, sign_sort_maps=sign_sort_maps, top_k=top_k)
 
         # 绘制特征绝对贡献地形图和时间曲线
         attribution_maps = abs_mean_maps.mean(axis=-1)
