@@ -138,7 +138,7 @@ consensus_train = True
 disagreement_train = True
 
 # log config
-log_path = f"./output/Train_Classifier_{datasets}_1/"
+log_path = f"./output/Train_Classifier_{datasets}/"
 if not os.path.exists(log_path):
     os.makedirs(log_path)
 with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
