@@ -44,13 +44,15 @@ def feature_agreement(top_sort_1: np.ndarray, top_sort_2: np.ndarray, top_k: int
 def sign_agreement(top_sort_1: np.ndarray, top_sort_2: np.ndarray, sign_sort_maps_1: np.ndarray, sign_sort_maps_2: np.ndarray, top_k: int) -> float:
     assert top_sort_1.shape == top_sort_2.shape
     assert top_k <= len(top_sort_1)
+    _, n_classes = sign_sort_maps_1.shape
     consensus_list, _ = top_k_consensus(top_sort_1, top_sort_2, top_k, top_k)
-    sign_1 = np.sign(sign_sort_maps_1[consensus_list, 0])   # TODO: 应该考虑所有类别下的符号一致性，当前简化为第一个类别的特征贡献符号
-    sign_2 = np.sign(sign_sort_maps_2[consensus_list, 0])
+    sign_1 = np.sign(sign_sort_maps_1[consensus_list])
+    sign_2 = np.sign(sign_sort_maps_2[consensus_list])
     sign_consistent_mask = (sign_1 == sign_2)
-    sign_consensus_list = np.array(consensus_list)[np.where(sign_consistent_mask)[0]]
+    class_consensus_list = np.array(consensus_list).repeat(n_classes)   # 考虑所有类别下的符号一致性
+    sign_consensus_list = class_consensus_list[np.where(sign_consistent_mask.reshape(-1))[0]]
     num_sign_agreements = len(sign_consensus_list)
-    sign_similarity_score = num_sign_agreements / top_k
+    sign_similarity_score = num_sign_agreements / (top_k * n_classes)
     print(f'Top-{top_k} Sign Agreement: {sign_similarity_score}({num_sign_agreements}/{top_k})')
     return sign_similarity_score
 

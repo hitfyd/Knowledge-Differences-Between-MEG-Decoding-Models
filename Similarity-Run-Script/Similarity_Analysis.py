@@ -1,15 +1,13 @@
 import numpy as np
-from kneed import KneeLocator
-from matplotlib import pyplot as plt
 
-from differlib.engine.utils import dataset_info_dict
 from MEG_Explanation_Comparison import feature_agreement, plot_similarity_matrix, sign_agreement
+from differlib.engine.utils import dataset_info_dict
 
 # datasets
 datasets = ["DecMeg2014", "CamCAN"]     # "DecMeg2014", "CamCAN"
 model_names = ["Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"]    # "MEEGNet",
 n_models = len(model_names)
-top_k = 0.5
+top_k = 0.15
 top_k_percent = int(top_k * 100)
 
 for dataset in datasets:
