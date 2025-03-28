@@ -53,7 +53,7 @@ def sign_agreement(top_sort_1: np.ndarray, top_sort_2: np.ndarray, sign_sort_map
     sign_consensus_list = class_consensus_list[np.where(sign_consistent_mask.reshape(-1))[0]]
     num_sign_agreements = len(sign_consensus_list)
     sign_similarity_score = num_sign_agreements / (top_k * n_classes)
-    print(f'Top-{top_k} Sign Agreement: {sign_similarity_score}({num_sign_agreements}/{top_k})')
+    print(f'Top-{top_k} Sign Agreement: {sign_similarity_score}({num_sign_agreements}/{(top_k * n_classes)})')
     return sign_similarity_score
 
 

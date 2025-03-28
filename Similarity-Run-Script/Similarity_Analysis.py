@@ -1,7 +1,10 @@
+import shelve
+
 import numpy as np
 
 from MEG_Explanation_Comparison import feature_agreement, plot_similarity_matrix, sign_agreement
 from differlib.engine.utils import dataset_info_dict
+from similarity.engine.cfg import CFG as cfg
 
 # datasets
 datasets = ["DecMeg2014", "CamCAN"]     # "DecMeg2014", "CamCAN"
@@ -9,9 +12,18 @@ model_names = ["Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"]    # "MEEGN
 n_models = len(model_names)
 top_k = 0.15
 top_k_percent = int(top_k * 100)
+explainer = cfg.EXPLAINER.TYPE
 
 for dataset in datasets:
-    channels, points = dataset_info_dict[dataset]['CHANNELS'], dataset_info_dict[dataset]['POINTS']
+    db_path = './output/Consensus/{}/{}_{}_attribution'.format(dataset, dataset, explainer)
+    db = shelve.open(db_path)
+    save_path = f"./output/Attribution_Similarity_{dataset}/"
+
+    sample_num = 2000
+    if dataset == 'DecMeg2014':
+        sample_num = 300
+
+    channels, points, n_classes = dataset_info_dict[dataset]['CHANNELS'], dataset_info_dict[dataset]['POINTS'], dataset_info_dict[dataset]['NUM_CLASSES']
     k = int(channels * points * top_k)
     # 计算Feature Agreement
     feature_agreement_matrix = np.ones((n_models, n_models), dtype=float)
@@ -27,13 +39,38 @@ for dataset in datasets:
             npz_j = np.load('./output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, model_j))
             top_sort_j, sort_contribution_j, sign_sort_maps_j = npz_j['abs_top_sort'], npz_j['abs_sort_contribution'], npz_j['sign_sort_maps']
 
+            feature_agreement_scores = []
+            sign_agreement_scores = []
+            for sample_id in range(sample_num):
+                attribution_id = f"{sample_id}_{model_i}"
+                assert attribution_id in db
+                maps_i = db[attribution_id]
+                attribution_id = f"{sample_id}_{model_j}"
+                assert attribution_id in db
+                maps_j = db[attribution_id]
+
+                abs_maps_i = np.abs(maps_i).sum(axis=-1).reshape(-1)
+                abs_top_sort_i = np.argsort(abs_maps_i)[::-1]
+                abs_sort_contribution_i = abs_maps_i[abs_top_sort_i]
+                sign_sort_maps_i = maps_i.reshape(-1, n_classes)[abs_top_sort_i]
+
+                abs_maps_j = np.abs(maps_j).sum(axis=-1).reshape(-1)
+                abs_top_sort_j = np.argsort(abs_maps_j)[::-1]
+                abs_sort_contribution_j = abs_maps_j[abs_top_sort_j]
+                sign_sort_maps_j = maps_j.reshape(-1, n_classes)[abs_top_sort_j]
+
+                feature_agreement_scores.append(feature_agreement(abs_top_sort_i, abs_top_sort_j, k))
+                sign_agreement_scores.append(sign_agreement(abs_top_sort_i, abs_top_sort_j, sign_sort_maps_i, sign_sort_maps_j, k))
+
             # 计算Feature Agreement
-            feature_agreement_matrix[i_th, j_th] = feature_agreement_matrix[j_th, i_th] = feature_agreement(top_sort_i, top_sort_j, k)
+            # feature_agreement_matrix[i_th, j_th] = feature_agreement_matrix[j_th, i_th] = feature_agreement(top_sort_i, top_sort_j, k)
+            feature_agreement_matrix[i_th, j_th] = feature_agreement_matrix[j_th, i_th] = np.mean(feature_agreement_scores)
 
             # 计算Rank Agreement
 
             # 计算Sign Agreement
-            sign_agreement_matrix[i_th, j_th] = sign_agreement_matrix[j_th, i_th] = sign_agreement(top_sort_i, top_sort_j, sign_sort_maps_i, sign_sort_maps_j, k)
+            # sign_agreement_matrix[i_th, j_th] = sign_agreement_matrix[j_th, i_th] = sign_agreement(top_sort_i, top_sort_j, sign_sort_maps_i, sign_sort_maps_j, k)
+            sign_agreement_matrix[i_th, j_th] = sign_agreement_matrix[j_th, i_th] = np.mean(sign_agreement_scores)
 
             # 计算Signed Rank Agreement
 
