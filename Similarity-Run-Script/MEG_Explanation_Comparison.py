@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn.metrics import ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
+from scipy.stats import spearmanr
 
 
 def top_k_consensus(top_sort_1: np.ndarray, top_sort_2: np.ndarray, k1: int, k2: int) -> [np.ndarray, np.ndarray]:
@@ -55,6 +56,36 @@ def sign_agreement(top_sort_1: np.ndarray, top_sort_2: np.ndarray, sign_sort_map
     sign_similarity_score = num_sign_agreements / (top_k * n_classes)
     print(f'Top-{top_k} Sign Agreement: {sign_similarity_score}({num_sign_agreements}/{(top_k * n_classes)})')
     return sign_similarity_score
+
+
+# 排序相关性
+def rank_correlation(top_sort_1: np.ndarray, top_sort_2: np.ndarray, top_k: int) -> float:
+    assert top_sort_1.shape == top_sort_2.shape
+    assert top_k <= len(top_sort_1)
+    # 计算 Spearman 相关系数
+    corr, p_value = spearmanr(top_sort_1.flatten(), top_sort_2.flatten())
+    similarity_score = corr
+    print(f'Top-{top_k} Rank Correlation: {corr}, P value: {p_value:.3f}')
+    return similarity_score
+
+
+# 成对排序一致性
+def pair_rank_agreement(top_sort_1: np.ndarray, top_sort_2: np.ndarray, top_k: int) -> float:
+    assert top_sort_1.shape == top_sort_2.shape
+    assert top_k <= len(top_sort_1)
+    consensus_list, _ = top_k_consensus(top_sort_1, top_sort_2, top_k, top_k)
+    num_feature_agreements = len(consensus_list)
+    num_pairs = 0
+    agreement_pairs = 0
+    for i in range(num_feature_agreements-1):
+        for j in range(i+1, num_feature_agreements):
+            if np.argwhere(top_sort_2 == consensus_list[i])[0][0] < np.argwhere(top_sort_2 == consensus_list[j])[0][0]:
+                agreement_pairs += 1
+            num_pairs += 1
+    num_feature_agreements = len(consensus_list)
+    similarity_score = agreement_pairs / num_pairs
+    print(f'Top-{top_k} Rank Agreement: {similarity_score}({num_feature_agreements}/{top_k})')
+    return similarity_score
 
 
 # 通道或时间平均贡献的rank correlation和成对排序一致性
