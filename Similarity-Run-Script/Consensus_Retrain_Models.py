@@ -132,10 +132,10 @@ top_k_list = [0.15]    # 0.05, 0.1, 0.2
 model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]    # "meegnet", "linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"
 compare_model_name = "ATCNet"
 
-consensus_all_models = False
-control_train = True
-consensus_train = True
-disagreement_train = True
+consensus_all_models = True
+control_train = False
+consensus_train = False
+disagreement_train = False
 
 # log config
 log_path = f"./output/Train_Classifier_{datasets}/"
@@ -159,10 +159,10 @@ for dataset in datasets:
     for top_k in top_k_list:
         k = int(channels * points * top_k)
 
-        # npz_consensus_all = np.load(
-        #     './output/Consensus_and_Disagreement_{}/{}_top_{}_union_consensus.npz'.format(dataset, dataset, top_k))
-        # union_consensus, union_consensus_masks = npz_consensus_all['union_consensus'], npz_consensus_all[
-        #     'union_consensus_masks']
+        npz_consensus_all = np.load(
+            './output/Consensus_and_Disagreement_{}/{}_top_{}_union_consensus.npz'.format(dataset, dataset, top_k))
+        union_consensus, union_consensus_masks = npz_consensus_all['union_consensus'], npz_consensus_all[
+            'union_consensus_masks']
 
         for model_type in model_names:
             model_class, model_pretrain_path = model_dict[dataset][model_type]
@@ -176,24 +176,36 @@ for dataset in datasets:
             # k2 = int(channels * points * top_k_2)
             k1, k2 = k, k
 
-            # # consensus of all models 重训练
-            # if consensus_all_models:
-            #     print("fixed_features:", union_consensus_masks.sum())
-            #     fixed_data = data * union_consensus_masks
-            #     fixed_data_test = data_test * union_consensus_masks
-            #     for batch_size in batch_size_list:
-            #         for learn_rate in learn_rate_list:
-            #             best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_top_{top_k}_consensus_all_models_checkpoint.pt")
-            #             train_pipeline(model_class, fixed_data, labels, fixed_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, best_checkpoint_path)
-            #
-            #     fixed_data = data * ~union_consensus_masks
-            #     fixed_data_test = data_test * ~union_consensus_masks
-            #     for batch_size in batch_size_list:
-            #         for learn_rate in learn_rate_list:
-            #             best_checkpoint_path = os.path.join(log_path,
-            #                                                 f"{dataset}_{model_name}_{batch_size}_{learn_rate}_top_{top_k}_disagreement_all_models_checkpoint.pt")
-            #             train_pipeline(model_class, fixed_data, labels, fixed_data_test, labels_test, DEVICE,
-            #                            learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, best_checkpoint_path)
+            # consensus of all models 重训练
+            if consensus_all_models:
+                print("fixed_features:", union_consensus_masks.sum())
+                fixed_data = data * union_consensus_masks
+                fixed_data_test = data_test * union_consensus_masks
+                for batch_size in batch_size_list:
+                    for learn_rate in learn_rate_list:
+                        accuracy_list = np.zeros(n_times)
+                        for i_th in range(n_times):
+                            best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_top_{top_k}_consensus_all_models_checkpoint_{i_th}.pt")
+                            accuracy_list[i_th] = train_pipeline(model_class, fixed_data, labels, fixed_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, best_checkpoint_path, seed+i_th)
+                        print(accuracy_list.mean(), accuracy_list.std(), accuracy_list)
+                        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                            writer.write(
+                                f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\t'
+                                f'Consensus All Models Accuracy Mean: {accuracy_list.mean():.6f}\tStd: {accuracy_list.std():.6f}\n')
+
+                fixed_data = data * ~union_consensus_masks
+                fixed_data_test = data_test * ~union_consensus_masks
+                for batch_size in batch_size_list:
+                    for learn_rate in learn_rate_list:
+                        accuracy_list = np.zeros(n_times)
+                        for i_th in range(n_times):
+                            best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_top_{top_k}_disagreement_all_models_checkpoint.pt")
+                            accuracy_list[i_th] = train_pipeline(model_class, fixed_data, labels, fixed_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, best_checkpoint_path, seed+i_th)
+                        print(accuracy_list.mean(), accuracy_list.std(), accuracy_list)
+                        with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
+                            writer.write(
+                                f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\t'
+                                f'Disagreement All Models Accuracy Mean: {accuracy_list.mean():.6f}\tStd: {accuracy_list.std():.6f}\n')
 
             # top-k控制组训练结果
             if control_train:
@@ -207,16 +219,13 @@ for dataset in datasets:
                     for learn_rate in learn_rate_list:
                         accuracy_list = np.zeros(n_times)
                         for i_th in range(n_times):
-                            best_checkpoint_path = os.path.join(log_path,
-                                                                f"{dataset}_{model_name}_{batch_size}_{learn_rate}_top_{top_k}_control_checkpoint.pt")
+                            best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_top_{top_k}_control_checkpoint_{i_th}.pt")
                             accuracy_list[i_th] = train_pipeline(model_class, fixed_data, labels, fixed_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, best_checkpoint_path, seed+i_th)
                         print(accuracy_list.mean(), accuracy_list.std(), accuracy_list)
                         with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
                             writer.write(
                                 f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\tCompared Model {compare_model_name}\t'
-                                f'Control Accuracy Mean: {accuracy_list.mean():.6f}\tStd: {accuracy_list.std():.6f}\t'
-                                f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
-                                f'Checkpoint: {best_checkpoint_path}\n')
+                                f'Control Accuracy Mean: {accuracy_list.mean():.6f}\tStd: {accuracy_list.std():.6f}\n')
 
 
             # top-k consensus with atcnet
@@ -230,16 +239,13 @@ for dataset in datasets:
                     for learn_rate in learn_rate_list:
                         accuracy_list = np.zeros(n_times)
                         for i_th in range(n_times):
-                            best_checkpoint_path = os.path.join(log_path,
-                                                                f"{dataset}_{model_name}_{batch_size}_{learn_rate}_top_{top_k}_consensus_checkpoint.pt")
+                            best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_top_{top_k}_consensus_checkpoint_{i_th}.pt")
                             accuracy_list[i_th] = train_pipeline(model_class, consensus_data, labels, consensus_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, best_checkpoint_path, seed+i_th, compare_model_name)
                         print(accuracy_list.mean(), accuracy_list.std(), accuracy_list)
                         with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
                             writer.write(
                                 f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\tCompared Model {compare_model_name}\t'
-                                f'Consensus Accuracy Mean: {accuracy_list.mean():.6f}\tStd: {accuracy_list.std():.6f}\t'
-                                f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
-                                f'Checkpoint: {best_checkpoint_path}\n')
+                                f'Consensus Accuracy Mean: {accuracy_list.mean():.6f}\tStd: {accuracy_list.std():.6f}\n')
 
             # top-k disagreement with atcnet
             if disagreement_train:
@@ -252,13 +258,10 @@ for dataset in datasets:
                     for learn_rate in learn_rate_list:
                         accuracy_list = np.zeros(n_times)
                         for i_th in range(n_times):
-                            best_checkpoint_path = os.path.join(log_path,
-                                                                f"{dataset}_{model_name}_{batch_size}_{learn_rate}_top_{top_k}_disagreement_checkpoint.pt")
+                            best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_top_{top_k}_disagreement_checkpoint_{i_th}.pt")
                             accuracy_list[i_th] = train_pipeline(model_class, disagreement_data, labels, disagreement_data_test, labels_test, DEVICE, learn_rate, batch_size, MAX_TRAIN_EPOCHS, top_k, best_checkpoint_path, seed+i_th, compare_model_name)
                         print(accuracy_list.mean(), accuracy_list.std(), accuracy_list)
                         with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
                             writer.write(
                                 f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\tCompared Model {compare_model_name}\t'
-                                f'Disagreement Accuracy Mean: {accuracy_list.mean():.6f}\tStd: {accuracy_list.std():.6f}\t'
-                                f'Learning Rate: {learn_rate}\tBatch Size: {batch_size}\t'
-                                f'Checkpoint: {best_checkpoint_path}\n')
+                                f'Disagreement Accuracy Mean: {accuracy_list.mean():.6f}\tStd: {accuracy_list.std():.6f}\n')

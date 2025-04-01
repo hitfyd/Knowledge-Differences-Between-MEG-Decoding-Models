@@ -6,6 +6,6 @@ NUM_SAMPLES: 300
 MODELS: ["atcnet"]  # "atcnet"处理速度过慢，可能需要修改实现
 EXPLAINER:
   TYPE: "ShapleyValueExplainer"
-  W: 10
-  M: 16
+  W: 5
+  M: 8
   RANGE_REFERENCES: -200  # 测试集较小，为避免重叠改小

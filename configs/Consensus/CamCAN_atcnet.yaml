@@ -7,5 +7,5 @@ MODELS: ["atcnet"]  # "atcnet"处理速度过慢，可能需要修改实现
 EXPLAINER:
   TYPE: "ShapleyValueExplainer"
   W: 1
-  M: 16
+  M: 8
   RANGE_REFERENCES: -1000

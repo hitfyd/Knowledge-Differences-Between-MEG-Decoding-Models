@@ -1,7 +1,8 @@
 import numpy as np
 from sklearn.metrics import ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
-from scipy.stats import spearmanr
+from scipy.stats import spearmanr, pearsonr, kendalltau, cosine
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 def top_k_consensus(top_sort_1: np.ndarray, top_sort_2: np.ndarray, k1: int, k2: int) -> [np.ndarray, np.ndarray]:
@@ -58,33 +59,48 @@ def sign_agreement(top_sort_1: np.ndarray, top_sort_2: np.ndarray, sign_sort_map
     return sign_similarity_score
 
 
-# 排序相关性
-def rank_correlation(top_sort_1: np.ndarray, top_sort_2: np.ndarray, top_k: int) -> float:
+# 贡献相关性
+def feature_contribution_correlation(feature_contribution_1: np.ndarray, feature_contribution_2: np.ndarray) -> float:
+    assert feature_contribution_1.shape == feature_contribution_2.shape
+    # 计算余弦相似性
+    cos_sim = cosine_similarity([feature_contribution_1], [feature_contribution_2])[0][0]
+    print(f"余弦相似度: {cos_sim:.4f}")
+    # 计算皮尔逊相关系数
+    corr, p_value = pearsonr(feature_contribution_1, feature_contribution_2)
+    print(f"皮尔逊相关系数: {corr:.4f}, p值: {p_value:.4f}")
+    # 计算肯德尔相关系数
+    tau, p_value = kendalltau(feature_contribution_1, feature_contribution_2)
+    print(f"肯德尔相关系数: {tau:.4f}, p值: {p_value:.4f}")
+    similarity_score = tau
+    print(f'Feature Contribution Correlation: {similarity_score}')
+    return similarity_score
+
+
+# 贡献的排序相关性
+def rank_correlation(top_sort_1: np.ndarray, top_sort_2: np.ndarray) -> float:
     assert top_sort_1.shape == top_sort_2.shape
-    assert top_k <= len(top_sort_1)
     # 计算 Spearman 相关系数
     corr, p_value = spearmanr(top_sort_1.flatten(), top_sort_2.flatten())
     similarity_score = corr
-    print(f'Top-{top_k} Rank Correlation: {corr}, P value: {p_value:.3f}')
+    print(f'Rank Correlation: {corr}, P value: {p_value}')
     return similarity_score
 
 
 # 成对排序一致性
-def pair_rank_agreement(top_sort_1: np.ndarray, top_sort_2: np.ndarray, top_k: int) -> float:
-    assert top_sort_1.shape == top_sort_2.shape
-    assert top_k <= len(top_sort_1)
-    consensus_list, _ = top_k_consensus(top_sort_1, top_sort_2, top_k, top_k)
-    num_feature_agreements = len(consensus_list)
+def pairwise_rank_agreement(feature_contribution_1: np.ndarray, feature_contribution_2: np.ndarray) -> float:
+    assert feature_contribution_1.shape == feature_contribution_2.shape
+    num_feature_agreements = len(feature_contribution_1)
     num_pairs = 0
     agreement_pairs = 0
     for i in range(num_feature_agreements-1):
         for j in range(i+1, num_feature_agreements):
-            if np.argwhere(top_sort_2 == consensus_list[i])[0][0] < np.argwhere(top_sort_2 == consensus_list[j])[0][0]:
+            if feature_contribution_1[i] <= feature_contribution_1[j] and feature_contribution_2[i] <= feature_contribution_2[j]:
+                agreement_pairs += 1
+            if feature_contribution_1[i] > feature_contribution_1[j] and feature_contribution_2[i] > feature_contribution_2[j]:
                 agreement_pairs += 1
             num_pairs += 1
-    num_feature_agreements = len(consensus_list)
     similarity_score = agreement_pairs / num_pairs
-    print(f'Top-{top_k} Rank Agreement: {similarity_score}({num_feature_agreements}/{top_k})')
+    print(f'Pairwise Rank Agreement: {similarity_score}')
     return similarity_score
 
 
@@ -93,12 +109,15 @@ def pair_rank_agreement(top_sort_1: np.ndarray, top_sort_2: np.ndarray, top_k: i
 # 使用RDMs评估两个模型的通道或时间特征间交互关系
 
 
-def plot_similarity_matrix(similarity_matrix, model_names, title=None, colorbar=True, vmin=0.0, vmax=1.0):
-    assert similarity_matrix.shape == (len(model_names), len(model_names))
-    disp = ConfusionMatrixDisplay(confusion_matrix=similarity_matrix, display_labels=model_names)
-    disp.plot(cmap='Oranges', values_format='.3f', colorbar=colorbar, im_kw={'vmin': vmin, 'vmax': vmax})
+def plot_similarity_matrix(similarity_matrix, labels, title=None, colorbar=True, include_values=True, vmin=0.0, vmax=1.0):
+    assert similarity_matrix.shape == (len(labels), len(labels))
+    disp = ConfusionMatrixDisplay(confusion_matrix=similarity_matrix, display_labels=labels)
+    disp.plot(include_values=include_values, cmap='Oranges', values_format='.3f', colorbar=colorbar, im_kw={'vmin': vmin, 'vmax': vmax})
     disp.ax_.set_xlabel('')
     disp.ax_.set_ylabel('')
+    if not include_values:
+        disp.ax_.set_xticks([])
+        disp.ax_.set_yticks([])
     disp.ax_.set_title(title)
     plt.show()
     return disp.ax_

@@ -16,7 +16,7 @@ from similarity.engine.cfg import CFG as cfg
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for attribution consensus.")
-    parser.add_argument("--cfg", type=str, default="../configs/Consensus/CamCAN_atcnet.yaml")
+    parser.add_argument("--cfg", type=str, default="../configs/Consensus/DecMeg2014_atcnet.yaml")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -53,10 +53,10 @@ if __name__ == "__main__":
     # init dataset & models
     dataset = cfg.DATASET
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
-    # train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
-    # train_loader = get_data_loader(train_data, train_labels)
+    train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
+    train_loader = get_data_loader(train_data, train_labels)
     test_loader = get_data_loader(test_data, test_labels)
-    origin_data, labels = test_data, test_labels
+    origin_data, labels = train_data, train_labels
     n_samples, channels, points = origin_data.shape
     n_classes = len(set(labels))
     assert channels == dataset_info_dict[dataset]["CHANNELS"]
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     reference_filter = False    # 对于模型比较来说，不应该启用；对于单一模型的特征归因有效果
     antithetic_variables = False
 
-    db_path = log_path + '/{}_{}_attribution'.format(dataset, explainer)
+    db_path = log_path + '/{}_{}_attribution_train'.format(dataset, explainer)
     db = shelve.open(db_path)
     joint_explainer = ShapleyValueExplainer(dataset_info, model_list, reference_dataset,
                                             reference_num, window_length, M, reference_filter, antithetic_variables)
