@@ -105,8 +105,8 @@ for dataset in datasets:
             channel_pairwise_rank_agreement_matrix[i_th, j_th] = channel_pairwise_rank_agreement_matrix[j_th, i_th] = pairwise_rank_agreement(heatmap_channel_i, heatmap_channel_j)
             time_pairwise_rank_agreement_matrix[i_th, j_th] = time_pairwise_rank_agreement_matrix[j_th, i_th] = pairwise_rank_agreement(heatmap_time_i, heatmap_time_j)
 
-    # feature_agreement_axis = plot_similarity_matrix(feature_agreement_matrix, model_names, title=f"Feature Agreement (Top-k={top_k_percent}%)")
-    # sign_agreement_axis = plot_similarity_matrix(sign_agreement_matrix, model_names, title=f"Sign Agreement (Top-k={top_k_percent}%)")
+    feature_agreement_axis = plot_similarity_matrix(feature_agreement_matrix, model_names, title=f"Feature Agreement (Top-k={top_k_percent}%)")
+    sign_agreement_axis = plot_similarity_matrix(sign_agreement_matrix, model_names, title=f"Sign Agreement (Top-k={top_k_percent}%)")
     # channel_rank_correlation_axis = plot_similarity_matrix(channel_rank_correlation_matrix, model_names, title=f"Rank Correlation (Channel)")
     # time_rank_correlation_axis = plot_similarity_matrix(time_rank_correlation_matrix, model_names, title=f"Rank Correlation (Time)")
     # channel_pairwise_rank_agreement_axis = plot_similarity_matrix(channel_pairwise_rank_agreement_matrix, model_names, title=f"Pairwise Rank Agreement (Channel)")

@@ -33,7 +33,7 @@ for dataset in datasets:
     abs_mean_contribution = np.zeros((num_models, channels, points), dtype=np.float32)
     for i in range(num_models):
         model_i = compared_model_names[i]
-        npz_i = np.load('./output/Consensus/{}/{}_{}_top_sort.npz'.format(dataset, dataset, model_i))
+        npz_i = np.load('./output/Consensus/{}/{}_{}_top_sort_train.npz'.format(dataset, dataset, model_i))
         abs_top_sort_i, abs_sort_contribution_i, sign_sort_maps_i = npz_i['abs_top_sort'], npz_i['abs_sort_contribution'], \
             npz_i['sign_sort_maps']
         abs_top_sort[i] = abs_top_sort_i
@@ -66,9 +66,9 @@ for dataset in datasets:
         union_consensus_contribution = model_mean_contribution * union_consensus_masks
         consensus_title = f'Top-{top_k_percent}% Consensus of All Models'
         fig, _, _ = topomap_plot(consensus_title, union_consensus_contribution, channels_info, channels=channels, top_channel_num=5)
-        save_figure(fig, save_path, '{}_{}_all_models_consensus'.format(dataset, top_k))
+        # save_figure(fig, save_path, '{}_{}_all_models_consensus'.format(dataset, top_k))
 
         # 保存union_consensus
-        file = '{}/{}_top_{}_union_consensus.npz'.format(save_path, dataset, top_k)
+        file = '{}/{}_top_{}_union_consensus_train.npz'.format(save_path, dataset, top_k)
         np.savez(file, union_consensus=union_consensus, union_consensus_masks=union_consensus_masks, union_consensus_contribution=union_consensus_contribution)
 
