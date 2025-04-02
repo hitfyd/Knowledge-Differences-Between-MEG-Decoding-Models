@@ -33,9 +33,9 @@ if __name__ == "__main__":
 
         model_names = ["Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"]
         accuracies = [94.0549, 94.3598, 95.1728, 95.6131, 95.6640, 96.1551]
-        sample_num = 155
+        sample_num = 160
         if dataset == 'DecMeg2014':
-            sample_num = 90
+            sample_num = 100
             accuracies = [74.4108, 75.7576, 80.4714, 81.6498, 79.2929, 82.9966]
         n_x = 100   # 百分比划分特征
 

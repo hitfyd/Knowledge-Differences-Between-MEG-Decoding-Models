@@ -108,6 +108,9 @@ if __name__ == "__main__":
 
     logger = IterationLogger()
     for sample_id in range(sample_num):
+        if f"{sample_id}_{model_list[0].__class__.__name__}" in db:
+            print(f"{sample_id}_{model_list[0].__class__.__name__} exists")
+            continue
         origin_input, truth_label = origin_data[sample_id], labels[sample_id]
         sample_info = SampleInfo(sample_id=sample_id, origin_input=origin_input, truth_label=truth_label)
         print('sample_id:{}\ttruth_label:{}'.format(sample_id, truth_label))
