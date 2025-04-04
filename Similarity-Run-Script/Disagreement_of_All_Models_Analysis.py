@@ -5,8 +5,8 @@ import numpy as np
 import mne
 from sklearn.metrics.pairwise import cosine_similarity
 
-from MEG_Explanation_Comparison import top_k_consensus, top_k_disagreement
-from MEG_Shapley_Values import topomap_plot
+from similarity.analyzer.MEG_Explanation_Comparison import top_k_consensus, top_k_disagreement
+from similarity.attribution.MEG_Shapley_Values import topomap_plot
 from differlib.engine.utils import dataset_info_dict, save_figure
 
 # datasets

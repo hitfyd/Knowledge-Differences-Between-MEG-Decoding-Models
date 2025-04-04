@@ -4,7 +4,7 @@ import numpy as np
 from scipy.spatial.distance import euclidean, correlation
 from sklearn.metrics import pairwise_distances
 
-from MEG_Explanation_Comparison import feature_agreement, plot_similarity_matrix, sign_agreement, rank_correlation, \
+from similarity.analyzer.MEG_Explanation_Comparison import feature_agreement, plot_similarity_matrix, sign_agreement, rank_correlation, \
     pairwise_rank_agreement, feature_contribution_correlation
 from differlib.engine.utils import dataset_info_dict
 from similarity.engine.cfg import CFG as cfg

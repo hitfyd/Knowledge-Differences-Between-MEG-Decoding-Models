@@ -6,7 +6,7 @@ import time
 import numpy as np
 import torch
 
-from MEG_Shapley_Values import ShapleyValueExplainer, DatasetInfo, SampleInfo, deletion_test, \
+from similarity.attribution.MEG_Shapley_Values import ShapleyValueExplainer, DatasetInfo, SampleInfo, deletion_test, \
     additive_efficient_normalization, IterationLogger, torch_individual_predict
 from differlib.engine.utils import (setup_seed, load_checkpoint, get_data_labels_from_dataset,
                                     get_data_loader,
@@ -16,7 +16,7 @@ from similarity.engine.cfg import CFG as cfg
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for attribution consensus.")
-    parser.add_argument("--cfg", type=str, default="../configs/Consensus/DecMeg2014_atcnet.yaml")
+    parser.add_argument("--cfg", type=str, default="../configs/Consensus/CamCAN.yaml")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()

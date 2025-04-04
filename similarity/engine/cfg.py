@@ -8,7 +8,7 @@ CFG.EXPERIMENT.PROJECT = ""
 CFG.EXPERIMENT.NAME = ""
 CFG.EXPERIMENT.TAG = ""
 CFG.EXPERIMENT.SEED = 0  # Random number seed, which is beneficial to the repeatability of the experiment. 0/2024
-CFG.EXPERIMENT.GPU_IDS = "0"    # List of GPUs used
+CFG.EXPERIMENT.GPU_IDS = "2"    # List of GPUs used
 
 # Log
 CFG.LOG = CN()
