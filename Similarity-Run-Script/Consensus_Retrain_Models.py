@@ -132,10 +132,10 @@ top_k_list = [0.15]    # 0.05, 0.1, 0.2
 model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn"]    # "meegnet", "linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"
 compare_model_names = ["Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"]
 
-consensus_all_models = False
-control_train = False
+consensus_all_models = True
+control_train = True
 consensus_train = True
-disagreement_train = False
+disagreement_train = True
 
 # log config
 log_path = f"./output/Train_Classifier_{datasets}/"
