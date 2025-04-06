@@ -128,14 +128,14 @@ n_times = 3
 # datasets
 datasets = ["DecMeg2014", "CamCAN"]     # "DecMeg2014", "CamCAN"
 # top-k
-top_k_list = [0.15]    # 0.05, 0.1, 0.2
-model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn"]    # "meegnet", "linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"
+top_k_list = [0.2]    # 0.05, 0.1, 0.2
+model_names = ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"]    # "meegnet", "linear", "mlp", "hgrn", "lfcnn", "varcnn", "atcnet"
 compare_model_names = ["Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"]
 
-consensus_all_models = False
-control_train = False
+consensus_all_models = True
+control_train = True
 consensus_train = True
-disagreement_train = False
+disagreement_train = True
 
 # log config
 log_path = f"./output/Train_Classifier_{datasets}/"
@@ -220,7 +220,7 @@ for dataset in datasets:
                         print(accuracy_list.mean(), accuracy_list.std(), accuracy_list)
                         with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
                             writer.write(
-                                f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\tCompared Model {compare_model_name}\t'
+                                f'Dataset: {dataset}\tModel: {model_name}\tTop-k {top_k}\t'
                                 f'Control Accuracy Mean: {accuracy_list.mean():.6f}\tStd: {accuracy_list.std():.6f}\n')
 
 

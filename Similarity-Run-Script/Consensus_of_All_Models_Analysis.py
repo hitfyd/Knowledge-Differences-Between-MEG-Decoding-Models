@@ -11,7 +11,7 @@ from differlib.engine.utils import dataset_info_dict, save_figure
 # datasets
 datasets = ["DecMeg2014", "CamCAN"]     # "DecMeg2014", "CamCAN"
 # top-k
-top_k_list = [0.05, 0.1, 0.15, 0.2]    # 0.05, 0.1, 0.2
+top_k_list = [0.05, 0.1, 0.15, 0.2, 0.25]    # 0.05, 0.1, 0.2
 compared_model_names = ["Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"]    # "Linear", "MLP", "HGRN", "LFCNN", "VARCNN", "ATCNet"
 num_models = len(compared_model_names)
 assert num_models >= 2
