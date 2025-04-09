@@ -109,8 +109,8 @@ for dataset in datasets:
             sign_agreement_matrix[i_th, j_th] = sign_agreement_matrix[j_th, i_th] = sign_agreement(top_sort_i, top_sort_j, sign_sort_maps_i, sign_sort_maps_j, k)
 
             # 计算Rank Correlation
-            # channel_rank_correlation_matrix[i_th, j_th] = channel_rank_correlation_matrix[j_th, i_th] = feature_contribution_correlation(abs_mean_contribution_i.flatten(), abs_mean_contribution_j.flatten())
-            # time_rank_correlation_matrix[i_th, j_th] = time_rank_correlation_matrix[j_th, i_th] = feature_contribution_correlation(sign_mean_maps_i.flatten(), sign_mean_maps_j.flatten())
+            # channel_rank_correlation_matrix[i_th, j_th] = channel_rank_correlation_matrix[j_th, i_th] = feature_contribution_correlation(abs_mean_contribution_i.flatten(), abs_mean_contribution_j.flatten())[2]
+            # time_rank_correlation_matrix[i_th, j_th] = time_rank_correlation_matrix[j_th, i_th] = feature_contribution_correlation(sign_mean_maps_i.flatten(), sign_mean_maps_j.flatten())[2]
             channel_rank_correlation_matrix[i_th, j_th] = channel_rank_correlation_matrix[j_th, i_th] = feature_contribution_correlation(heatmap_channel_i, heatmap_channel_j)[2]
             time_rank_correlation_matrix[i_th, j_th] = time_rank_correlation_matrix[j_th, i_th] = feature_contribution_correlation(heatmap_time_i, heatmap_time_j)[2]
             # channel_rank_correlation_matrix[i_th, j_th] = channel_rank_correlation_matrix[j_th, i_th] = rank_correlation(channel_sort_i, channel_sort_j)
