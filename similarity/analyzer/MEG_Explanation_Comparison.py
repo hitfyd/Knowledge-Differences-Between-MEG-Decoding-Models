@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 from sklearn.metrics import ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
@@ -60,7 +62,8 @@ def sign_agreement(top_sort_1: np.ndarray, top_sort_2: np.ndarray, sign_sort_map
 
 
 # 贡献相关性
-def feature_contribution_correlation(feature_contribution_1: np.ndarray, feature_contribution_2: np.ndarray) -> float:
+def feature_contribution_correlation(feature_contribution_1: np.ndarray, feature_contribution_2: np.ndarray) -> tuple[
+    Any, Any, Any]:
     assert feature_contribution_1.shape == feature_contribution_2.shape
     # 计算余弦相似性
     cos_sim = cosine_similarity([feature_contribution_1], [feature_contribution_2])[0][0]
@@ -71,9 +74,9 @@ def feature_contribution_correlation(feature_contribution_1: np.ndarray, feature
     # 计算肯德尔相关系数
     tau, p_value = kendalltau(feature_contribution_1, feature_contribution_2)
     print(f"肯德尔相关系数: {tau:.4f}, p值: {p_value:.4f}")
-    similarity_score = tau
-    print(f'Feature Contribution Correlation: {similarity_score}')
-    return similarity_score
+    similarity_score = cos_sim
+    print(f'Feature Contribution Correlation: {cos_sim} {corr} {tau}')
+    return cos_sim, corr, tau
 
 
 # 贡献的排序相关性
@@ -109,15 +112,15 @@ def pairwise_rank_agreement(feature_contribution_1: np.ndarray, feature_contribu
 # 使用RDMs评估两个模型的通道或时间特征间交互关系
 
 
-def plot_similarity_matrix(similarity_matrix, labels, title=None, colorbar=True, include_values=True, vmin=0.0, vmax=1.0):
+def plot_similarity_matrix(similarity_matrix, labels, title=None, colorbar=True, include_values=True, vmin=0.0, vmax=1.0, ax=None):
     assert similarity_matrix.shape == (len(labels), len(labels))
     disp = ConfusionMatrixDisplay(confusion_matrix=similarity_matrix, display_labels=labels)
-    disp.plot(include_values=include_values, cmap='Oranges', values_format='.3f', colorbar=colorbar, im_kw={'vmin': vmin, 'vmax': vmax})
+    disp.plot(include_values=include_values, cmap='Oranges', values_format='.3f', colorbar=colorbar, im_kw={'vmin': vmin, 'vmax': vmax}, ax=ax)
     disp.ax_.set_xlabel('')
     disp.ax_.set_ylabel('')
     if not include_values:
         disp.ax_.set_xticks([])
         disp.ax_.set_yticks([])
     disp.ax_.set_title(title)
-    plt.show()
+    # plt.show()
     return disp.ax_

@@ -1,12 +1,13 @@
 import shelve
 
 import numpy as np
+from matplotlib import pyplot as plt, gridspec, colors, colorbar
 from scipy.spatial.distance import euclidean, correlation
 from sklearn.metrics import pairwise_distances
 
 from similarity.analyzer.MEG_Explanation_Comparison import feature_agreement, plot_similarity_matrix, sign_agreement, rank_correlation, \
     pairwise_rank_agreement, feature_contribution_correlation
-from differlib.engine.utils import dataset_info_dict
+from differlib.engine.utils import dataset_info_dict, save_figure
 from similarity.engine.cfg import CFG as cfg
 
 # datasets
@@ -35,6 +36,20 @@ for dataset in datasets:
     time_rank_correlation_matrix = np.ones((n_models, n_models), dtype=float)
     channel_pairwise_rank_agreement_matrix = np.ones((n_models, n_models), dtype=float)
     time_pairwise_rank_agreement_matrix = np.ones((n_models, n_models), dtype=float)
+
+    # 汇总
+    fig = plt.figure(figsize=(18, 12))
+    gridlayout = gridspec.GridSpec(nrows=2, ncols=35, figure=fig,  wspace=None, hspace=0.2)
+    axs00 = fig.add_subplot(gridlayout[:1, :10])
+    axs01 = fig.add_subplot(gridlayout[:1, 12:22])
+    axs02 = fig.add_subplot(gridlayout[:1, 24:34])
+    axs10 = fig.add_subplot(gridlayout[1:, :10])
+    axs11 = fig.add_subplot(gridlayout[1:, 12:22])
+    axs12 = fig.add_subplot(gridlayout[1:, 24:34])
+    axs_colorbar = fig.add_subplot(gridlayout[1:, 34:])
+    # 设置颜色条带
+    norm = colors.Normalize(vmin=0.0, vmax=1.0)
+    colorbar.ColorbarBase(axs_colorbar, cmap='Oranges', norm=norm)
 
     for i_th in range(n_models-1):
         model_i = model_names[i_th]
@@ -96,8 +111,8 @@ for dataset in datasets:
             # 计算Rank Correlation
             # channel_rank_correlation_matrix[i_th, j_th] = channel_rank_correlation_matrix[j_th, i_th] = feature_contribution_correlation(abs_mean_contribution_i.flatten(), abs_mean_contribution_j.flatten())
             # time_rank_correlation_matrix[i_th, j_th] = time_rank_correlation_matrix[j_th, i_th] = feature_contribution_correlation(sign_mean_maps_i.flatten(), sign_mean_maps_j.flatten())
-            channel_rank_correlation_matrix[i_th, j_th] = channel_rank_correlation_matrix[j_th, i_th] = feature_contribution_correlation(heatmap_channel_i, heatmap_channel_j)
-            time_rank_correlation_matrix[i_th, j_th] = time_rank_correlation_matrix[j_th, i_th] = feature_contribution_correlation(heatmap_time_i, heatmap_time_j)
+            channel_rank_correlation_matrix[i_th, j_th] = channel_rank_correlation_matrix[j_th, i_th] = feature_contribution_correlation(heatmap_channel_i, heatmap_channel_j)[2]
+            time_rank_correlation_matrix[i_th, j_th] = time_rank_correlation_matrix[j_th, i_th] = feature_contribution_correlation(heatmap_time_i, heatmap_time_j)[2]
             # channel_rank_correlation_matrix[i_th, j_th] = channel_rank_correlation_matrix[j_th, i_th] = rank_correlation(channel_sort_i, channel_sort_j)
             # time_rank_correlation_matrix[i_th, j_th] = time_rank_correlation_matrix[j_th, i_th] = rank_correlation(time_sort_i, time_sort_j)
 
@@ -105,17 +120,18 @@ for dataset in datasets:
             channel_pairwise_rank_agreement_matrix[i_th, j_th] = channel_pairwise_rank_agreement_matrix[j_th, i_th] = pairwise_rank_agreement(heatmap_channel_i, heatmap_channel_j)
             time_pairwise_rank_agreement_matrix[i_th, j_th] = time_pairwise_rank_agreement_matrix[j_th, i_th] = pairwise_rank_agreement(heatmap_time_i, heatmap_time_j)
 
-    feature_agreement_axis = plot_similarity_matrix(feature_agreement_matrix, model_names, title=f"Feature Agreement (Top-k={top_k_percent}%)")
-    sign_agreement_axis = plot_similarity_matrix(sign_agreement_matrix, model_names, title=f"Sign Agreement (Top-k={top_k_percent}%)")
-    # channel_rank_correlation_axis = plot_similarity_matrix(channel_rank_correlation_matrix, model_names, title=f"Rank Correlation (Channel)")
-    # time_rank_correlation_axis = plot_similarity_matrix(time_rank_correlation_matrix, model_names, title=f"Rank Correlation (Time)")
-    # channel_pairwise_rank_agreement_axis = plot_similarity_matrix(channel_pairwise_rank_agreement_matrix, model_names, title=f"Pairwise Rank Agreement (Channel)")
-    # time_pairwise_rank_agreement_axis = plot_similarity_matrix(time_pairwise_rank_agreement_matrix, model_names, title=f"Pairwise Rank Agreement (Time)")
+    feature_agreement_axis = plot_similarity_matrix(feature_agreement_matrix, model_names, title=f"Feature Agreement (Top-k={top_k_percent}%)", ax=axs00, colorbar=False)
+    sign_agreement_axis = plot_similarity_matrix(sign_agreement_matrix, model_names, title=f"Sign Agreement (Top-k={top_k_percent}%)", ax=axs10, colorbar=False)
+    channel_rank_correlation_axis = plot_similarity_matrix(channel_rank_correlation_matrix, model_names, title=f"Channel Rank Correlation", ax=axs01, colorbar=False)
+    time_rank_correlation_axis = plot_similarity_matrix(time_rank_correlation_matrix, model_names, title=f"Time Rank Correlation", ax=axs11, colorbar=False)
+    # channel_pairwise_rank_agreement_axis = plot_similarity_matrix(channel_pairwise_rank_agreement_matrix, model_names, title=f"Channel Pairwise Rank Agreement", ax=axs01, colorbar=False)
+    # time_pairwise_rank_agreement_axis = plot_similarity_matrix(time_pairwise_rank_agreement_matrix, model_names, title=f"Time Pairwise Rank Agreement", ax=axs11, colorbar=False)
 
 
     related_matrix = np.ones((n_models, n_models), dtype=float)
+    related_matrix_1 = np.ones((n_models, n_models), dtype=float)
     rdms = []
-    sample_num = 50
+    sample_num = 100
     for i_th in range(n_models):
         model_i = model_names[i_th]
         # 计算样本间关系
@@ -134,10 +150,17 @@ for dataset in datasets:
 
         rdm = pairwise_distances(map_1_list, metric='correlation')  # 'euclidean', 'correlation'
         rdm_minmax_scaler = (rdm - np.min(rdm)) / (np.max(rdm) - np.min(rdm))
-        plot_similarity_matrix(rdm_minmax_scaler, [str("") for _id in range(sample_num)], title=f"RDM_{model_i}", include_values=False)
+        # plot_similarity_matrix(rdm_minmax_scaler, [str("") for _id in range(sample_num)], title=f"RDM_{model_i}", include_values=False)
         rdms.append(rdm)
 
     for i_th in range(n_models-1):
         for j_th in range(i_th+1, n_models):
-            related_matrix[i_th, j_th] = related_matrix[j_th, i_th] = feature_contribution_correlation(rdms[i_th].flatten(), rdms[j_th].flatten())
-    related_axis = plot_similarity_matrix(related_matrix, model_names, title=f"RSA")
+            cos_sim, corr, tau = feature_contribution_correlation(rdms[i_th].flatten(), rdms[j_th].flatten())
+            related_matrix[i_th, j_th] = related_matrix[j_th, i_th] = corr
+            related_matrix_1[i_th, j_th] = related_matrix_1[j_th, i_th] = tau
+    related_axis = plot_similarity_matrix(related_matrix, model_names, title=f"Relation-Based Similarity Analysis (Pearson)", ax=axs02, colorbar=False)
+    related_1_axis = plot_similarity_matrix(related_matrix_1, model_names, title=f"Relation-Based Similarity Analysis (Kendall)",
+                                          ax=axs12, colorbar=False)
+
+    save_figure(fig, save_path, '{}_similarity'.format(dataset))
+    plt.show()
