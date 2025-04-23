@@ -269,10 +269,10 @@ def feature_attribution_M(model: torch.nn.ModuleList,
         rand_idx = torch.randint(len(reference_dataset), (reference_num,), device=device)
         reference_dataset = reference_dataset[rand_idx]
 
-    # 预分配内存（使用PyTorch张量）
-    final_M = M * 2 if antithetic_variables else M
-    S1 = torch.zeros((reference_num, channels, points), device=device)
-    S2 = torch.zeros_like(S1)
+    # # 预分配内存（使用PyTorch张量），几乎无影响
+    # final_M = M * 2 if antithetic_variables else M
+    # S1 = torch.zeros((features_num, channels, points), device=device)
+    # S2 = torch.zeros_like(S1)
 
     # 特征归因图
     attribution_maps_all = torch.zeros((model_num, M, features_num, classes), device=device)
