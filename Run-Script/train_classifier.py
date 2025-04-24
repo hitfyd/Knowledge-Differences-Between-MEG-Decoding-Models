@@ -8,6 +8,7 @@ from differlib.engine.utils import get_data_labels_from_dataset, save_checkpoint
 from differlib.models import sdt
 from differlib.models.DNNClassifier import mlp, linear, lfcnn, varcnn, hgrn, eegnetv1, eegnetv4
 from differlib.models.atcnet.atcnet import atcnet
+from differlib.models.atcnet.attentionbasenet import attentionbasenet
 from differlib.models.meegnet.network import meegnet
 from differlib.models.atcnet.msvtnet import msvtnet
 
@@ -92,7 +93,7 @@ decay_epochs = [150]
 
 # datasets
 datasets = ["CamCAN", "DecMeg2014"]     # "DecMeg2014", "CamCAN", "ebrains", "BCIIV2a"
-models = [atcnet]
+models = [attentionbasenet]
 # models = [lfcnn, hgrn, eegnetv1, eegnetv4, atcnet]
 # models = [atcnet, mlp, linear]
 # models = [sdt, lfcnn, varcnn, hgrn]
