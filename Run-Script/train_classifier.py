@@ -9,6 +9,7 @@ from differlib.models import sdt
 from differlib.models.DNNClassifier import mlp, linear, lfcnn, varcnn, hgrn, eegnetv1, eegnetv4
 from differlib.models.atcnet.atcnet import atcnet
 from differlib.models.meegnet.network import meegnet
+from differlib.models.atcnet.msvtnet import msvtnet
 
 
 def __l1_regularization__(model, l1_penalty=3e-4):
@@ -91,7 +92,7 @@ decay_epochs = [150]
 
 # datasets
 datasets = ["CamCAN", "DecMeg2014"]     # "DecMeg2014", "CamCAN", "ebrains", "BCIIV2a"
-models = [meegnet]
+models = [atcnet]
 # models = [lfcnn, hgrn, eegnetv1, eegnetv4, atcnet]
 # models = [atcnet, mlp, linear]
 # models = [sdt, lfcnn, varcnn, hgrn]

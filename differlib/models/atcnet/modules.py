@@ -4,6 +4,8 @@
 
 import torch
 from torch import nn
+from torch.nn import functional as F
+from torch.nn.utils.parametrize import register_parametrization
 
 
 class Ensure4d(nn.Module):
@@ -63,15 +65,45 @@ class CausalConv1d(nn.Conv1d):
         )
 
     def forward(self, X):
-        out = super().forward(X)
+        out = F.conv1d(
+            X,
+            self.weight,
+            self.bias,
+            stride=self.stride,
+            padding=self.padding,
+            dilation=self.dilation,
+            groups=self.groups,
+        )
         return out[..., : -self.padding[0]]
+
+
+class MaxNorm(nn.Module):
+    def __init__(self, max_norm_val=2.0, eps=1e-5):
+        super().__init__()
+        self.max_norm_val = max_norm_val
+        self.eps = eps
+
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        norm = X.norm(2, dim=0, keepdim=True)
+        denom = norm.clamp(min=self.max_norm_val / 2)
+        number = denom.clamp(max=self.max_norm_val)
+        return X * (number / (denom + self.eps))
+
+    def right_inverse(self, X: torch.Tensor) -> torch.Tensor:
+        # Assuming the forward scales X by a factor s,
+        # the right inverse would scale it back by 1/s.
+        norm = X.norm(2, dim=0, keepdim=True)
+        denom = norm.clamp(min=self.max_norm_val / 2)
+        number = denom.clamp(max=self.max_norm_val)
+        scale = number / (denom + self.eps)
+        return X / scale
 
 
 class MaxNormLinear(nn.Linear):
     """Linear layer with MaxNorm constraining on weights.
 
     Equivalent of Keras tf.keras.Dense(..., kernel_constraint=max_norm())
-    [1, 2]_. Implemented as advised in [3]_.
+    [1]_ and [2]_. Implemented as advised in [3]_.
 
     Parameters
     ----------
@@ -100,15 +132,4 @@ class MaxNormLinear(nn.Linear):
         )
         self._max_norm_val = max_norm_val
         self._eps = eps
-
-    def forward(self, X):
-        self._max_norm()
-        return super().forward(X)
-
-    def _max_norm(self):
-        with torch.no_grad():
-            norm = self.weight.norm(2, dim=0, keepdim=True).clamp(
-                min=self._max_norm_val / 2
-            )
-            desired = torch.clamp(norm, max=self._max_norm_val)
-            self.weight *= desired / (self._eps + norm)
+        register_parametrization(self, "weight", MaxNorm(self._max_norm_val, self._eps))
