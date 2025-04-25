@@ -120,11 +120,12 @@ for dataset in datasets:
     num_classes = len(set(labels_test))
 
     for model_ in models:
-        model = model_(channels=channels, points=points, num_classes=num_classes)
-        model_name = model.__class__.__name__
         for batch_size in batch_size_list:
             for learn_rate in learn_rate_list:
                 setup_seed(seed)
+
+                model = model_(channels=channels, points=points, num_classes=num_classes)
+                model_name = model.__class__.__name__
                 train_loader = get_data_loader(data, labels, batch_size=batch_size, shuffle=True)
                 test_loader = get_data_loader(data_test, labels_test)
 
