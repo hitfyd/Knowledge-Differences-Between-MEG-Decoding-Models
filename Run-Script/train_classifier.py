@@ -89,13 +89,13 @@ l1_penalty= 0.0003    # [0.0, 0.0003]
 l2_penalty= 0.000001    # [0.0, 0.000001]
 batch_size_list = [64, 128]
 learn_rate_list = [3e-4, 1e-3, 3e-3]
-MAX_TRAIN_EPOCHS = 100
+MAX_TRAIN_EPOCHS = 50
 learn_rate_decay = 0.1
 decay_epochs = [150]
 
 # datasets
 datasets = ["CamCAN", "DecMeg2014"]     # "DecMeg2014", "CamCAN", "ebrains", "BCIIV2a"
-models = [eegnex]
+models = [atcnet, ctnet, eegnex]
 # models = [lfcnn, hgrn, eegnetv1, eegnetv4, atcnet]
 # models = [atcnet, mlp, linear]
 # models = [sdt, lfcnn, varcnn, hgrn]

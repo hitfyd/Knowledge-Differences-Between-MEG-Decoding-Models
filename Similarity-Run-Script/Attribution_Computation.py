@@ -16,7 +16,7 @@ from similarity.engine.cfg import CFG as cfg
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for attribution consensus.")
-    parser.add_argument("--cfg", type=str, default="../configs/Consensus/CamCAN_atcnet.yaml")
+    parser.add_argument("--cfg", type=str, default="../configs/Consensus/CamCAN_eegnex.yaml")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()

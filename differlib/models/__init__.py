@@ -7,6 +7,7 @@ from sklearn.linear_model import LogisticRegression
 from .DNNClassifier import lfcnn, varcnn, hgrn, mlp, linear, eegnetv4, eegnetv1
 from .SoftDecisionTree import sdt
 from .atcnet.atcnet import atcnet
+from .atcnet.eegnex import eegnex
 from .meegnet.network import meegnet
 
 model_checkpoint_prefix = os.path.join(
@@ -29,6 +30,7 @@ model_dict = {
         "mlp": (mlp, model_checkpoint_prefix + "CamCAN_MLP_128_0.0003_20240421215048_checkpoint.pt"),
         "atcnet": (atcnet, model_checkpoint_prefix + "CamCAN_ATCNet_128_0.003_20240421215048_checkpoint.pt"),
         "meegnet": (meegnet, model_checkpoint_prefix + "CamCAN_MEEGNet_128_0.0003_20250327111123_checkpoint.pt"),
+        "eegnex": (eegnex, model_checkpoint_prefix + "CamCAN_EEGNeX_64_0.001_20250425141344_checkpoint.pt"),
         "sdt": (sdt, model_checkpoint_prefix + "CamCAN_SDT_Vanilla"),
         "sdt_varcnn_kd": (sdt, model_checkpoint_prefix + "CamCAN_SDT_VARCNN_KD"),
         "sdt_varcnn_fakd": (sdt, model_checkpoint_prefix + "CamCAN_SDT_VARCNN_FAKD"),
@@ -45,6 +47,7 @@ model_dict = {
         "mlp": (mlp, model_checkpoint_prefix + "DecMeg2014_MLP_128_0.001_20240421215048_checkpoint.pt"),
         "atcnet": (atcnet, model_checkpoint_prefix + "DecMeg2014_ATCNet_64_0.001_20240421215048_checkpoint.pt"),
         "meegnet": (meegnet, model_checkpoint_prefix + "DecMeg2014_MEEGNet_128_0.0003_20250327111123_checkpoint.pt"),
+        "eegnex": (eegnex, model_checkpoint_prefix + "DecMeg2014_EEGNeX_64_0.001_20250425141344_checkpoint.pt"),
         "sdt": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_Vanilla"),
         "sdt_hgrn_kd": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_HGRN_KD"),
         "sdt_hgrn_fakd": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_HGRN_FAKD"),
