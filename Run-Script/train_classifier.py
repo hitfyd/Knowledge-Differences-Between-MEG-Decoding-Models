@@ -9,6 +9,8 @@ from differlib.models import sdt
 from differlib.models.DNNClassifier import mlp, linear, lfcnn, varcnn, hgrn, eegnetv1, eegnetv4
 from differlib.models.atcnet.atcnet import atcnet
 from differlib.models.atcnet.attentionbasenet import attentionbasenet
+from differlib.models.atcnet.ctnet import ctnet
+from differlib.models.atcnet.eegnex import eegnex
 from differlib.models.meegnet.network import meegnet
 from differlib.models.atcnet.msvtnet import msvtnet
 
@@ -81,19 +83,19 @@ setup_seed(seed)
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 criterion = nn.CrossEntropyLoss()
 # train hyperparameters
-batch_size_list = [128]
-learn_rate_list = [3e-4]
-l1_penalty= 0.0    # [0.0, 0.0003]
+# batch_size_list = [64]
+# learn_rate_list = [1e-3]
+l1_penalty= 0.0003    # [0.0, 0.0003]
 l2_penalty= 0.000001    # [0.0, 0.000001]
-# batch_size_list = [64, 128]
-# learn_rate_list = [3e-4, 1e-3, 3e-3]
+batch_size_list = [64, 128]
+learn_rate_list = [3e-4, 1e-3, 3e-3]
 MAX_TRAIN_EPOCHS = 100
 learn_rate_decay = 0.1
 decay_epochs = [150]
 
 # datasets
 datasets = ["CamCAN", "DecMeg2014"]     # "DecMeg2014", "CamCAN", "ebrains", "BCIIV2a"
-models = [attentionbasenet]
+models = [eegnex]
 # models = [lfcnn, hgrn, eegnetv1, eegnetv4, atcnet]
 # models = [atcnet, mlp, linear]
 # models = [sdt, lfcnn, varcnn, hgrn]

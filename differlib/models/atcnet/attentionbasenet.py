@@ -36,7 +36,7 @@ def attentionbasenet(channels=204, points=100, num_classes=2, **kwargs):
     chs_info = None
     return AttentionBaseNet(n_outputs=num_classes, n_chans=channels, n_times=points,
                             input_window_seconds=input_window_seconds, sfreq=sfreq, chs_info=chs_info,
-                            pool_length_inp=25, pool_stride_inp=10, pool_length=4, pool_stride=4)
+                            pool_length_inp=25, pool_stride_inp=10, pool_length=8, pool_stride=8)
 
 
 class AttentionBaseNet(EEGModuleMixin, nn.Module):
