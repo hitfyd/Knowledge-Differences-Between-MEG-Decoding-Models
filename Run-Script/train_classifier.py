@@ -139,8 +139,8 @@ for dataset in datasets:
                                          f"Learning Rate: {learn_rate}\tBatch Size: {batch_size}\tl1_penalty: {l1_penalty}\tl2_penalty: {l2_penalty}\n")
 
                         best_test_accuracy = 0.0
-                        best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}"
-                                                                      f"_f{l1_penalty}_f{l2_penalty}_f{run_time}_checkpoint.pt")
+                        best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_"
+                                                                      f"{l1_penalty}_{l2_penalty}_{run_time}_checkpoint.pt")
                         for epoch in range(MAX_TRAIN_EPOCHS):
                             if epoch in decay_epochs:
                                 learn_rate = learn_rate * learn_rate_decay
