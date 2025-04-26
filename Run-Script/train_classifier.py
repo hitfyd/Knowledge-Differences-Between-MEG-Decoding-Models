@@ -120,17 +120,18 @@ for dataset in datasets:
     _, channels, points = data.shape
     num_classes = len(set(labels_test))
 
-    for model_ in models:
-        for batch_size in batch_size_list:
-            for learn_rate in learn_rate_list:
-                for l1_penalty  in l1_penalty_list:
-                    for l2_penalty in l2_penalty_list:
+
+    for batch_size in batch_size_list:
+        train_loader = get_data_loader(data, labels, batch_size=batch_size, shuffle=True)
+        test_loader = get_data_loader(data_test, labels_test)
+        for learn_rate in learn_rate_list:
+            for l1_penalty  in l1_penalty_list:
+                for l2_penalty in l2_penalty_list:
+                    for model_ in models:
                         setup_seed(seed)
 
                         model = model_(channels=channels, points=points, num_classes=num_classes)
                         model_name = model.__class__.__name__
-                        train_loader = get_data_loader(data, labels, batch_size=batch_size, shuffle=True)
-                        test_loader = get_data_loader(data_test, labels_test)
 
                         print(f"Dataset: {dataset}\tModel: {model_name}\tLearning Rate: {learn_rate}\tBatch Size: {batch_size}\tl1_penalty: {l1_penalty}\tl2_penalty: {l2_penalty}")
                         with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
@@ -138,8 +139,8 @@ for dataset in datasets:
                                          f"Learning Rate: {learn_rate}\tBatch Size: {batch_size}\tl1_penalty: {l1_penalty}\tl2_penalty: {l2_penalty}\n")
 
                         best_test_accuracy = 0.0
-                        best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_"
-                                                                      f"{run_time}_checkpoint.pt")
+                        best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}"
+                                                                      f"_f{l1_penalty}_f{l2_penalty}_f{run_time}_checkpoint.pt")
                         for epoch in range(MAX_TRAIN_EPOCHS):
                             if epoch in decay_epochs:
                                 learn_rate = learn_rate * learn_rate_decay
