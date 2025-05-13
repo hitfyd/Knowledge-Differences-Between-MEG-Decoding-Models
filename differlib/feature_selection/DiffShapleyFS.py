@@ -1,4 +1,5 @@
 import os
+import shelve
 import time
 
 import numpy as np
@@ -67,6 +68,37 @@ class DiffShapleyFS(FSMethod):
 
     def fit(self, x: np.ndarray, model1, model2, channels, points, n_classes, window_length, M, all_sample_feature_maps,
             *args, threshold=3, parallel=True, num_gpus=1, num_cpus=16, **kwargs):
+        db_path = './feature_maps/CamCAN_ShapleyValueExplainer_attribution'
+        db = shelve.open(db_path)
+
+        # 逐样本迭代
+        sample_num = 2000
+        model1_name = model1.__class__.__name__
+        model2_name = model2.__class__.__name__
+        all_maps = np.zeros([sample_num, channels, points, n_classes], dtype=np.float32)
+        all_maps2 = np.zeros_like(all_maps)
+        for sample_id in range(sample_num):
+            attribution_id = f"{sample_id}_{model1_name}"
+            assert attribution_id in db
+            all_maps[sample_id] = db[attribution_id]
+
+            all_maps2[sample_id] = db[f"{sample_id}_{model2_name}"]
+
+        # abs_mean_maps = np.abs(all_maps).mean(axis=0)
+        # abs_feature_contribution = abs_mean_maps.sum(axis=-1).reshape(-1)  # 合并一个特征对所有类别的绝对贡献
+        # abs_top_sort = np.argsort(abs_feature_contribution)[::-1]
+        # all_maps = all_maps.reshape(sample_num, -1, n_classes)
+        # all_maps[:, abs_top_sort[3060:]] = 0
+        # abs_mean_maps = np.abs(all_maps2).mean(axis=0)
+        # abs_feature_contribution = abs_mean_maps.sum(axis=-1).reshape(-1)  # 合并一个特征对所有类别的绝对贡献
+        # abs_top_sort = np.argsort(abs_feature_contribution)[::-1]
+        # all_maps2 = all_maps2.reshape(sample_num, -1, n_classes)
+        # all_maps2[:, abs_top_sort[3060:]] = 0
+
+        all_sample_feature_maps = all_maps - all_maps2
+        window_length = 1
+        all_sample_feature_maps = all_sample_feature_maps.reshape(sample_num, -1, n_classes)
+
         n_samples, channels, points = x.shape
         # x = x.reshape((n_samples, channels, points))
         assert points % window_length == 0
@@ -79,7 +111,7 @@ class DiffShapleyFS(FSMethod):
             self.sample_weights = self.logit_delta[:, argmax(label_logit_delta)]
 
         self.all_sample_feature_maps = all_sample_feature_maps
-        self.contributions = np.average(self.all_sample_feature_maps, axis=0, weights=self.sample_weights)
+        self.contributions = np.average(self.all_sample_feature_maps, axis=0)   # , weights=self.sample_weights
         if self.logit_delta.shape[1] == 2:
             self.contributions = self.contributions[:, 0]
         else:
@@ -102,7 +134,7 @@ class DiffShapleyFS(FSMethod):
         return x[:, indices], indices
 
 
-def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, log_file=None):
+def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_num=100, device: torch.device = torch.device('cuda'), log_file=None):
     n_samples, channels, points = data.shape
     features_num = (channels * points) // window_length
     data = data.reshape((n_samples, channels * points))
@@ -112,6 +144,54 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, log_file=N
 
     for index in tqdm(range(n_samples)):
         time_start = time.perf_counter()
+
+        # rand_idx = torch.randint(len(reference_dataset), (reference_num,), device=device)
+        # reference_dataset = reference_dataset[rand_idx]
+        # # 特征归因图
+        # attribution_maps_all = torch.zeros((3, M, features_num, NUM_CLASSES), device=device)
+        # for m in tqdm(range(M)):  # M在外层
+        #     # 批量生成随机参考样本 [features_num, ...]
+        #     rand_idx = torch.randint(reference_num, (features_num,), device=device)
+        #     reference_inputs = reference_dataset[rand_idx]  # [features_num, C, T]
+        #
+        #     # 生成包含feature的特征集合 [features_num, features_num]
+        #     feature_marks = torch.rand(features_num, features_num, device=device) > 0.5
+        #     # 确保当前对角线位置始终为True
+        #     feature_marks.fill_diagonal_(True)
+        #     # 将特征标记扩展到时间维度 [features_num, features_num] -> [features_num, C, T]
+        #     with_mask = feature_marks.unsqueeze(-1).repeat(1, 1, window_length).view(features_num, channels, points)
+        #
+        #     # 生成不包含feature的特征集合 [features_num, features_num]
+        #     feature_marks.fill_diagonal_(False)
+        #     # 将特征标记扩展到时间维度 [features_num, features_num] -> [features_num, C, T]
+        #     without_mask = feature_marks.unsqueeze(-1).repeat(1, 1, window_length).view(features_num, channels, points)
+        #
+        #     # 批量生成S1和S2 [features_num, C, T]
+        #     S1 = data[index] * with_mask + reference_inputs * ~with_mask
+        #     S2 = data[index] * without_mask + reference_inputs * ~without_mask
+        #
+        #     for model_id in range(model_num):
+        #         model_ = model[model_id]
+        #         with torch.no_grad():
+        #             S1_preds, _ = torch_predict(model_, S1)  # [features_num, classes]
+        #             S2_preds, _ = torch_predict(model_, S2)
+        #
+        #         # 计算特征权重 [classes]
+        #         feature_weight = S1_preds - S2_preds
+        #
+        #         # 更新归因图
+        #         attribution_maps_all[model_id, m] = feature_weight
+        #
+        # attribution_maps = attribution_maps_all.mean(dim=1)
+        # attribution_maps = attribution_maps.unsqueeze(-2).repeat(1, 1, window_length, 1).view(model_num, channels,
+        #                                                                                       points, classes)
+        #
+        # attribution_maps_all = attribution_maps_all.unsqueeze(-2).repeat(1, 1, 1, window_length, 1).view(model_num, M,
+        #                                                                                                  channels,
+        #                                                                                                  points,
+        #                                                                                                  classes)
+
+
         S1 = np.zeros((features_num, M, channels * points), dtype=np.float16)
         S2 = np.zeros((features_num, M, channels * points), dtype=np.float16)
         for feature in range(features_num):

@@ -20,7 +20,7 @@ from differlib.models import model_dict, scikit_models, torch_models
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="")
+    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Logit.yaml")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -157,12 +157,10 @@ if __name__ == "__main__":
     pd_test_metrics, pd_train_metrics = None, None
     for train_index, test_index in skf.split(data, delta_target):
         x_train = data[train_index]
-
         x_test = data[test_index]
-        output_A_test = output_A[test_index]
-        output_B_test = output_B[test_index]
-        pred_target_A_test = pred_target_A[test_index]
-        pred_target_B_test = pred_target_B[test_index]
+
+        output_A_test, pred_target_A_test = output_predict_targets(model_A_type, model_A, x_test, num_classes=n_classes)
+        output_B_test, pred_target_B_test = output_predict_targets(model_B_type, model_B, x_test, num_classes=n_classes)
 
         x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor,)
 
@@ -173,7 +171,7 @@ if __name__ == "__main__":
         print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
 
         x_train_aug = x_train_aug.reshape((len(x_train_aug), -1))
-        x_test = x_test.reshape((len(test_index), -1))
+        x_test = x_test.reshape((len(x_test), -1))
         # 之后数据形状均为（n_samples, channels*points）
 
         # For Feature Selection to Compute Feature Contributions

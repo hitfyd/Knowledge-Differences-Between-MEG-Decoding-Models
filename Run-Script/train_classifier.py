@@ -8,12 +8,12 @@ from differlib.engine.utils import get_data_labels_from_dataset, save_checkpoint
 from differlib.models import sdt
 from differlib.models.DNNClassifier import mlp, linear, lfcnn, varcnn, hgrn, eegnetv1, eegnetv4
 from differlib.models.MEGNet import megnet
-from differlib.models.atcnet.atcnet import atcnet
-from differlib.models.atcnet.attentionbasenet import attentionbasenet
-from differlib.models.atcnet.ctnet import ctnet
-from differlib.models.atcnet.eegnex import eegnex
+from differlib.models.atcnet_new.atcnet import atcnet
+from differlib.models.atcnet_new.attentionbasenet import attentionbasenet
+from differlib.models.atcnet_new.ctnet import ctnet
+from differlib.models.atcnet_new.eegnex import eegnex
 from differlib.models.meegnet.network import meegnet
-from differlib.models.atcnet.msvtnet import msvtnet
+from differlib.models.atcnet_new.msvtnet import msvtnet
 
 
 def __l1_regularization__(model, l1_penalty=3e-4):
