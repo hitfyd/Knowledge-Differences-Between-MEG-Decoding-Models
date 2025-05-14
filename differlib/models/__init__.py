@@ -9,6 +9,7 @@ from .SoftDecisionTree import sdt
 from .atcnet.atcnet import atcnet
 from .atcnet_new.ctnet import ctnet
 from .atcnet_new.eegnex import eegnex
+from .atcnet_new.msvtnet import msvtnet
 from .meegnet.network import meegnet
 
 model_checkpoint_prefix = os.path.join(
@@ -33,6 +34,7 @@ model_dict = {
         "meegnet": (meegnet, model_checkpoint_prefix + "CamCAN_MEEGNet_128_0.0003_20250327111123_checkpoint.pt"),
         "eegnex": (eegnex, model_checkpoint_prefix + "CamCAN_EEGNeX_64_0.001_20250425141344_checkpoint.pt"),
         "ctnet": (ctnet, model_checkpoint_prefix + "CamCAN_CTNet_128_0.001_0.0003_0.0_20250426133227_checkpoint.pt"),
+        "msvtnet": (msvtnet, model_checkpoint_prefix + "CamCAN_MSVTNet_128_0.003_0.0_1e-06_20250426133227_checkpoint.pt"),
         "sdt": (sdt, model_checkpoint_prefix + "CamCAN_SDT_Vanilla"),
         "sdt_varcnn_kd": (sdt, model_checkpoint_prefix + "CamCAN_SDT_VARCNN_KD"),
         "sdt_varcnn_fakd": (sdt, model_checkpoint_prefix + "CamCAN_SDT_VARCNN_FAKD"),
@@ -51,6 +53,7 @@ model_dict = {
         "meegnet": (meegnet, model_checkpoint_prefix + "DecMeg2014_MEEGNet_128_0.0003_20250327111123_checkpoint.pt"),
         "eegnex": (eegnex, model_checkpoint_prefix + "DecMeg2014_EEGNeX_64_0.001_20250425141344_checkpoint.pt"),
         "ctnet": (ctnet, model_checkpoint_prefix + "DecMeg2014_CTNet_64_0.003_0.0003_0.0_20250426133227_checkpoint.pt"),
+        "msvtnet": (msvtnet, model_checkpoint_prefix + "DecMeg2014_MSVTNet_128_0.003_0.0_0.0_20250429100210_checkpoint.pt"),
         "sdt": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_Vanilla"),
         "sdt_hgrn_kd": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_HGRN_KD"),
         "sdt_hgrn_fakd": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_HGRN_FAKD"),

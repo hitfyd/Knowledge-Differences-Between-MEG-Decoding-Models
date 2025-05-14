@@ -3,7 +3,7 @@ EXPERIMENT:
   TAG: "CamCAN"
 DATASET: "CamCAN"
 NUM_SAMPLES: 2000 # w5完成了2000，w1完成了160
-MODELS: ["ctnet"]  # "atcnet"处理速度过慢，可能需要修改实现
+MODELS: ["msvtnet"]  # "atcnet"处理速度过慢，可能需要修改实现
 EXPLAINER:
   TYPE: "ShapleyValueExplainer"
   W: 1

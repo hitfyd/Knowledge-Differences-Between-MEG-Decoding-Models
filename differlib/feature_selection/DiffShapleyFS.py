@@ -68,9 +68,9 @@ class DiffShapleyFS(FSMethod):
 
     def fit(self, x: np.ndarray, model1, model2, channels, points, n_classes, window_length, M, all_sample_feature_maps,
             *args, threshold=3, parallel=True, num_gpus=1, num_cpus=16, **kwargs):
+
         db_path = './feature_maps/CamCAN_ShapleyValueExplainer_attribution'
         db = shelve.open(db_path)
-
         # 逐样本迭代
         sample_num = 2000
         model1_name = model1.__class__.__name__
