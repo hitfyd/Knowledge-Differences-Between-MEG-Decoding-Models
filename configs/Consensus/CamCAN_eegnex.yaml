@@ -2,10 +2,10 @@ EXPERIMENT:
   PROJECT: "Consensus"
   TAG: "CamCAN"
 DATASET: "CamCAN"
-NUM_SAMPLES: 2000 # w5完成了2000，w1完成了160
-MODELS: ["msvtnet"]  # "atcnet"处理速度过慢，可能需要修改实现
+NUM_SAMPLES: 2000
+MODELS: ["ctnet"]  # eegnex平均时间：2min；ctnet：30s；msvtnet：1min
 EXPLAINER:
   TYPE: "ShapleyValueExplainer"
   W: 1
-  M: 8
+  M: 64
   RANGE_REFERENCES: -1000

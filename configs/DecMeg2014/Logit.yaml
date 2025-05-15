@@ -4,11 +4,11 @@ EXPERIMENT:
 DATASET: "DecMeg2014"
 NUM_SPLITS: 5
 WINDOW_LENGTH: 10
-MODEL_A: "varcnn"
-MODEL_B: "hgrn"
+MODEL_A: "rf"
+MODEL_B: "ctnet"
 AUGMENTATION: "BASE"
 SELECTION:
-  TYPE: "DiffShapley"
+  TYPE: "NONE"
   Diff:
     M: 8
     THRESHOLD: 6.0

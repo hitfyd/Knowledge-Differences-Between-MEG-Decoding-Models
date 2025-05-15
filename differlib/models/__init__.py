@@ -18,7 +18,7 @@ model_checkpoint_prefix = os.path.join(
 )
 
 scikit_models = ["gnb", "rf", "lr"]
-torch_models = ["mlp", "lfcnn", "varcnn", "hgrn", "atcnet", "linear", "sdt", "eegnetv1", "eegnetv4", "msvtnet"]
+torch_models = ["mlp", "lfcnn", "varcnn", "hgrn", "atcnet", "linear", "sdt", "eegnetv1", "eegnetv4", "msvtnet", "ctnet", "eegnex"]
 
 model_dict = {
     "CamCAN": {

@@ -16,7 +16,7 @@ from similarity.engine.cfg import CFG as cfg
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for attribution consensus.")
-    parser.add_argument("--cfg", type=str, default="../configs/Consensus/CamCAN.yaml")
+    parser.add_argument("--cfg", type=str, default="../configs/Consensus/DecMeg2014.yaml")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     # AttributionExplainer参数
     explainer = cfg.EXPLAINER.TYPE
     window_length = cfg.EXPLAINER.W
-    M = 4   # cfg.EXPLAINER.M
+    M = 16  # cfg.EXPLAINER.M
     reference_num = cfg.EXPLAINER.NUM_REFERENCES
     reference_dataset = train_data[cfg.EXPLAINER.RANGE_REFERENCES:]     # 原始的参考数据集
     reference_filter = False    # 对于模型比较来说，不应该启用；对于单一模型的特征归因有效果

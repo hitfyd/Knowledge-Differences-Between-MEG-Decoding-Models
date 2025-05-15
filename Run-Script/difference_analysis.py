@@ -21,7 +21,7 @@ from differlib.models import model_dict, scikit_models, torch_models
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Logit.yaml")
+    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Logit.yaml")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
     train_loader = get_data_loader(train_data, train_labels)
     test_loader = get_data_loader(test_data, test_labels)
-    data, labels = test_data[:2100], test_labels[:2100]
+    data, labels = test_data, test_labels
     n_samples, channels, points = data.shape
     n_classes = len(set(labels))
     assert channels == dataset_info_dict[dataset]["CHANNELS"]
