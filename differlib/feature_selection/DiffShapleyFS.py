@@ -15,7 +15,7 @@ from ..engine.utils import predict, save_checkpoint, load_checkpoint
 
 def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torch.nn, model2: torch.nn,
                                     n_classes, window_length, M,
-                                    *args, parallel=True, num_gpus=1, num_cpus=8, **kwargs):
+                                    *args, parallel=False, num_gpus=1, num_cpus=8, **kwargs):
     save_path = "./feature_maps/"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -69,35 +69,35 @@ class DiffShapleyFS(FSMethod):
     def fit(self, x: np.ndarray, model1, model2, channels, points, n_classes, window_length, M, all_sample_feature_maps,
             *args, threshold=3, parallel=True, num_gpus=1, num_cpus=16, **kwargs):
 
-        db_path = './feature_maps/CamCAN_ShapleyValueExplainer_attribution'
-        db = shelve.open(db_path)
-        # 逐样本迭代
-        sample_num = 2000
-        model1_name = model1.__class__.__name__
-        model2_name = model2.__class__.__name__
-        all_maps = np.zeros([sample_num, channels, points, n_classes], dtype=np.float32)
-        all_maps2 = np.zeros_like(all_maps)
-        for sample_id in range(sample_num):
-            attribution_id = f"{sample_id}_{model1_name}"
-            assert attribution_id in db
-            all_maps[sample_id] = db[attribution_id]
-
-            all_maps2[sample_id] = db[f"{sample_id}_{model2_name}"]
-
-        # abs_mean_maps = np.abs(all_maps).mean(axis=0)
-        # abs_feature_contribution = abs_mean_maps.sum(axis=-1).reshape(-1)  # 合并一个特征对所有类别的绝对贡献
-        # abs_top_sort = np.argsort(abs_feature_contribution)[::-1]
-        # all_maps = all_maps.reshape(sample_num, -1, n_classes)
-        # all_maps[:, abs_top_sort[3060:]] = 0
-        # abs_mean_maps = np.abs(all_maps2).mean(axis=0)
-        # abs_feature_contribution = abs_mean_maps.sum(axis=-1).reshape(-1)  # 合并一个特征对所有类别的绝对贡献
-        # abs_top_sort = np.argsort(abs_feature_contribution)[::-1]
-        # all_maps2 = all_maps2.reshape(sample_num, -1, n_classes)
-        # all_maps2[:, abs_top_sort[3060:]] = 0
-
-        all_sample_feature_maps = all_maps - all_maps2
-        window_length = 1
-        all_sample_feature_maps = all_sample_feature_maps.reshape(sample_num, -1, n_classes)
+        # db_path = './feature_maps/CamCAN_ShapleyValueExplainer_attribution'
+        # db = shelve.open(db_path)
+        # # 逐样本迭代
+        # sample_num = 2000
+        # model1_name = model1.__class__.__name__
+        # model2_name = model2.__class__.__name__
+        # all_maps = np.zeros([sample_num, channels, points, n_classes], dtype=np.float32)
+        # all_maps2 = np.zeros_like(all_maps)
+        # for sample_id in range(sample_num):
+        #     attribution_id = f"{sample_id}_{model1_name}"
+        #     assert attribution_id in db
+        #     all_maps[sample_id] = db[attribution_id]
+        #
+        #     all_maps2[sample_id] = db[f"{sample_id}_{model2_name}"]
+        #
+        # # abs_mean_maps = np.abs(all_maps).mean(axis=0)
+        # # abs_feature_contribution = abs_mean_maps.sum(axis=-1).reshape(-1)  # 合并一个特征对所有类别的绝对贡献
+        # # abs_top_sort = np.argsort(abs_feature_contribution)[::-1]
+        # # all_maps = all_maps.reshape(sample_num, -1, n_classes)
+        # # all_maps[:, abs_top_sort[3060:]] = 0
+        # # abs_mean_maps = np.abs(all_maps2).mean(axis=0)
+        # # abs_feature_contribution = abs_mean_maps.sum(axis=-1).reshape(-1)  # 合并一个特征对所有类别的绝对贡献
+        # # abs_top_sort = np.argsort(abs_feature_contribution)[::-1]
+        # # all_maps2 = all_maps2.reshape(sample_num, -1, n_classes)
+        # # all_maps2[:, abs_top_sort[3060:]] = 0
+        #
+        # all_sample_feature_maps = all_maps - all_maps2
+        # window_length = 1
+        # all_sample_feature_maps = all_sample_feature_maps.reshape(sample_num, -1, n_classes)
 
         n_samples, channels, points = x.shape
         # x = x.reshape((n_samples, channels, points))
@@ -111,7 +111,7 @@ class DiffShapleyFS(FSMethod):
             self.sample_weights = self.logit_delta[:, argmax(label_logit_delta)]
 
         self.all_sample_feature_maps = all_sample_feature_maps
-        self.contributions = np.average(self.all_sample_feature_maps, axis=0)   # , weights=self.sample_weights
+        self.contributions = np.average(self.all_sample_feature_maps, axis=0, weights=self.sample_weights)   #
         if self.logit_delta.shape[1] == 2:
             self.contributions = self.contributions[:, 0]
         else:

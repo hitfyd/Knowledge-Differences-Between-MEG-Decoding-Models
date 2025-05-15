@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+import shelve
 from datetime import datetime
 
 import numpy as np
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
     train_loader = get_data_loader(train_data, train_labels)
     test_loader = get_data_loader(test_data, test_labels)
-    data, labels = test_data, test_labels
+    data, labels = test_data[:2100], test_labels[:2100]
     n_samples, channels, points = data.shape
     n_classes = len(set(labels))
     assert channels == dataset_info_dict[dataset]["CHANNELS"]
@@ -128,9 +129,28 @@ if __name__ == "__main__":
     selection_threshold = cfg.SELECTION.Diff.THRESHOLD
     # 预先计算所有样本的特征归因图，训练时只使用训练集样本的特征归因图
     if selection_type in ["DiffShapley"]:
-        all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B,
-                                                                  n_classes, window_length, selection_M,
-                                                                  num_gpus=num_gpus, num_cpus=num_cpus)
+        # all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B,
+        #                                                           n_classes, window_length, selection_M,
+        #                                                           num_gpus=num_gpus, num_cpus=num_cpus)
+
+        db_path = f'./output/Consensus/{dataset}/{dataset}_ShapleyValueExplainer_attribution_testset'
+        db = shelve.open(db_path)
+        # 逐样本迭代
+        sample_num = len(data)
+        model1_name = model_A.__class__.__name__
+        model2_name = model_B.__class__.__name__
+        all_maps = np.zeros([sample_num, channels, points, n_classes], dtype=np.float32)
+        all_maps2 = np.zeros_like(all_maps)
+        for sample_id in range(sample_num):
+            attribution_id = f"{sample_id}_{model1_name}"
+            assert attribution_id in db
+            all_maps[sample_id] = db[attribution_id]
+
+            all_maps2[sample_id] = db[f"{sample_id}_{model2_name}"]
+
+        all_sample_feature_maps = all_maps - all_maps2
+        window_length = 1
+        all_sample_feature_maps = all_sample_feature_maps.reshape(sample_num, -1, n_classes)
 
     # init explainer
     explainer_type = cfg.EXPLAINER.TYPE

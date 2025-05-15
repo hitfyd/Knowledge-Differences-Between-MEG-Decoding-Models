@@ -3,7 +3,7 @@ EXPERIMENT:
   TAG: "CamCAN"
 DATASET: "CamCAN"
 NUM_SAMPLES: 2000
-MODELS: ["linear", "mlp", "hgrn", "lfcnn", "varcnn"]  # "atcnet"处理速度过慢，可能需要修改实现
+MODELS: ["linear", "mlp", "hgrn", "lfcnn", "varcnn", "msvtnet"]  # "atcnet"处理速度过慢，可能需要修改实现
 EXPLAINER:
   TYPE: "ShapleyValueExplainer"
   W: 1

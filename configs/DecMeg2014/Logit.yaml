@@ -4,8 +4,8 @@ EXPERIMENT:
 DATASET: "DecMeg2014"
 NUM_SPLITS: 5
 WINDOW_LENGTH: 10
-MODEL_A: "rf"
-MODEL_B: "atcnet"
+MODEL_A: "varcnn"
+MODEL_B: "hgrn"
 AUGMENTATION: "BASE"
 SELECTION:
   TYPE: "DiffShapley"
