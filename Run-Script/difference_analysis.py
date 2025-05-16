@@ -18,10 +18,11 @@ from differlib.explainer import explainer_dict
 from differlib.feature_selection import fsm_dict
 from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature_maps
 from differlib.models import model_dict, scikit_models, torch_models
+from similarity.analyzer.MEG_Explanation_Comparison import top_k_consensus, top_k_disagreement
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Logit.yaml")
+    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Logit.yaml")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -96,7 +97,7 @@ if __name__ == "__main__":
         return pretrained_model
 
 
-    def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=1024, softmax=True):
+    def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
         output, predict_targets = None, None
         if model_type in scikit_models:
             predict_targets = model.predict(data.reshape((len(data), -1)))
@@ -129,28 +130,38 @@ if __name__ == "__main__":
     selection_threshold = cfg.SELECTION.Diff.THRESHOLD
     # 预先计算所有样本的特征归因图，训练时只使用训练集样本的特征归因图
     if selection_type in ["DiffShapley"]:
-        # all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B,
-        #                                                           n_classes, window_length, selection_M,
-        #                                                           num_gpus=num_gpus, num_cpus=num_cpus)
+        all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B,
+                                                                  n_classes, window_length, selection_M,
+                                                                  num_gpus=num_gpus, num_cpus=num_cpus)
 
-        db_path = f'./output/Consensus/{dataset}/{dataset}_ShapleyValueExplainer_attribution_testset'
-        db = shelve.open(db_path)
-        # 逐样本迭代
-        sample_num = len(data)
-        model1_name = model_A.__class__.__name__
-        model2_name = model_B.__class__.__name__
-        all_maps = np.zeros([sample_num, channels, points, n_classes], dtype=np.float32)
-        all_maps2 = np.zeros_like(all_maps)
-        for sample_id in range(sample_num):
-            attribution_id = f"{sample_id}_{model1_name}"
-            assert attribution_id in db
-            all_maps[sample_id] = db[attribution_id]
-
-            all_maps2[sample_id] = db[f"{sample_id}_{model2_name}"]
-
-        all_sample_feature_maps = all_maps - all_maps2
-        window_length = 1
-        all_sample_feature_maps = all_sample_feature_maps.reshape(sample_num, -1, n_classes)
+        # db_path = f'./output/Consensus/{dataset}/{dataset}_ShapleyValueExplainer_attribution_testset'
+        # db = shelve.open(db_path)
+        # # 逐样本迭代
+        # sample_num = len(data)
+        # model1_name = model_A.__class__.__name__
+        # model2_name = model_B.__class__.__name__
+        # all_maps = np.zeros([sample_num, channels, points, n_classes], dtype=np.float32)
+        # all_maps2 = np.zeros_like(all_maps)
+        # for sample_id in range(sample_num):
+        #     attribution_id = f"{sample_id}_{model1_name}"
+        #     assert attribution_id in db
+        #     all_maps[sample_id] = db[attribution_id]
+        #
+        #     all_maps2[sample_id] = db[f"{sample_id}_{model2_name}"]
+        #
+        # all_sample_feature_maps = all_maps - all_maps2
+        # window_length = 1
+        # all_sample_feature_maps = all_sample_feature_maps.reshape(sample_num, -1, n_classes)
+        #
+        # abs_mean_maps = np.abs(all_maps).mean(axis=0)
+        # abs_feature_contribution = abs_mean_maps.sum(axis=-1).reshape(-1)  # 合并一个特征对所有类别的绝对贡献
+        # abs_top_sort = np.argsort(abs_feature_contribution)[::-1]
+        # abs_mean_maps2 = np.abs(all_maps2).mean(axis=0)
+        # abs_feature_contribution2 = abs_mean_maps2.sum(axis=-1).reshape(-1)  # 合并一个特征对所有类别的绝对贡献
+        # abs_top_sort2 = np.argsort(abs_feature_contribution2)[::-1]
+        # top_k = 1020
+        # # consensus_list = abs_top_sort[:top_k]
+        # consensus_list, consensus_masks = top_k_disagreement(abs_top_sort, abs_top_sort2, top_k, top_k)
 
     # init explainer
     explainer_type = cfg.EXPLAINER.TYPE
@@ -207,6 +218,10 @@ if __name__ == "__main__":
         x_test, select_indices = selection_method.transform(x_test)
         x_feature_names = feature_names[select_indices]
 
+        # x_train_aug = x_train_aug[:, consensus_list]
+        # x_test = x_test[:, consensus_list]
+        # x_feature_names = feature_names[consensus_list]
+
         x_train = pd.DataFrame(x_train_aug, columns=x_feature_names)
         x_test = pd.DataFrame(x_test, columns=x_feature_names)
         print(x_train.shape, x_test.shape)
@@ -217,7 +232,8 @@ if __name__ == "__main__":
             # ind = np.argpartition(contributions, kth=-kth)[-kth:]
             explainer.fit(x_train, output_A_train, output_B_train,
                           max_depth, min_samples_leaf=min_samples_leaf,
-                          feature_weights=contributions[select_indices])
+                          # feature_weights=contributions[select_indices]
+                          )
         elif explainer_type in ["SS", "IMD"]:
             jstobj, t1, t2 = explainer.fit_detail(x_train, pred_target_A_train, pred_target_B_train, max_depth, min_samples_leaf=min_samples_leaf)
 

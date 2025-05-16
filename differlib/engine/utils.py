@@ -123,7 +123,7 @@ def validate(val_loader, distiller):
     return top1.avg, losses.avg
 
 
-def predict(model, data, num_classes=2, batch_size=1024, eval=False, softmax=True):
+def predict(model, data, num_classes=2, batch_size=512, eval=False, softmax=True):
     if model.__class__.__name__ in ["GaussianNB", "RandomForestClassifier", "LogisticRegression"]:
         output = model.predict_proba(data.reshape((len(data), -1)))
     else:
