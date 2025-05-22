@@ -144,14 +144,14 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_
     with open(log_file, "a") as writer:
         writer.write("n_samples: {}\n".format(n_samples))
 
-    for index in range(n_samples):
+    for index in tqdm(range(n_samples)):
         time_start = time.perf_counter()
 
         rand_idx = torch.randint(len(data), (reference_num,), device=device)
         reference_dataset = data[rand_idx]
         # 特征归因图
         attribution_maps_all = torch.zeros((M, features_num, NUM_CLASSES), device=device)    # (3, M, features_num, NUM_CLASSES)
-        for m in tqdm(range(M)):  # M在外层
+        for m in range(M):  # M在外层
             # 批量生成随机参考样本 [features_num, ...]
             rand_idx = torch.randint(reference_num, (features_num,), device=device)
             reference_inputs = reference_dataset[rand_idx]  # [features_num, C, T]

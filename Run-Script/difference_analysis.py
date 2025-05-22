@@ -22,7 +22,7 @@ from similarity.analyzer.MEG_Explanation_Comparison import top_k_consensus, top_
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Logit.yaml")
+    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Logit.yaml")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
