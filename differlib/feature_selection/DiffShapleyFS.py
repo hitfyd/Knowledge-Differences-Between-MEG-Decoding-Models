@@ -9,6 +9,7 @@ from numpy import argmax
 from scipy import stats
 from tqdm import tqdm
 
+from similarity.attribution.MEG_Shapley_Values import torch_predict
 from .fsm import FSMethod
 from ..engine.utils import predict, save_checkpoint, load_checkpoint
 
@@ -110,7 +111,8 @@ class DiffShapleyFS(FSMethod):
         else:
             self.sample_weights = self.logit_delta[:, argmax(label_logit_delta)]
 
-        self.all_sample_feature_maps = all_sample_feature_maps
+        assert isinstance(all_sample_feature_maps, np.ndarray) or isinstance(all_sample_feature_maps, torch.Tensor)
+        self.all_sample_feature_maps = all_sample_feature_maps if isinstance(all_sample_feature_maps, np.ndarray) else all_sample_feature_maps.cpu().numpy()
         self.contributions = np.average(self.all_sample_feature_maps, axis=0, weights=self.sample_weights)   #
         if self.logit_delta.shape[1] == 2:
             self.contributions = self.contributions[:, 0]
@@ -137,90 +139,76 @@ class DiffShapleyFS(FSMethod):
 def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_num=100, device: torch.device = torch.device('cuda'), log_file=None):
     n_samples, channels, points = data.shape
     features_num = (channels * points) // window_length
-    data = data.reshape((n_samples, channels * points))
-    all_sample_feature_maps = np.zeros((n_samples, features_num, NUM_CLASSES))
+    data = torch.from_numpy(data).to(device=device)
+    all_sample_feature_maps = torch.zeros((n_samples, features_num, NUM_CLASSES), device=device)
     with open(log_file, "a") as writer:
         writer.write("n_samples: {}\n".format(n_samples))
 
-    for index in tqdm(range(n_samples)):
+    for index in range(n_samples):
         time_start = time.perf_counter()
 
-        # rand_idx = torch.randint(len(reference_dataset), (reference_num,), device=device)
-        # reference_dataset = reference_dataset[rand_idx]
-        # # 特征归因图
-        # attribution_maps_all = torch.zeros((3, M, features_num, NUM_CLASSES), device=device)
-        # for m in tqdm(range(M)):  # M在外层
-        #     # 批量生成随机参考样本 [features_num, ...]
-        #     rand_idx = torch.randint(reference_num, (features_num,), device=device)
-        #     reference_inputs = reference_dataset[rand_idx]  # [features_num, C, T]
-        #
-        #     # 生成包含feature的特征集合 [features_num, features_num]
-        #     feature_marks = torch.rand(features_num, features_num, device=device) > 0.5
-        #     # 确保当前对角线位置始终为True
-        #     feature_marks.fill_diagonal_(True)
-        #     # 将特征标记扩展到时间维度 [features_num, features_num] -> [features_num, C, T]
-        #     with_mask = feature_marks.unsqueeze(-1).repeat(1, 1, window_length).view(features_num, channels, points)
-        #
-        #     # 生成不包含feature的特征集合 [features_num, features_num]
-        #     feature_marks.fill_diagonal_(False)
-        #     # 将特征标记扩展到时间维度 [features_num, features_num] -> [features_num, C, T]
-        #     without_mask = feature_marks.unsqueeze(-1).repeat(1, 1, window_length).view(features_num, channels, points)
-        #
-        #     # 批量生成S1和S2 [features_num, C, T]
-        #     S1 = data[index] * with_mask + reference_inputs * ~with_mask
-        #     S2 = data[index] * without_mask + reference_inputs * ~without_mask
-        #
-        #     for model_id in range(model_num):
-        #         model_ = model[model_id]
-        #         with torch.no_grad():
-        #             S1_preds, _ = torch_predict(model_, S1)  # [features_num, classes]
-        #             S2_preds, _ = torch_predict(model_, S2)
-        #
-        #         # 计算特征权重 [classes]
-        #         feature_weight = S1_preds - S2_preds
-        #
-        #         # 更新归因图
-        #         attribution_maps_all[model_id, m] = feature_weight
-        #
-        # attribution_maps = attribution_maps_all.mean(dim=1)
-        # attribution_maps = attribution_maps.unsqueeze(-2).repeat(1, 1, window_length, 1).view(model_num, channels,
-        #                                                                                       points, classes)
-        #
-        # attribution_maps_all = attribution_maps_all.unsqueeze(-2).repeat(1, 1, 1, window_length, 1).view(model_num, M,
-        #                                                                                                  channels,
-        #                                                                                                  points,
-        #                                                                                                  classes)
+        rand_idx = torch.randint(len(data), (reference_num,), device=device)
+        reference_dataset = data[rand_idx]
+        # 特征归因图
+        attribution_maps_all = torch.zeros((M, features_num, NUM_CLASSES), device=device)    # (3, M, features_num, NUM_CLASSES)
+        for m in tqdm(range(M)):  # M在外层
+            # 批量生成随机参考样本 [features_num, ...]
+            rand_idx = torch.randint(reference_num, (features_num,), device=device)
+            reference_inputs = reference_dataset[rand_idx]  # [features_num, C, T]
+
+            # 生成包含feature的特征集合 [features_num, features_num]
+            feature_marks = torch.rand(features_num, features_num, device=device) > 0.5
+            # 确保当前对角线位置始终为True
+            feature_marks.fill_diagonal_(True)
+            # 将特征标记扩展到时间维度 [features_num, features_num] -> [features_num, C, T]
+            with_mask = feature_marks.unsqueeze(-1).repeat(1, 1, window_length).view(features_num, channels, points)
+
+            # 生成不包含feature的特征集合 [features_num, features_num]
+            feature_marks.fill_diagonal_(False)
+            # 将特征标记扩展到时间维度 [features_num, features_num] -> [features_num, C, T]
+            without_mask = feature_marks.unsqueeze(-1).repeat(1, 1, window_length).view(features_num, channels, points)
+
+            # 批量生成S1和S2 [features_num, C, T]
+            S1 = data[index] * with_mask + reference_inputs * ~with_mask
+            S2 = data[index] * without_mask + reference_inputs * ~without_mask
+
+            S1_preds = torch_predict(model1, S1)[0] - torch_predict(model2, S1)[0]
+            S2_preds = torch_predict(model1, S2)[0] - torch_predict(model2, S2)[0]
+            attribution_maps_all[m] = S1_preds.reshape(features_num, -1) - S2_preds.reshape(features_num, -1)
+
+        all_sample_feature_maps[index] = attribution_maps_all.mean(dim=0)
 
 
-        S1 = np.zeros((features_num, M, channels * points), dtype=np.float16)
-        S2 = np.zeros((features_num, M, channels * points), dtype=np.float16)
-        for feature in range(features_num):
-            for m in range(M):
-                # 直接生成0，1数组，最后确保feature位满足要求，并且将数据类型改为Boolean型减少后续矩阵点乘计算量
-                feature_mark = np.random.randint(0, 2, features_num, dtype=np.bool_)  # bool_类型不能改为int8类型
-                feature_mark[feature] = 0
-                feature_mark = np.repeat(feature_mark, window_length)
-
-                # 随机选择一个参考样本，用于替换不考虑的特征核
-                reference_index = (index + np.random.randint(1, n_samples)) % n_samples
-                assert index != reference_index  # 参考样本不能是样本本身
-                S1[feature, m] = S2[feature, m] = feature_mark * data[index] + ~feature_mark * data[reference_index]
-                S1[feature, m][feature*window_length:(feature+1)*window_length] = \
-                    data[index][feature*window_length:(feature+1)*window_length]
-
-        # 计算S1和S2的预测差值
-        S1 = S1.reshape(-1, channels, points)
-        S2 = S2.reshape(-1, channels, points)
-        S1_preds = predict(model1, S1, NUM_CLASSES, eval=True) - predict(model2, S1, NUM_CLASSES, eval=True)
-        S2_preds = predict(model1, S2, NUM_CLASSES, eval=True) - predict(model2, S2, NUM_CLASSES, eval=True)
-        sample_feature_maps = (S1_preds.reshape(features_num, M, -1) - S2_preds.reshape(features_num, M, -1)).sum(axis=1) / M
+        # S1 = np.zeros((features_num, M, channels * points), dtype=np.float16)
+        # S2 = np.zeros((features_num, M, channels * points), dtype=np.float16)
+        # for feature in range(features_num):
+        #     for m in range(M):
+        #         # 直接生成0，1数组，最后确保feature位满足要求，并且将数据类型改为Boolean型减少后续矩阵点乘计算量
+        #         feature_mark = np.random.randint(0, 2, features_num, dtype=np.bool_)  # bool_类型不能改为int8类型
+        #         feature_mark[feature] = 0
+        #         feature_mark = np.repeat(feature_mark, window_length)
+        #
+        #         # 随机选择一个参考样本，用于替换不考虑的特征核
+        #         reference_index = (index + np.random.randint(1, n_samples)) % n_samples
+        #         assert index != reference_index  # 参考样本不能是样本本身
+        #         S1[feature, m] = S2[feature, m] = feature_mark * data[index] + ~feature_mark * data[reference_index]
+        #         S1[feature, m][feature*window_length:(feature+1)*window_length] = \
+        #             data[index][feature*window_length:(feature+1)*window_length]
+        #
+        # # 计算S1和S2的预测差值
+        # S1 = S1.reshape(-1, channels, points)
+        # S2 = S2.reshape(-1, channels, points)
+        # S1_preds = predict(model1, S1, NUM_CLASSES, eval=True) - predict(model2, S1, NUM_CLASSES, eval=True)
+        # S2_preds = predict(model1, S2, NUM_CLASSES, eval=True) - predict(model2, S2, NUM_CLASSES, eval=True)
+        # sample_feature_maps = (S1_preds.reshape(features_num, M, -1) - S2_preds.reshape(features_num, M, -1)).sum(axis=1) / M
+        #
+        # all_sample_feature_maps[index] = sample_feature_maps
 
         time_end = time.perf_counter()  # 记录结束时间
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
         with open(log_file, "a") as writer:
             writer.write("{}\t{:.6f}s\n".format(index, run_time))
 
-        all_sample_feature_maps[index] = sample_feature_maps
     return all_sample_feature_maps
 
 
