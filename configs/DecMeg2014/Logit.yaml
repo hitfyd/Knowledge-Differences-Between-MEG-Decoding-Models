@@ -3,14 +3,14 @@ EXPERIMENT:
   TAG: "Logit"
 DATASET: "DecMeg2014"
 NUM_SPLITS: 5
-WINDOW_LENGTH: 1  # 10 5 1
+WINDOW_LENGTH: 10  # 10 5 1
 MODEL_A: "mlp"
-MODEL_B: "hgrn"
+MODEL_B: "ctnet"
 AUGMENTATION: "NONE"
 SELECTION:
   TYPE: "DiffShapley"
   Diff:
-    M: 8
+    M: 4
     THRESHOLD: 3.0
 EXPLAINER:
   TYPE: "Logit"

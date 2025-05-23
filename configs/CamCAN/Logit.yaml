@@ -10,7 +10,7 @@ AUGMENTATION: "NONE"
 SELECTION:
   TYPE: "DiffShapley"
   Diff:
-    M: 8
+    M: 4
     THRESHOLD: 3.0
 EXPLAINER:
   TYPE: "Logit"
