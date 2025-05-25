@@ -6,7 +6,6 @@ import numpy as np
 import ray
 import torch
 from numpy import argmax
-from scipy import stats
 from tqdm import tqdm
 
 from similarity.attribution.MEG_Shapley_Values import torch_predict
@@ -172,8 +171,9 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_
             S1 = data[index] * with_mask + reference_inputs * ~with_mask
             S2 = data[index] * without_mask + reference_inputs * ~without_mask
 
-            S1_preds = torch_predict(model1, S1)[0] - torch_predict(model2, S1)[0]
-            S2_preds = torch_predict(model1, S2)[0] - torch_predict(model2, S2)[0]
+            batch_size = 1024
+            S1_preds = torch_predict(model1, S1, batch_size=batch_size)[0] - torch_predict(model2, S1, batch_size=batch_size)[0]
+            S2_preds = torch_predict(model1, S2, batch_size=batch_size)[0] - torch_predict(model2, S2, batch_size=batch_size)[0]
             attribution_maps_all[m] = S1_preds.reshape(features_num, -1) - S2_preds.reshape(features_num, -1)
 
         all_sample_feature_maps[index] = attribution_maps_all.mean(dim=0)

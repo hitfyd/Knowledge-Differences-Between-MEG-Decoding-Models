@@ -4,13 +4,13 @@ EXPERIMENT:
 DATASET: "CamCAN"
 NUM_SPLITS: 5
 WINDOW_LENGTH: 5
-MODEL_A: "mlp"
-MODEL_B: "hgrn"
+MODEL_A: "hgrn"
+MODEL_B: "varcnn"
 AUGMENTATION: "NONE"
 SELECTION:
   TYPE: "DiffShapley"
   Diff:
-    M: 4
+    M: 16
     THRESHOLD: 3.0
 EXPLAINER:
   TYPE: "Logit"
