@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import sklearn
 import torch
-from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
 
 from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
@@ -22,7 +22,7 @@ from similarity.analyzer.MEG_Explanation_Comparison import top_k_consensus, top_
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Logit.yaml")
+    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Logit.yaml")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -130,9 +130,7 @@ if __name__ == "__main__":
     selection_threshold = cfg.SELECTION.Diff.THRESHOLD
     # 预先计算所有样本的特征归因图，训练时只使用训练集样本的特征归因图
     if selection_type in ["DiffShapley"]:
-        all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B,
-                                                                  n_classes, window_length, selection_M,
-                                                                  num_gpus=num_gpus, num_cpus=num_cpus)
+        all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B, n_classes, window_length, selection_M)
 
         # db_path = f'./output/Consensus/{dataset}/{dataset}_ShapleyValueExplainer_attribution_testset'
         # db = shelve.open(db_path)
@@ -183,14 +181,18 @@ if __name__ == "__main__":
     aug = np.load(f"/tmp/CourrgqpZb/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy")
     aug = aug.swapaxes(1, 2)
 
-    setup_seed(cfg.EXPERIMENT.SEED)
     # K-Fold evaluation
-    skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.25)
-    # skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=cfg.EXPERIMENT.SEED)
+    skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.25, random_state=cfg.EXPERIMENT.SEED)
+    # skf = StratifiedKFold(n_splits=n_splits)
     skf_id = 0
     # record metrics of i-th Fold
     pd_test_metrics, pd_train_metrics = None, None
     for train_index, test_index in skf.split(data, delta_target):
+        # skf_file = "skf_{}".format(skf_id)
+        # if os.path.exists(skf_file):
+        #     train_index, test_index = load_checkpoint(skf_file)
+        # else:
+        #     save_checkpoint([train_index, test_index], skf_file)
         x_train = data[train_index]
         x_test = data[test_index]
 
@@ -204,7 +206,7 @@ if __name__ == "__main__":
         output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug, num_classes=n_classes)
 
         ydiff = (pred_target_A_train != pred_target_B_train).astype(int)
-        print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
+        print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.4f}%")
 
         x_train_aug = x_train_aug.reshape((len(x_train_aug), -1))
         x_test = x_test.reshape((len(x_test), -1))
@@ -212,6 +214,8 @@ if __name__ == "__main__":
 
         # For Feature Selection to Compute Feature Contributions
         if selection_type in ["DiffShapley"]:
+            print(train_index, test_index)
+            # all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B, n_classes, window_length, selection_M)
             selection_method.fit(x_train, model_A, model_B, channels, points, n_classes,
                                  window_length, selection_M, all_sample_feature_maps[train_index],
                                  threshold=selection_threshold, num_gpus=num_gpus, num_cpus=num_cpus)

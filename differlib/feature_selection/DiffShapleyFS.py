@@ -1,16 +1,14 @@
 import os
-import shelve
 import time
 
 import numpy as np
-import ray
 import torch
 from numpy import argmax
 from tqdm import tqdm
 
 from similarity.attribution.MEG_Shapley_Values import torch_predict
 from .fsm import FSMethod
-from ..engine.utils import predict, save_checkpoint, load_checkpoint
+from ..engine.utils import predict
 
 
 def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torch.nn, model2: torch.nn,
@@ -20,33 +18,23 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
-    save_file = os.path.join(save_path, f"{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_{window_length}_{M}")
-    save_file_ = os.path.join(save_path, f"{dataset}_{model2.__class__.__name__}_{model1.__class__.__name__}_{window_length}_{M}")
+    save_file = os.path.join(save_path, f"{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_{window_length}_{M}.npy")
+    save_file_ = os.path.join(save_path, f"{dataset}_{model2.__class__.__name__}_{model1.__class__.__name__}_{window_length}_{M}.npy")
     log_file = os.path.join(save_path, f"{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_{window_length}_{M}.log")
 
     if os.path.exists(save_file):
-        all_sample_feature_maps = load_checkpoint(save_file)
+        all_sample_feature_maps = np.load(save_file)
         print("feature_maps has been loaded")
     elif os.path.exists(save_file_):
-        all_sample_feature_maps = load_checkpoint(save_file_)
+        all_sample_feature_maps = np.load(save_file_)
         # all_sample_feature_maps = -all_sample_feature_maps
         print("feature_maps has been loaded")
     else:
         time_start = time.perf_counter()
-        if parallel:
-            if not ray.is_initialized():
-                ray.init(num_gpus=num_gpus, num_cpus=num_cpus,  # 计算资源
-                         local_mode=False,  # 是否启动串行模型，用于调试
-                         ignore_reinit_error=True,  # 重复启动不视为错误
-                         include_dashboard=False,  # 是否启动仪表盘
-                         configure_logging=False,  # 不配置日志
-                         log_to_driver=False,  # 日志记录不配置到driver
-                         )
-            all_sample_feature_maps = diff_shapley_parallel(data, model1, model2, window_length, M, n_classes,
-                                                            num_gpus=num_gpus/num_cpus, log_file=log_file)
-        else:
-            all_sample_feature_maps = diff_shapley(data, model1, model2, window_length, M, n_classes, log_file=log_file)
-        save_checkpoint(all_sample_feature_maps, save_file)
+        all_sample_feature_maps = diff_shapley(data, model1, model2, window_length, M, n_classes, log_file=log_file)
+        if not isinstance(all_sample_feature_maps, np.ndarray):
+            all_sample_feature_maps = all_sample_feature_maps.detach().cpu().numpy()
+        np.save(save_file, all_sample_feature_maps)
 
         time_end = time.perf_counter()  # 记录结束时间
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
@@ -67,7 +55,7 @@ class DiffShapleyFS(FSMethod):
         self.threshold = 3  # 2/3
 
     def fit(self, x: np.ndarray, model1, model2, channels, points, n_classes, window_length, M, all_sample_feature_maps,
-            *args, threshold=3, parallel=True, num_gpus=1, num_cpus=16, **kwargs):
+            *args, threshold=3, **kwargs):
 
         # db_path = './feature_maps/CamCAN_ShapleyValueExplainer_attribution'
         # db = shelve.open(db_path)
@@ -111,7 +99,7 @@ class DiffShapleyFS(FSMethod):
             self.sample_weights = self.logit_delta[:, argmax(label_logit_delta)]
 
         assert isinstance(all_sample_feature_maps, np.ndarray) or isinstance(all_sample_feature_maps, torch.Tensor)
-        self.all_sample_feature_maps = all_sample_feature_maps if isinstance(all_sample_feature_maps, np.ndarray) else all_sample_feature_maps.cpu().numpy()
+        self.all_sample_feature_maps = all_sample_feature_maps
         self.contributions = np.average(self.all_sample_feature_maps, axis=0, weights=self.sample_weights)   #
         if self.logit_delta.shape[1] == 2:
             self.contributions = self.contributions[:, 0]
@@ -209,131 +197,4 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_
         with open(log_file, "a") as writer:
             writer.write("{}\t{:.6f}s\n".format(index, run_time))
 
-    return all_sample_feature_maps
-
-
-def diff_shapley_feature(data, model1, model2, window_length, M, NUM_CLASSES):
-    n_samples, n_features = data.shape
-
-    S1 = np.zeros((n_samples, n_features, M, n_features), dtype=np.float16)
-    S2 = np.zeros((n_samples, n_features, M, n_features), dtype=np.float16)
-
-    for feature in range(n_features):
-        for m in range(M):
-            # 直接生成0，1数组，最后确保feature位满足要求，并且将数据类型改为Boolean型减少后续矩阵点乘计算量
-            feature_mark = np.random.randint(0, 2, n_features, dtype=np.bool_)  # bool_类型不能改为int8类型
-            feature_mark[feature] = 0
-            for index in range(n_samples):
-                # 随机选择一个参考样本，用于替换不考虑的特征核
-                reference_index = (index + np.random.randint(1, n_samples)) % n_samples
-                assert index != reference_index  # 参考样本不能是样本本身
-                reference_input = data[reference_index]
-                S1[index, feature, m] = S2[index, feature, m] = feature_mark * data[index] + ~feature_mark * reference_input
-                S1[index, feature, m, feature] = data[index, feature]
-
-
-def diff_shapley_parallel(data, model1, model2, window_length, M, NUM_CLASSES, num_gpus=0.125, log_file=None):
-    n_samples, channels, points = data.shape
-    features_num = (channels * points) // window_length
-    data = data.reshape((n_samples, channels * points))
-    all_sample_feature_maps = np.zeros((n_samples, features_num, NUM_CLASSES))
-    with open(log_file, "a") as writer:
-        writer.write("n_samples: {}\n".format(n_samples))
-
-    @ray.remote(num_gpus=num_gpus)
-    def run(index, data_r, model1_r, model2_r):
-        time_start = time.perf_counter()
-        S1 = np.zeros((features_num, M, channels * points), dtype=np.float16)
-        S2 = np.zeros((features_num, M, channels * points), dtype=np.float16)
-        for feature in range(features_num):
-            for m in range(M):
-                # 直接生成0，1数组，最后确保feature位满足要求，并且将数据类型改为Boolean型减少后续矩阵点乘计算量
-                feature_mark = np.random.randint(0, 2, features_num, dtype=np.bool_)  # bool_类型不能改为int8类型
-                feature_mark[feature] = 0
-                feature_mark = np.repeat(feature_mark, window_length)
-
-                # 随机选择一个参考样本，用于替换不考虑的特征核
-                reference_index = (index + np.random.randint(1, n_samples)) % n_samples
-                assert index != reference_index  # 参考样本不能是样本本身
-                S1[feature, m] = S2[feature, m] = feature_mark * data_r[index] + ~feature_mark * data_r[reference_index]
-                S1[feature, m][feature * window_length:(feature + 1) * window_length] = \
-                    data_r[index][feature * window_length:(feature + 1) * window_length]
-
-        # 计算S1和S2的预测差值
-        S1 = S1.reshape(-1, channels, points)
-        S2 = S2.reshape(-1, channels, points)
-        S1_preds = predict(model1_r, S1, NUM_CLASSES, eval=True) - predict(model2_r, S1, NUM_CLASSES, eval=True)
-        S2_preds = predict(model1_r, S2, NUM_CLASSES, eval=True) - predict(model2_r, S2, NUM_CLASSES, eval=True)
-        feature_maps = (S1_preds.reshape((features_num, M, -1)) - S2_preds.reshape((features_num, M, -1))).sum(axis=1) / M
-
-        time_end = time.perf_counter()  # 记录结束时间
-        run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
-        with open(log_file, "a") as writer:
-            writer.write("{}\t{:.6f}s\n".format(index, run_time))
-
-        return index, feature_maps
-
-
-    data_ = ray.put(data)
-    model1_ = ray.put(model1)
-    model2_ = ray.put(model2)
-
-    rs = [run.remote(index, data_, model1_, model2_) for index in range(n_samples)]
-    for index, sample_feature_maps in tqdm(ray.get(rs), total=n_samples, desc="Processing"):
-        all_sample_feature_maps[index] = sample_feature_maps
-
-    return all_sample_feature_maps
-
-
-def diff_shapley_parallel_features(data, model1, model2, window_length, M, NUM_CLASSES, num_gpus=0.125, log_file=None):
-    n_samples, channels, points = data.shape
-    features_num = (channels * points) // window_length
-    data = data.reshape((n_samples, channels * points))
-    all_sample_feature_maps = np.zeros((n_samples, features_num, NUM_CLASSES))
-    with open(log_file, "a") as writer:
-        writer.write("n_samples: {}\n".format(n_samples))
-
-    data_ = ray.put(data)
-    model1_ = ray.put(model1)
-    model2_ = ray.put(model2)
-
-    for index in tqdm(range(n_samples)):
-        time_start = time.perf_counter()
-        sample_feature_maps = np.zeros((features_num, NUM_CLASSES))
-
-        @ray.remote(num_gpus=num_gpus)
-        def run(feature, data_r, model1_r, model2_r):
-            print(feature)
-            S1 = np.zeros((M, channels * points), dtype=np.float16)
-            S2 = np.zeros((M, channels * points), dtype=np.float16)
-            for m in range(M):
-                # 直接生成0，1数组，最后确保feature位满足要求，并且将数据类型改为Boolean型减少后续矩阵点乘计算量
-                feature_mark = np.random.randint(0, 2, features_num, dtype=np.bool_)  # bool_类型不能改为int8类型
-                feature_mark[feature] = 0
-                feature_mark = np.repeat(feature_mark, window_length)
-
-                # 随机选择一个参考样本，用于替换不考虑的特征核
-                reference_index = (index + np.random.randint(1, n_samples)) % n_samples
-                assert index != reference_index  # 参考样本不能是样本本身
-                S1[m] = S2[m] = feature_mark * data_r[index] + ~feature_mark * data_r[reference_index]
-                S1[m][feature * window_length:(feature + 1) * window_length] = \
-                    data_r[index][feature * window_length:(feature + 1) * window_length]
-
-            # 计算S1和S2的预测差值
-            S1_preds = predict(model1_r, S1, NUM_CLASSES, eval=True) - predict(model2_r, S1, NUM_CLASSES, eval=True)
-            S2_preds = predict(model1_r, S2, NUM_CLASSES, eval=True) - predict(model2_r, S2, NUM_CLASSES, eval=True)
-            feature_contribution = (S1_preds - S2_preds).sum(axis=0) / M
-
-            return feature, feature_contribution
-
-        rs = [run.remote(feature, data_, model1_, model2_) for feature in range(features_num)]
-        for feature, feature_contribution in tqdm(ray.get(rs), total=n_samples, desc="Processing"):
-            sample_feature_maps[feature] = feature_contribution
-
-        time_end = time.perf_counter()  # 记录结束时间
-        run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
-        with open(log_file, "a") as writer:
-            writer.write("{}\t{:.6f}s\n".format(index, run_time))
-
-        all_sample_feature_maps[index] = sample_feature_maps
     return all_sample_feature_maps

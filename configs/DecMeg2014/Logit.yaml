@@ -4,13 +4,13 @@ EXPERIMENT:
 DATASET: "DecMeg2014"
 NUM_SPLITS: 5
 WINDOW_LENGTH: 10  # 10 5 1
-MODEL_A: "linear"
-MODEL_B: "hgrn"
+MODEL_A: "mlp"
+MODEL_B: "varcnn"
 AUGMENTATION: "NONE"
 SELECTION:
   TYPE: "DiffShapley"
   Diff:
-    M: 16
+    M: 2
     THRESHOLD: 3.0
 EXPLAINER:
   TYPE: "Logit"
