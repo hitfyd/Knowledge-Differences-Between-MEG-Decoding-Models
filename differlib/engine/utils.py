@@ -128,12 +128,12 @@ def predict(model, data, num_classes=2, batch_size=512, eval=False, softmax=True
         output = model.predict_proba(data.reshape((len(data), -1)))
     else:
         model.cuda()
+        model.eval()
         data = torch.from_numpy(data)
         data_split = torch.split(data, batch_size, dim=0)
         output = torch.zeros(len(data), num_classes).cuda()  # 预测的置信度和置信度最大的标签编号
         start = 0
         if eval:
-            model.eval()
             with torch.no_grad():
                 for batch_data in data_split:
                     batch_data = batch_data.cuda()
@@ -141,14 +141,12 @@ def predict(model, data, num_classes=2, batch_size=512, eval=False, softmax=True
                     output[start:start+len(batch_data)] = model(batch_data)
                     start += len(batch_data)
         else:
-            model.eval()
             for batch_data in data_split:
                 batch_data = batch_data.cuda()
                 batch_data = batch_data.float()
                 output[start:start + len(batch_data)] = model(batch_data)
                 start += len(batch_data)
                 del batch_data
-        model.train()
         if softmax:
             if model.__class__.__name__ in ["LFCNN", "VARCNN"]:
                 output = torch.exp(output) / torch.sum(torch.exp(output), dim=-1, keepdim=True)

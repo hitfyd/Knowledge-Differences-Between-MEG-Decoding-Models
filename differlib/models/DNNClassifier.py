@@ -233,7 +233,7 @@ class MLP(nn.Sequential):
         super().__init__(
             TensorView(),
             nn.Linear(global_channels * global_points, global_mlp_hidden_features),
-            nn.BatchNorm1d(global_mlp_hidden_features),
+            nn.BatchNorm1d(global_mlp_hidden_features),     # 非eval模式下，会累计更新，影响后续预测结果
             nn.Dropout(global_mlp_dropout),
             nn.ReLU(),
             nn.Linear(global_mlp_hidden_features, global_mlp_hidden_features),

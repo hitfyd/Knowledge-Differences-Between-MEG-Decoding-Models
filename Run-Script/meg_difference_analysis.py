@@ -1,14 +1,12 @@
 import argparse
 import os
-import re
-import shelve
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 import sklearn
 import torch
-from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
+from sklearn.model_selection import StratifiedShuffleSplit
 
 from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
@@ -18,7 +16,39 @@ from differlib.explainer import explainer_dict
 from differlib.feature_selection import fsm_dict
 from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature_maps
 from differlib.models import model_dict, scikit_models, torch_models
-from similarity.analyzer.MEG_Explanation_Comparison import top_k_consensus, top_k_disagreement
+
+
+def load_pretrained_model(model_type):
+    print(log_msg("Loading model {}".format(model_type), "INFO"))
+    model_class, model_pretrain_path = model_dict[dataset][model_type]
+    assert (model_pretrain_path is not None), "no pretrain model {}".format(model_type)
+    pretrained_model = None
+    if model_type in scikit_models:
+        pretrained_model = load_checkpoint(model_pretrain_path)
+    elif model_type in torch_models:
+        pretrained_model = model_class(channels=channels, points=points, num_classes=n_classes)
+        pretrained_model.load_state_dict(load_checkpoint(model_pretrain_path))
+        pretrained_model = pretrained_model.cuda()
+    else:
+        print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
+    assert pretrained_model is not None
+    return pretrained_model
+
+
+def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
+    output, predict_targets = None, None
+    if model_type in scikit_models:
+        predict_targets = model.predict(data.reshape((len(data), -1)))
+        output = model.predict_proba(data.reshape((len(data), -1)))
+    elif model_type in torch_models:
+        output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
+        predict_targets = np.argmax(output, axis=1)
+    else:
+        print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
+    assert output is not None
+    assert predict_targets is not None
+    return output, predict_targets
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
@@ -78,42 +108,6 @@ if __name__ == "__main__":
     # init different models and load pre-trained checkpoints
     model_A_type = cfg.MODEL_A
     model_B_type = cfg.MODEL_B
-
-
-    def load_pretrained_model(model_type):
-        print(log_msg("Loading model {}".format(model_type), "INFO"))
-        model_class, model_pretrain_path = model_dict[dataset][model_type]
-        assert (model_pretrain_path is not None), "no pretrain model A {}".format(model_A_type)
-        pretrained_model = None
-        if model_type in scikit_models:
-            pretrained_model = load_checkpoint(model_pretrain_path)
-        elif model_type in torch_models:
-            pretrained_model = model_class(channels=channels, points=points, num_classes=n_classes)
-            pretrained_model.load_state_dict(load_checkpoint(model_pretrain_path))
-            pretrained_model = pretrained_model.cuda()
-        else:
-            print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
-        assert pretrained_model is not None
-        return pretrained_model
-
-
-    def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
-        output, predict_targets = None, None
-        if model_type in scikit_models:
-            predict_targets = model.predict(data.reshape((len(data), -1)))
-            output = model.predict_proba(data.reshape((len(data), -1)))
-        elif model_type in torch_models:
-            output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
-            predict_targets = np.argmax(output, axis=1)
-            # _, predict_targets = output.topk(1, 1, True, True)
-            # output = output.cpu().detach().numpy()
-            # predict_targets = predict_targets.squeeze().cpu().detach().numpy()
-        else:
-            print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
-        assert output is not None
-        assert predict_targets is not None
-        return output, predict_targets
-
 
     model_A = load_pretrained_model(model_A_type)
     model_B = load_pretrained_model(model_B_type)
@@ -187,12 +181,9 @@ if __name__ == "__main__":
     skf_id = 0
     # record metrics of i-th Fold
     pd_test_metrics, pd_train_metrics = None, None
+
+    # model_A = load_checkpoint("mlp.tmp")
     for train_index, test_index in skf.split(data, delta_target):
-        # skf_file = "skf_{}".format(skf_id)
-        # if os.path.exists(skf_file):
-        #     train_index, test_index = load_checkpoint(skf_file)
-        # else:
-        #     save_checkpoint([train_index, test_index], skf_file)
         x_train = data[train_index]
         x_test = data[test_index]
 

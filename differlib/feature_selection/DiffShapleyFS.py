@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from similarity.attribution.MEG_Shapley_Values import torch_predict
 from .fsm import FSMethod
-from ..engine.utils import predict
+from ..engine.utils import predict, save_checkpoint
 
 
 def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torch.nn, model2: torch.nn,
@@ -137,7 +137,8 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_
         rand_idx = torch.randint(len(data), (reference_num,), device=device)
         reference_dataset = data[rand_idx]
         # 特征归因图
-        attribution_maps_all = torch.zeros((M, features_num, NUM_CLASSES), device=device)    # (3, M, features_num, NUM_CLASSES)
+        diff_attribution_maps_all = torch.zeros((M, features_num, NUM_CLASSES), device=device)    # (3, M, features_num, NUM_CLASSES)
+        model_attribution_maps_all = torch.zeros((2, M, features_num, NUM_CLASSES), device=device)
         for m in range(M):  # M在外层
             # 批量生成随机参考样本 [features_num, ...]
             rand_idx = torch.randint(reference_num, (features_num,), device=device)
@@ -160,11 +161,25 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_
             S2 = data[index] * without_mask + reference_inputs * ~without_mask
 
             batch_size = 1024
-            S1_preds = torch_predict(model1, S1, batch_size=batch_size)[0] - torch_predict(model2, S1, batch_size=batch_size)[0]
-            S2_preds = torch_predict(model1, S2, batch_size=batch_size)[0] - torch_predict(model2, S2, batch_size=batch_size)[0]
-            attribution_maps_all[m] = S1_preds.reshape(features_num, -1) - S2_preds.reshape(features_num, -1)
+            # model_list = [model1, model2]
+            # # 预处理数据一次，避免重复转换
+            # S1_flat = S1.view(len(S1), -1).cpu().numpy()  # 先展平再转换
+            # S2_flat = S2.view(len(S2), -1).cpu().numpy()
+            # for model_id, model in enumerate(model_list):
+            #     model_name = model.__class__.__name__
+            #     if model_name in ["GaussianNB", "RandomForestClassifier", "LogisticRegression"]:
+            #         model_S1_pred = torch.from_numpy(model.predict_proba(S1_flat)).to(device=device)
+            #         model_S2_pred = torch.from_numpy(model.predict_proba(S2_flat)).to(device=device)
+            #     else:
+            #         model_S1_pred = torch_predict(model, S1, batch_size=batch_size)[0]
+            #         model_S2_pred = torch_predict(model, S2, batch_size=batch_size)[0]
+            #     model_attribution_maps_all[model_id, m] = model_S1_pred - model_S2_pred
+            # diff_attribution_maps_all[m] = model_attribution_maps_all[0, m] - model_attribution_maps_all[1, m]
+            S1_preds_diff = torch_predict(model1, S1, batch_size=batch_size)[0] - torch_predict(model2, S1, batch_size=batch_size)[0]
+            S2_preds_diff = torch_predict(model1, S2, batch_size=batch_size)[0] - torch_predict(model2, S2, batch_size=batch_size)[0]
+            diff_attribution_maps_all[m] = S1_preds_diff.reshape(features_num, -1) - S2_preds_diff.reshape(features_num, -1)
 
-        all_sample_feature_maps[index] = attribution_maps_all.mean(dim=0)
+        all_sample_feature_maps[index] = diff_attribution_maps_all.mean(dim=0)
 
 
         # S1 = np.zeros((features_num, M, channels * points), dtype=np.float16)
@@ -196,5 +211,7 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
         with open(log_file, "a") as writer:
             writer.write("{}\t{:.6f}s\n".format(index, run_time))
+
+    # save_checkpoint(model1, "mlp.tmp")
 
     return all_sample_feature_maps
