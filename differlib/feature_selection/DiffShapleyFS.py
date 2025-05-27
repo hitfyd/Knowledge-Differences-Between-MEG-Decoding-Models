@@ -128,8 +128,8 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_
     features_num = (channels * points) // window_length
     data = torch.from_numpy(data).to(device=device)
     all_sample_feature_maps = torch.zeros((n_samples, features_num, NUM_CLASSES), device=device)
-    with open(log_file, "a") as writer:
-        writer.write("n_samples: {}\n".format(n_samples))
+    # with open(log_file, "a") as writer:
+    #     writer.write("n_samples: {}\n".format(n_samples))
 
     for index in tqdm(range(n_samples)):
         time_start = time.perf_counter()
@@ -209,8 +209,8 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_
 
         time_end = time.perf_counter()  # 记录结束时间
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
-        with open(log_file, "a") as writer:
-            writer.write("{}\t{:.6f}s\n".format(index, run_time))
+        # with open(log_file, "a") as writer:
+        #     writer.write("{}\t{:.6f}s\n".format(index, run_time))
 
     # save_checkpoint(model1, "mlp.tmp")
 

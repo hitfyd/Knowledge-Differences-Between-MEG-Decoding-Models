@@ -131,7 +131,7 @@ class TensorView(nn.Module):
         super(TensorView, self).__init__()
 
     def forward(self, x):
-        return x.view(x.size(0), -1)
+        return x.reshape(x.size(0), -1)
 
 
 # GRU操作返回一个二维元组，提取Sequential只需要的第一个数据

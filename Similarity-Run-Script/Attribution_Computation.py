@@ -121,8 +121,7 @@ if __name__ == "__main__":
         joint_run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
 
         # 区分模型1和模型2的归因图，并计算对比归因图
-        for model_id in range(len(model_list)):
-            model = model_list[model_id]
+        for model_id, model in enumerate(model_list):
             # 计算样本的期望
             prediction, pred_label = torch_individual_predict(model, torch.from_numpy(origin_input))
             # 计算基线样本的预测，作为基线期望值

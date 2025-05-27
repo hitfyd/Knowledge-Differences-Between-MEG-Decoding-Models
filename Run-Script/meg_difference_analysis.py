@@ -1,5 +1,6 @@
 import argparse
 import os
+import shelve
 from datetime import datetime
 
 import numpy as np
@@ -144,7 +145,7 @@ if __name__ == "__main__":
         # all_sample_feature_maps = all_maps - all_maps2
         # window_length = 1
         # all_sample_feature_maps = all_sample_feature_maps.reshape(sample_num, -1, n_classes)
-        #
+
         # abs_mean_maps = np.abs(all_maps).mean(axis=0)
         # abs_feature_contribution = abs_mean_maps.sum(axis=-1).reshape(-1)  # 合并一个特征对所有类别的绝对贡献
         # abs_top_sort = np.argsort(abs_feature_contribution)[::-1]
@@ -205,7 +206,6 @@ if __name__ == "__main__":
 
         # For Feature Selection to Compute Feature Contributions
         if selection_type in ["DiffShapley"]:
-            print(train_index, test_index)
             # all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B, n_classes, window_length, selection_M)
             selection_method.fit(x_train, model_A, model_B, channels, points, n_classes,
                                  window_length, selection_M, all_sample_feature_maps[train_index],
