@@ -4,14 +4,14 @@ EXPERIMENT:
 DATASET: "DecMeg2014"
 NUM_SPLITS: 5
 WINDOW_LENGTH: 10  # 10 5 1
-MODEL_A: "mlp"
-MODEL_B: "hgrn"
+MODEL_A: "rf"
+MODEL_B: "atcnet"
 AUGMENTATION: "NONE"
 SELECTION:
   TYPE: "DiffShapley"
   Diff:
-    M: 16
-    THRESHOLD: 3.0
+    M: 8
+    THRESHOLD: 6.0
 EXPLAINER:
   TYPE: "Logit"
   MAX_DEPTH: 6

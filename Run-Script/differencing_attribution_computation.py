@@ -9,6 +9,7 @@ import sklearn
 import torch
 from numpy import argmax
 from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.base import BaseEstimator, TransformerMixin
 
 from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
@@ -50,6 +51,23 @@ def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, b
     assert output is not None
     assert predict_targets is not None
     return output, predict_targets
+
+
+class CustomBatchNorm(BaseEstimator, TransformerMixin):
+    def __init__(self, gamma=1.0, beta=0.0):
+        self.gamma = gamma
+        self.beta = beta
+        self.mean = None
+        self.std = None
+
+    def fit(self, X, y=None):
+        self.mean = np.mean(X, axis=0)
+        self.std = np.std(X, axis=0)
+        return self
+
+    def transform(self, X):
+        X_normalized = (X - self.mean) / (self.std + 1e-5)
+        return self.gamma * X_normalized + self.beta
 
 
 if __name__ == "__main__":
@@ -121,9 +139,10 @@ if __name__ == "__main__":
     max_depth = cfg.EXPLAINER.MAX_DEPTH
     min_samples_leaf = cfg.EXPLAINER.MIN_SAMPLES_LEAF
 
-    # aug_data = np.load(f"/tmp/CourrgqpZb/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy").astype(np.float32)
+    aug_data = np.load(f"/tmp/CourrgqpZb/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy").astype(np.float32)
     # aug_data = aug_data.swapaxes(1, 2)
-    # train_data = np.concatenate((train_data, aug_data), axis=0)
+    aug_data = aug_data.reshape(-1, channels, points)
+    train_data = np.concatenate((train_data, aug_data), axis=0)
 
     # models predict differences
     output_A, pred_target_A = output_predict_targets(model_A_type, model_A, train_data, num_classes=n_classes)
@@ -132,7 +151,8 @@ if __name__ == "__main__":
     output_A_test, pred_target_A_test = output_predict_targets(model_A_type, model_A, test_data, num_classes=n_classes)
     output_B_test, pred_target_B_test = output_predict_targets(model_B_type, model_B, test_data, num_classes=n_classes)
 
-    delta_output = np.abs(output_A - output_B).mean(axis=1)
+    output_dalta = output_A - output_B  # output_A_test - output_B_test     output_A - output_B
+    delta_output = np.abs(output_dalta).mean(axis=1)
     sort_index = np.argsort(delta_output)[::-1]
 
     # delta_threshold = 0.02
@@ -142,27 +162,24 @@ if __name__ == "__main__":
     #     if delta_output[idx] < delta_threshold:
     #         break
 
-    x_train_aug = train_data.reshape((len(train_data), -1))
-    x_test = test_data.reshape((len(test_data), -1))
-
-    save_file = f"./feature_maps/{dataset}_{model_A.__class__.__name__}_{model_B.__class__.__name__}_{window_length}_{selection_M}_train.npy"
+    save_file = f"./feature_maps/{dataset}_{model_A.__class__.__name__}_{model_B.__class__.__name__}_{window_length}_{selection_M}"
     if os.path.exists(save_file):
-        feature_maps = np.load(save_file)
+        feature_maps = load_checkpoint(save_file)
         print("feature_maps has been loaded")
     else:
-        feature_maps = diff_shapley(train_data[sort_index][:5000], model_A, model_B, window_length, selection_M, n_classes)
+        feature_maps = diff_shapley(train_data[sort_index][:15000], model_A, model_B, window_length, selection_M, n_classes)
         if not isinstance(feature_maps, np.ndarray):
             feature_maps = feature_maps.detach().cpu().numpy()
-        np.save(save_file, feature_maps)
+        # np.save(save_file, feature_maps)
 
     n_samples, channels, points = train_data.shape
-    label_logit_delta = abs((output_A - output_B)).sum(axis=0)
-    if (output_A - output_B).shape[1] == 2:
-        sample_weights = (output_A - output_B)[:, 0]
+    label_logit_delta = abs(output_dalta).sum(axis=0)
+    if output_dalta.shape[1] == 2:
+        sample_weights = output_dalta[:, 0]
     else:
-        sample_weights = (output_A - output_B)[:, argmax(label_logit_delta)]
-    contributions = np.average(feature_maps, axis=0, weights=sample_weights[sort_index][:5000])
-    if (output_A - output_B).shape[1] == 2:
+        sample_weights = output_dalta[:, argmax(label_logit_delta)]
+    contributions = np.average(feature_maps, axis=0)#, weights=sample_weights[sort_index][:15000])
+    if output_dalta.shape[1] == 2:
         contributions = contributions[:, 0]
     else:
         contributions = contributions[:, argmax(label_logit_delta)]
@@ -173,6 +190,14 @@ if __name__ == "__main__":
     z_contributions = (contributions - mean) / std  # (self.contributions) / std
     abs_contributions = np.abs(z_contributions)
     indices = np.where(abs_contributions > selection_threshold)[0]
+
+    # scaler = CustomBatchNorm()
+    # train_data = scaler.fit_transform(train_data)
+    # test_data = scaler.transform(test_data)
+
+    x_train_aug = train_data.reshape((len(train_data), -1))
+    x_test = test_data.reshape((len(test_data), -1))
+
     x_train_aug = x_train_aug[:, indices]
     x_test = x_test[:, indices]
     feature_names = feature_names[indices]

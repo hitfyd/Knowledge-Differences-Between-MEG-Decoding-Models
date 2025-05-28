@@ -376,7 +376,8 @@ def torch_predict(model: torch.nn.Module, inputs: torch.Tensor, batch_size=1024)
     device = next(model.parameters()).device
     inputs = inputs.float().to(device)
     """输入形状：[batch_size, channels, time_points]"""
-    model.to(device).eval()
+    model.to(device)
+    # model.eval()
     with torch.no_grad():
         if len(inputs) > batch_size:  # 分批次处理防止OOM
             outputs = []

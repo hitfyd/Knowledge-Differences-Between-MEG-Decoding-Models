@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import sklearn
 import torch
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import StratifiedShuffleSplit
 
 from differlib.augmentation import am_dict
@@ -53,7 +54,7 @@ def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, b
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Logit.yaml")
+    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Logit.yaml")
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -174,7 +175,8 @@ if __name__ == "__main__":
     delta_target = (pred_target_A != pred_target_B).astype(int)
 
     aug = np.load(f"/tmp/CourrgqpZb/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy")
-    aug = aug.swapaxes(1, 2)
+    # aug = aug.swapaxes(1, 2)
+    aug = aug.reshape(-1, channels, points)
 
     # K-Fold evaluation
     skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.25, random_state=cfg.EXPERIMENT.SEED)
@@ -192,7 +194,7 @@ if __name__ == "__main__":
         output_B_test, pred_target_B_test = output_predict_targets(model_B_type, model_B, x_test, num_classes=n_classes)
 
         x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor,)
-        # x_train_aug = np.concatenate((x_train, aug), axis=0)
+        x_train_aug = np.concatenate((x_train, aug), axis=0)
 
         output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug, num_classes=n_classes)
         output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug, num_classes=n_classes)

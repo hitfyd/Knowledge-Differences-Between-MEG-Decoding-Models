@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from similarity.attribution.MEG_Shapley_Values import torch_predict
 from .fsm import FSMethod
-from ..engine.utils import predict, save_checkpoint
+from ..engine.utils import predict, save_checkpoint, load_checkpoint
 
 
 def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torch.nn, model2: torch.nn,
@@ -18,15 +18,15 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
-    save_file = os.path.join(save_path, f"{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_{window_length}_{M}.npy")
-    save_file_ = os.path.join(save_path, f"{dataset}_{model2.__class__.__name__}_{model1.__class__.__name__}_{window_length}_{M}.npy")
+    save_file = os.path.join(save_path, f"{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_{window_length}_{M}")
+    save_file_ = os.path.join(save_path, f"{dataset}_{model2.__class__.__name__}_{model1.__class__.__name__}_{window_length}_{M}")
     log_file = os.path.join(save_path, f"{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_{window_length}_{M}.log")
 
     if os.path.exists(save_file):
-        all_sample_feature_maps = np.load(save_file)
+        all_sample_feature_maps = load_checkpoint(save_file)
         print("feature_maps has been loaded")
     elif os.path.exists(save_file_):
-        all_sample_feature_maps = np.load(save_file_)
+        all_sample_feature_maps = load_checkpoint(save_file_)
         # all_sample_feature_maps = -all_sample_feature_maps
         print("feature_maps has been loaded")
     else:
@@ -34,7 +34,7 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
         all_sample_feature_maps = diff_shapley(data, model1, model2, window_length, M, n_classes, log_file=log_file)
         if not isinstance(all_sample_feature_maps, np.ndarray):
             all_sample_feature_maps = all_sample_feature_maps.detach().cpu().numpy()
-        np.save(save_file, all_sample_feature_maps)
+        save_checkpoint(save_file, all_sample_feature_maps)
 
         time_end = time.perf_counter()  # 记录结束时间
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
