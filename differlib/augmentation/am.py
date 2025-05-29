@@ -184,10 +184,10 @@ expand_waveform = TransformT('expand_waveform', lambda epoch_data, level: epoch_
 
 
 ALL_TRANSFORMS = [
-    awgn_time,
+    # awgn_time,
     awgn_frequency,
-    reduce_waveform,
-    expand_waveform,
+    # reduce_waveform,
+    # expand_waveform,
 ]
 
 

@@ -36,7 +36,7 @@ CFG.MODEL_B = "atcnet"
 
 # Data Augmentation
 CFG.AUGMENTATION = "BASE"
-CFG.AUGMENT_FACTOR = 1.0
+CFG.AUGMENT_FACTOR = 2.0
 
 # Feature Selection
 CFG.SELECTION = CN()
