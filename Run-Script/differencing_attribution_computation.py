@@ -8,6 +8,7 @@ import pandas as pd
 import sklearn
 import torch
 from numpy import argmax
+from scipy import signal
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.base import BaseEstimator, TransformerMixin
 
@@ -139,10 +140,27 @@ if __name__ == "__main__":
     max_depth = cfg.EXPLAINER.MAX_DEPTH
     min_samples_leaf = cfg.EXPLAINER.MIN_SAMPLES_LEAF
 
-    aug_data = np.load(f"/tmp/CourrgqpZb/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy").astype(np.float32)
-    # aug_data = aug_data.swapaxes(1, 2)
-    aug_data = aug_data.reshape(-1, channels, points)
-    train_data = np.concatenate((train_data, aug_data), axis=0)
+    # aug_data = np.load(f"/tmp/CourrgqpZb/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy").astype(np.float32)
+    # # aug_data = aug_data.swapaxes(1, 2)
+    # aug_data = aug_data.reshape(-1, channels, points)
+    # train_data = np.concatenate((train_data, aug_data), axis=0)
+
+    epoch = test_data[0]
+    from mne.time_frequency import psd_array_multitaper, stft
+
+    # 多锥形法计算PSD
+    psd, f = psd_array_multitaper(
+        epoch,
+        sfreq=125,
+        fmin=1,
+        fmax=45,
+        bandwidth=3.0,  # 频带平滑
+        adaptive=True,  # 自适应权重
+        n_jobs=-1,
+        normalization='length'  # 归一化
+    )
+
+    x = stft(epoch, wsize=100)
 
     # models predict differences
     output_A, pred_target_A = output_predict_targets(model_A_type, model_A, train_data, num_classes=n_classes)

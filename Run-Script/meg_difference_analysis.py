@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 import sklearn
 import torch
+from mne.time_frequency import psd_array_multitaper
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
 
 from differlib.augmentation import am_dict
 from differlib.engine.cfg import CFG as cfg
@@ -50,6 +51,42 @@ def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, b
     assert output is not None
     assert predict_targets is not None
     return output, predict_targets
+
+
+class CustomBatchNorm(BaseEstimator, TransformerMixin):
+    def __init__(self, gamma=1.0, beta=0.0):
+        self.gamma = gamma
+        self.beta = beta
+        self.mean = None
+        self.std = None
+
+    def fit(self, X, y=None):
+        self.mean = np.mean(X)
+        self.std = np.std(X)
+        return self
+
+    def transform(self, X):
+        X_normalized = (X - self.mean) / (self.std + 1e-5)
+        return self.gamma * X_normalized + self.beta
+
+
+# 方法 2: 获取所有 BatchNorm 层参数
+def get_all_bn_params(model):
+    """获取模型中所有 BatchNorm 层的参数"""
+    bn_params = {}
+    for name, module in model.named_modules():
+        if isinstance(module, torch.nn.BatchNorm1d):
+            bn_params[name] = {
+                'weight': module.weight.data.clone(),
+                'bias': module.bias.data.clone(),
+                'running_mean': module.running_mean.clone(),
+                'running_var': module.running_var.clone(),
+                'eps': module.eps,
+                'momentum': module.momentum,
+                'num_batches_tracked': module.num_batches_tracked
+            }
+    print(log_msg(bn_params, "INFO"))
+    return bn_params
 
 
 if __name__ == "__main__":
@@ -169,31 +206,63 @@ if __name__ == "__main__":
         writer.write("Run time: {}\n".format(datetime.now()))
         writer.write("CONFIG:\n{}".format(cfg.dump()))
 
+    # scaler = CustomBatchNorm()
+    # data = scaler.fit_transform(data)
+    test_mean, test_std = test_data.mean(), test_data.std()
+    train_mean, train_std = train_data.mean(), train_data.std()
+    data = (data - test_mean) / test_std * train_std + train_mean
+    # new_data = np.zeros((len(data), channels, 36))
+    # for idx, epoch in enumerate(data):
+    #     psd, f = psd_array_multitaper(
+    #         epoch,
+    #         sfreq=125,
+    #         fmin=1,
+    #         fmax=45,
+    #         bandwidth=3.0,  # 频带平滑
+    #         adaptive=True,  # 自适应权重
+    #         n_jobs=-1,
+    #         normalization='length'  # 归一化
+    #     )
+    #     new_data[idx] = psd
+
     # models predict differences
     output_A, pred_target_A = output_predict_targets(model_A_type, model_A, data, num_classes=n_classes)
     output_B, pred_target_B = output_predict_targets(model_B_type, model_B, data, num_classes=n_classes)
     delta_target = (pred_target_A != pred_target_B).astype(int)
+    delta_weights = np.abs(output_A - output_B).mean(axis=1)
 
-    aug = np.load(f"/tmp/CourrgqpZb/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy")
-    aug = aug.swapaxes(1, 2)
-    # aug = aug.reshape(-1, channels, points)
+    # aug = np.load(f"/tmp/CourrgqpZb/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy")
+    # aug = aug.swapaxes(1, 2)
+    # # aug = aug.reshape(-1, channels, points)
 
     # K-Fold evaluation
-    skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.25, random_state=cfg.EXPERIMENT.SEED)
+    skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.1, random_state=cfg.EXPERIMENT.SEED)
     # skf = StratifiedKFold(n_splits=n_splits)
     skf_id = 0
     # record metrics of i-th Fold
     pd_test_metrics, pd_train_metrics = None, None
 
+    # train_results = get_all_bn_params(model_A)
     # model_A = load_checkpoint("mlp.tmp")
+    # test_results = get_all_bn_params(model_A)
     for train_index, test_index in skf.split(data, delta_target):
         x_train = data[train_index]
         x_test = data[test_index]
 
-        output_A_test, pred_target_A_test = output_predict_targets(model_A_type, model_A, x_test, num_classes=n_classes)
-        output_B_test, pred_target_B_test = output_predict_targets(model_B_type, model_B, x_test, num_classes=n_classes)
+        # output_A_test, pred_target_A_test = output_predict_targets(model_A_type, model_A, x_test, num_classes=n_classes)
+        # output_B_test, pred_target_B_test = output_predict_targets(model_B_type, model_B, x_test, num_classes=n_classes)
 
-        x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor,)
+        x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index],
+                                                                    augment_factor=augment_factor, )
+        # if augmentation_type == "NONE":
+        #     x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor,)
+        # else:
+        #     aug_save_path = f"./aug_data/{dataset}_{skf_id}_{augment_factor}"
+        #     if os.path.exists(aug_save_path):
+        #         x_train_aug = load_checkpoint(aug_save_path)
+        #     else:
+        #         x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor, )
+        #         save_checkpoint(x_train_aug, aug_save_path)
         # x_train_aug = np.concatenate((x_train_aug, aug[:2*len(x_train)]), axis=0)
 
         output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug, num_classes=n_classes)
@@ -204,6 +273,8 @@ if __name__ == "__main__":
 
         x_train_aug = x_train_aug.reshape((len(x_train_aug), -1))
         x_test = x_test.reshape((len(x_test), -1))
+        # x_train_aug = new_data[train_index].reshape((len(x_train_aug), -1))
+        # x_test = new_data[test_index].reshape((len(x_test), -1))
         # 之后数据形状均为（n_samples, channels*points）
 
         # For Feature Selection to Compute Feature Contributions
@@ -259,10 +330,10 @@ if __name__ == "__main__":
         # Computation of metrics on train and test set
         if explainer_type in ["Logit", "LogitRuleFit"]:
             train_metrics = explainer.metrics(x_train, output_A_train, output_B_train, name="train")
-            test_metrics = explainer.metrics(x_test, output_A_test, output_B_test)
+            test_metrics = explainer.metrics(x_test, output_A[test_index], output_B[test_index])
         else:
             train_metrics = explainer.metrics(x_train, pred_target_A_train, pred_target_B_train, name="train")
-            test_metrics = explainer.metrics(x_test, pred_target_A_test, pred_target_B_test)
+            test_metrics = explainer.metrics(x_test, pred_target_A[test_index], pred_target_B[test_index])
 
         # 记录单次实验的训练和测试结果
         train_metrics['train-confusion_matrix'] = np.array2string(train_metrics['train-confusion_matrix'])

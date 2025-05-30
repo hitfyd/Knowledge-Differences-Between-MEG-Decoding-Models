@@ -34,7 +34,7 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
         all_sample_feature_maps = diff_shapley(data, model1, model2, window_length, M, n_classes, log_file=log_file)
         if not isinstance(all_sample_feature_maps, np.ndarray):
             all_sample_feature_maps = all_sample_feature_maps.detach().cpu().numpy()
-        save_checkpoint(save_file, all_sample_feature_maps)
+        save_checkpoint(all_sample_feature_maps, save_file)
 
         time_end = time.perf_counter()  # 记录结束时间
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
