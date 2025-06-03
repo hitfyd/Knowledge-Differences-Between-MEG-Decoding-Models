@@ -262,7 +262,7 @@ if __name__ == "__main__":
         #     else:
         #         x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor, )
         #         save_checkpoint(x_train_aug, aug_save_path)
-        # x_train_aug = np.concatenate((x_train_aug, aug), axis=0)
+        # x_train_aug = np.concatenate((x_train_aug, aug[-2000:]), axis=0)
 
         output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug, num_classes=n_classes)
         output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug, num_classes=n_classes)
