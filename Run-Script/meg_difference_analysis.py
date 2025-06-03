@@ -130,9 +130,9 @@ if __name__ == "__main__":
     # init dataset & models
     dataset = cfg.DATASET
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
-    train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
-    train_loader = get_data_loader(train_data, train_labels)
     test_loader = get_data_loader(test_data, test_labels)
+    # train_data, train_labels = get_data_labels_from_dataset('../dataset/{}_train.npz'.format(dataset))
+    # train_loader = get_data_loader(train_data, train_labels)
     data, labels = test_data, test_labels
     n_samples, channels, points = data.shape
     n_classes = len(set(labels))
@@ -208,9 +208,9 @@ if __name__ == "__main__":
 
     # scaler = CustomBatchNorm()
     # data = scaler.fit_transform(data)
-    test_mean, test_std = test_data.mean(), test_data.std()
-    train_mean, train_std = train_data.mean(), train_data.std()
-    data = (data - test_mean) / test_std * train_std + train_mean
+    # test_mean, test_std = test_data.mean(), test_data.std()
+    # train_mean, train_std = train_data.mean(), train_data.std()
+    # data = (data - test_mean) / test_std * train_std + train_mean
     # new_data = np.zeros((len(data), channels, 36))
     # for idx, epoch in enumerate(data):
     #     psd, f = psd_array_multitaper(
@@ -231,12 +231,11 @@ if __name__ == "__main__":
     delta_target = (pred_target_A != pred_target_B).astype(int)
     delta_weights = np.abs(output_A - output_B).mean(axis=1)
 
-    # aug = np.load(f"/tmp/CourrgqpZb/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy")
-    # aug = aug.swapaxes(1, 2)
-    # # aug = aug.reshape(-1, channels, points)
+    # aug = np.load(f"/home/fan/Diffusion-TS/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy")
+    # aug = aug.reshape(-1, channels, points)
 
     # K-Fold evaluation
-    skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.1, random_state=cfg.EXPERIMENT.SEED)
+    skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.1, random_state=cfg.EXPERIMENT.SEED)   # 0.1   0.25
     # skf = StratifiedKFold(n_splits=n_splits)
     skf_id = 0
     # record metrics of i-th Fold
@@ -263,7 +262,7 @@ if __name__ == "__main__":
         #     else:
         #         x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor, )
         #         save_checkpoint(x_train_aug, aug_save_path)
-        # x_train_aug = np.concatenate((x_train_aug, aug[:2*len(x_train)]), axis=0)
+        # x_train_aug = np.concatenate((x_train_aug, aug), axis=0)
 
         output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug, num_classes=n_classes)
         output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug, num_classes=n_classes)
@@ -291,6 +290,11 @@ if __name__ == "__main__":
         x_test, select_indices = selection_method.transform(x_test)
         x_feature_names = feature_names[select_indices]
 
+        x_train_aug = x_train_aug.reshape((len(x_train_aug), -1, window_length))
+        x_test = x_test.reshape((len(x_test), -1, window_length))
+        x_train_aug = x_train_aug.max(axis=-1)  # mean max
+        x_test = x_test.max(axis=-1)
+        x_feature_names = x_feature_names[::window_length]
         # x_train_aug = x_train_aug[:, consensus_list]
         # x_test = x_test[:, consensus_list]
         # x_feature_names = feature_names[consensus_list]

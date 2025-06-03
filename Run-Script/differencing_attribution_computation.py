@@ -140,9 +140,13 @@ if __name__ == "__main__":
     max_depth = cfg.EXPLAINER.MAX_DEPTH
     min_samples_leaf = cfg.EXPLAINER.MIN_SAMPLES_LEAF
 
-    # aug_data = np.load(f"/tmp/CourrgqpZb/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy").astype(np.float32)
-    # # aug_data = aug_data.swapaxes(1, 2)
-    # aug_data = aug_data.reshape(-1, channels, points)
+    aug_data = np.load(f"/home/fan/Diffusion-TS/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy").astype(np.float32)
+    # aug_data = aug_data.swapaxes(1, 2)
+    aug_data = aug_data.reshape(-1, channels, points)
+    output_A, pred_target_A = output_predict_targets(model_A_type, model_A, aug_data, num_classes=n_classes)
+    output_B, pred_target_B = output_predict_targets(model_B_type, model_B, aug_data, num_classes=n_classes)
+    print(pred_target_A.sum(), pred_target_B.sum())
+    print((pred_target_A != pred_target_B).sum())
     # train_data = np.concatenate((train_data, aug_data), axis=0)
 
     epoch = test_data[0]
