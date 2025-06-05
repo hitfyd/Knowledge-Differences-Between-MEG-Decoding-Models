@@ -232,7 +232,8 @@ if __name__ == "__main__":
     delta_weights = np.abs(output_A - output_B).mean(axis=1)
 
     # aug = np.load(f"/home/fan/Diffusion-TS/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy")
-    # aug = aug.reshape(-1, channels, points)[:2000]
+    # aug = aug.reshape(-1, channels, points)[:5000]
+    aug = np.load(f"counterfactual_sample.npy")
 
     # K-Fold evaluation
     skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.1, random_state=cfg.EXPERIMENT.SEED)   # 0.1   0.25
@@ -263,6 +264,7 @@ if __name__ == "__main__":
         #         x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor, )
         #         save_checkpoint(x_train_aug, aug_save_path)
         # x_train_aug = np.concatenate((x_train_aug, aug), axis=0)
+        x_train_aug = np.concatenate((x_train_aug, aug[train_index]), axis=0)
 
         output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug, num_classes=n_classes)
         output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug, num_classes=n_classes)
@@ -398,5 +400,5 @@ if __name__ == "__main__":
         assert all_record_mean_std.columns.tolist() == record_mean_std.index.tolist()
     else:
         all_record_mean_std = pd.DataFrame(columns=record_mean_std.index)
-    all_record_mean_std.loc[len(record_mean_std)] = record_mean_std.values
+    all_record_mean_std.loc[len(all_record_mean_std)] = record_mean_std.values
     all_record_mean_std.to_csv(record_file, index=False, encoding="utf_8_sig")
