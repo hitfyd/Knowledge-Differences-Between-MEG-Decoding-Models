@@ -13,7 +13,7 @@ from differlib.models import scikit_models, torch_models, model_dict
 
 class MEGCounterfactualExplainer:
     def __init__(self, model, lambda_temp=0.1, lambda_spatial=0.05, lambda_frequency=0.05,
-                 lambda_dist=0.01, learning_rate=0.001, max_iter=100, stop_target_prob=0.55,
+                 lambda_dist=0.01, learning_rate=0.001, max_iter=100, stop_target_prob=1.0,
                  connectivity_matrix=None, device='cuda' if torch.cuda.is_available() else 'cpu'):
         """
         MEG反事实解释器 (PyTorch实现)
@@ -99,7 +99,7 @@ class MEGCounterfactualExplainer:
             loss_history.append(loss_components)
 
             # 打印进度
-            if verbose and (i % 5 == 0 or i == self.max_iter - 1):
+            if verbose and (i % 25 == 0 or i == self.max_iter - 1):
                 print(f"Iter {i}: Total Loss={total_loss.item():.4f} | "
                       f"Pred Loss={loss_components[0]:.4f} | "
                       f"Dist Loss={loss_components[1]:.4f} | "
@@ -271,7 +271,7 @@ if __name__ == "__main__":
     channels, points, n_classes = 204, 250, 2
     sfreq, fmin, fmax = 250, 0.1, 20
 
-    model = load_pretrained_model("varcnn")  # 实际使用时替换
+    model = load_pretrained_model("atcnet")  # 实际使用时替换
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
 
     meg_data = test_data
@@ -297,11 +297,12 @@ if __name__ == "__main__":
     explainer = MEGCounterfactualExplainer(
         model,
         lambda_temp=0.05,
-        lambda_spatial=0.01,
+        lambda_spatial=0.05,
         lambda_frequency=0.05,
-        lambda_dist=0.5,
+        lambda_dist=0.2,
         learning_rate=0.001,
-        max_iter=100,
+        max_iter=300,
+        stop_target_prob=1.0,
         connectivity_matrix=connectivity_matrix,
         device=device,
     )
@@ -333,8 +334,9 @@ if __name__ == "__main__":
 
         # # 9. 可视化结果
         # # 创建模拟通道名称
-        # ch_names = [f"CH{i:03d}" for i in range(204)]
-        # diff = explainer.visualize_differences(X_sample, cf_sample, ch_names)
+        # if sample_idx % 100 == 0:
+        #     ch_names = [f"CH{i:03d}" for i in range(204)]
+        #     diff = explainer.visualize_differences(X_sample, cf_sample, ch_names)
 
         # # 10. 绘制损失曲线
         # loss_history = np.array(loss_history)
@@ -353,7 +355,7 @@ if __name__ == "__main__":
 
         X_samples[sample_idx] = X_sample
         cf_samples[sample_idx] = cf_sample
-        diffs[sample_idx] = diff
+        # diffs[sample_idx] = diff
 
     # 11. 保存结果
     # np.save('original_sample.npy', X_samples)
