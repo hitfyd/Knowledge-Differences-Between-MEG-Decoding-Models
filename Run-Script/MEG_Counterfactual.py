@@ -194,7 +194,7 @@ class MEGCounterfactualExplainer:
         groups_orig = group_features(X_orig)
 
         # 预测损失 (鼓励模型预测目标类别)
-        pred = self.model.predict_proba(X_cf_flat[np.newaxis, ...])[0]
+        pred = self.model.predict_proba(X_cf.flatten()[np.newaxis, ...])[0]
         pred_loss = 1 - pred[target_class]
 
         # 距离损失 (最小化修改量)
@@ -217,7 +217,7 @@ class MEGCounterfactualExplainer:
     def _monitor_progress(self, xk):
         """监控优化进度"""
         X_cf = xk.reshape(204, 100)
-        current_pred = self.model.predict(X_cf[np.newaxis, ...])[0]
+        current_pred = self.model.predict(X_cf.flatten()[np.newaxis, ...])[0]
         print(f"当前预测: {current_pred}", end='\r')
         return False
 
@@ -239,10 +239,26 @@ def load_pretrained_model(model_type):
     return pretrained_model
 
 
+# def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
+#     output, predict_targets = None, None
+#     if model_type in scikit_models:
+#         predict_targets = model.predict(data.reshape((len(data), -1)))
+#         output = model.predict_proba(data.reshape((len(data), -1)))
+#     elif model_type in torch_models:
+#         output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
+#         predict_targets = np.argmax(output, axis=1)
+#     else:
+#         print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
+#     assert output is not None
+#     assert predict_targets is not None
+#     return output, predict_targets
+
+
 # 示例使用
 if __name__ == "__main__":
     # 1. 加载预训练模型和MEG数据
     dataset = "CamCAN"
+    model_type = "rf"
     channels, points, n_classes = 204, 100, 2
     model = load_pretrained_model("rf")  # 实际使用时替换
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
@@ -261,11 +277,11 @@ if __name__ == "__main__":
 
     # 3. 生成反事实
     # 假设原始预测为0，我们希望看到预测为1的反事实
-    cf_sample = explainer.generate_counterfactual(X_sample, target_class=1)
+    cf_sample = explainer.generate_counterfactual(X_sample, target_class=0)
 
     # 4. 结果分析
-    print("\n原始预测:", model.predict(X_sample[np.newaxis, ...])[0])
-    print("反事实预测:", model.predict(cf_sample[np.newaxis, ...])[0])
+    print("\n原始预测:", model.predict(X_sample.flatten()[np.newaxis, ...])[0])
+    print("反事实预测:", model.predict(cf_sample.flatten()[np.newaxis, ...])[0])
 
     # 5. 可视化修改 (重点显示修改最大的通道和时间段)
     visualize_differences(X_sample, cf_sample)
