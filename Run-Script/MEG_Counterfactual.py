@@ -271,7 +271,7 @@ if __name__ == "__main__":
     channels, points, n_classes = 204, 250, 2
     sfreq, fmin, fmax = 250, 0.1, 20
 
-    model = load_pretrained_model("atcnet")  # 实际使用时替换
+    model = load_pretrained_model("mlp")  # 实际使用时替换
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
 
     meg_data = test_data
