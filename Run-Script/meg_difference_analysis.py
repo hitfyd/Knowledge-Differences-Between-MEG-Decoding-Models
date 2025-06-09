@@ -233,7 +233,7 @@ if __name__ == "__main__":
 
     # aug = np.load(f"/home/fan/Diffusion-TS/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy")
     # aug = aug.reshape(-1, channels, points)[:5000]
-    aug = np.load(f"{dataset}_{model_A.__class__.__name__}_{model_B.__class__.__name__}_counterfactual_sample.npy")
+    # aug = np.load(f"{dataset}_{model_A.__class__.__name__}_{model_B.__class__.__name__}_counterfactual_sample.npy")
 
     # K-Fold evaluation
     skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.1, random_state=cfg.EXPERIMENT.SEED)   # 0.1   0.25

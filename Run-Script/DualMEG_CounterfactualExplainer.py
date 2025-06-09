@@ -200,41 +200,40 @@ class DualMEGCounterfactualExplainer:
         return total_loss, loss_components
 
     def _prediction_loss(self, pred1, pred2, orig_class1, orig_class2, mode, target_model=None):
-        with torch.no_grad():
-            """根据选择的模式计算预测损失"""
-            if mode == 'different':
-                # 使两个模型的预测不同
-                # 损失 = 鼓励两个模型预测相同类别的惩罚
-                prob_same = torch.abs(pred1[:, orig_class1] - pred2[:, orig_class2])
-                loss = prob_same.mean()
+        """根据选择的模式计算预测损失"""
+        if mode == 'different':
+            # 使两个模型的预测不同
+            # 损失 = 鼓励两个模型预测相同类别的惩罚
+            prob_same = torch.abs(pred1[:, orig_class1] - pred2[:, orig_class2])
+            loss = prob_same.mean()
 
-            elif mode == 'same':
-                # 使两个模型的预测相同
-                # 损失 = 1 - 两个模型预测相同类别的概率
-                # 找到最可能达成一致的类别
-                if orig_class1 == orig_class2:
+        elif mode == 'same':
+            # 使两个模型的预测相同
+            # 损失 = 1 - 两个模型预测相同类别的概率
+            # 找到最可能达成一致的类别
+            if orig_class1 == orig_class2:
+                target_class = orig_class1
+            else:
+                # 选择原始概率更高的类别
+                if pred1[0, orig_class1] > pred2[0, orig_class2]:
                     target_class = orig_class1
                 else:
-                    # 选择原始概率更高的类别
-                    if pred1[0, orig_class1] > pred2[0, orig_class2]:
-                        target_class = orig_class1
-                    else:
-                        target_class = orig_class2
+                    target_class = orig_class2
 
-                # 鼓励两个模型都预测为该类别
-                loss = (1 - pred1[0, target_class]) + (1 - pred2[0, target_class])
+            # 鼓励两个模型都预测为该类别
+            loss = (1 - pred1[0, target_class]) + (1 - pred2[0, target_class])
 
-            elif mode == 'flip_one':
-                # 翻转一个模型的预测，保持另一个不变
-                if target_model == 1 or target_model is None:
-                    # 翻转模型1，保持模型2不变
-                    loss = (1 - pred1[0, 1 - orig_class1]) + torch.abs(pred2[0, orig_class2] - 0.9)
-                else:
-                    # 翻转模型2，保持模型1不变
-                    loss = (1 - pred2[0, 1 - orig_class2]) + torch.abs(pred1[0, orig_class1] - 0.9)
-
+        elif mode == 'flip_one':
+            # 翻转一个模型的预测，保持另一个不变
+            if target_model == 1 or target_model is None:
+                # 翻转模型1，保持模型2不变
+                loss = (1 - pred1[0, 1 - orig_class1]) + torch.abs(pred2[0, orig_class2] - 0.9)
             else:
-                raise ValueError(f"未知模式: {mode}")
+                # 翻转模型2，保持模型1不变
+                loss = (1 - pred2[0, 1 - orig_class2]) + torch.abs(pred1[0, orig_class1] - 0.9)
+
+        else:
+            raise ValueError(f"未知模式: {mode}")
 
         return loss
 
@@ -390,7 +389,7 @@ if __name__ == "__main__":
     channels, points, n_classes = 204, 250, 2
     sfreq, fmin, fmax = 250, 0.1, 20
 
-    model1 = load_pretrained_model("rf")  # 实际使用时替换
+    model1 = load_pretrained_model("mlp")  # 实际使用时替换
     model2 = load_pretrained_model("varcnn")
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
 
