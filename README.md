@@ -9,14 +9,15 @@ In the conde environment, do the following:
 ```
 conda create -n <environment name> python=3.11
 conda activate <environment name>
-conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
+pip install torch torchvision torchaudio
 conda install tqdm yacs
 conda install numpy pandas scikit-learn matplotlib networkx graphviz pygraphviz
 # The graphviz library needs to be installed on your operating system as well, see https://pygraphviz.github.io/documentation/stable/install.html
 pip install -U "ray"
 pip install einops
-pip install braindecode==0.7
+pip install braindecode==0.7 torchinfo
 pip install pyeda rulefit pydot stopit apyori graphviz arff
+pip install --extra-index-url=https://pypi.nvidia.com "cudf-cu12==25.4.*" "dask-cudf-cu12==25.4.*" "cuml-cu12==25.4.*" "cugraph-cu12==25.4.*" "nx-cugraph-cu12==25.4.*" "cuspatial-cu12==25.4.*" "cuproj-cu12==25.4.*" "cuxfilter-cu12==25.4.*" "cucim-cu12==25.4.*" "pylibraft-cu12==25.4.*" "raft-dask-cu12==25.4.*" "cuvs-cu12==25.4.*" "nx-cugraph-cu12==25.4.*"
 ```
 
 ### Dataset Preprocessing

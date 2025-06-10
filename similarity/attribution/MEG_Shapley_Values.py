@@ -373,11 +373,14 @@ def additive_efficient_normalization(predicted_values: np.ndarray, baseline_valu
 
 # predict函数，支持GPU批量处理，需保证model和inputs在同一个硬件上
 def torch_predict(model: torch.nn.Module, inputs: torch.Tensor, batch_size=1024):
-    device = next(model.parameters()).device
+    # device = next(model.parameters()).device
+    device = inputs.device
+    if device.type == 'cpu' and torch.cuda.is_available():
+        device = torch.device('cuda:0')
     inputs = inputs.float().to(device)
     """输入形状：[batch_size, channels, time_points]"""
     model.to(device)
-    # model.eval()
+    model.eval()
     with torch.no_grad():
         if len(inputs) > batch_size:  # 分批次处理防止OOM
             outputs = []

@@ -19,56 +19,56 @@ from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_da
 from differlib.explainer import explainer_dict
 from differlib.feature_selection import fsm_dict
 from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature_maps, diff_shapley
-from differlib.models import model_dict, scikit_models, torch_models
+from differlib.models import model_dict, scikit_models, torch_models, CuMLWrapper, load_pretrained_model, \
+    output_predict_targets
 
-
-def load_pretrained_model(model_type):
-    print(log_msg("Loading model {}".format(model_type), "INFO"))
-    model_class, model_pretrain_path = model_dict[dataset][model_type]
-    assert (model_pretrain_path is not None), "no pretrain model {}".format(model_type)
-    pretrained_model = None
-    if model_type in scikit_models:
-        pretrained_model = load_checkpoint(model_pretrain_path)
-    elif model_type in torch_models:
-        pretrained_model = model_class(channels=channels, points=points, num_classes=n_classes)
-        pretrained_model.load_state_dict(load_checkpoint(model_pretrain_path))
-        pretrained_model = pretrained_model.cuda()
-    else:
-        print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
-    assert pretrained_model is not None
-    return pretrained_model
-
-
-def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
-    output, predict_targets = None, None
-    if model_type in scikit_models:
-        predict_targets = model.predict(data.reshape((len(data), -1)))
-        output = model.predict_proba(data.reshape((len(data), -1)))
-    elif model_type in torch_models:
-        output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
-        predict_targets = np.argmax(output, axis=1)
-    else:
-        print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
-    assert output is not None
-    assert predict_targets is not None
-    return output, predict_targets
-
-
-class CustomBatchNorm(BaseEstimator, TransformerMixin):
-    def __init__(self, gamma=1.0, beta=0.0):
-        self.gamma = gamma
-        self.beta = beta
-        self.mean = None
-        self.std = None
-
-    def fit(self, X, y=None):
-        self.mean = np.mean(X, axis=0)
-        self.std = np.std(X, axis=0)
-        return self
-
-    def transform(self, X):
-        X_normalized = (X - self.mean) / (self.std + 1e-5)
-        return self.gamma * X_normalized + self.beta
+# def load_pretrained_model(model_type):
+#     print(log_msg("Loading model {}".format(model_type), "INFO"))
+#     model_class, model_pretrain_path = model_dict[dataset][model_type]
+#     assert (model_pretrain_path is not None), "no pretrain model {}".format(model_type)
+#     pretrained_model = None
+#     if model_type in scikit_models:
+#         pretrained_model = load_checkpoint(model_pretrain_path)
+#     elif model_type in torch_models:
+#         pretrained_model = model_class(channels=channels, points=points, num_classes=n_classes)
+#         pretrained_model.load_state_dict(load_checkpoint(model_pretrain_path))
+#         pretrained_model = pretrained_model.cuda()
+#     else:
+#         print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
+#     assert pretrained_model is not None
+#     return pretrained_model
+#
+#
+# def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
+#     output, predict_targets = None, None
+#     if model_type in scikit_models:
+#         predict_targets = model.predict(data.reshape((len(data), -1)))
+#         output = model.predict_proba(data.reshape((len(data), -1)))
+#     elif model_type in torch_models:
+#         output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
+#         predict_targets = np.argmax(output, axis=1)
+#     else:
+#         print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
+#     assert output is not None
+#     assert predict_targets is not None
+#     return output, predict_targets
+#
+#
+# class CustomBatchNorm(BaseEstimator, TransformerMixin):
+#     def __init__(self, gamma=1.0, beta=0.0):
+#         self.gamma = gamma
+#         self.beta = beta
+#         self.mean = None
+#         self.std = None
+#
+#     def fit(self, X, y=None):
+#         self.mean = np.mean(X, axis=0)
+#         self.std = np.std(X, axis=0)
+#         return self
+#
+#     def transform(self, X):
+#         X_normalized = (X - self.mean) / (self.std + 1e-5)
+#         return self.gamma * X_normalized + self.beta
 
 
 if __name__ == "__main__":
@@ -106,6 +106,7 @@ if __name__ == "__main__":
 
     # set GPUs, CPUs
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.EXPERIMENT.GPU_IDS
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # init dataset & models
     dataset = cfg.DATASET
@@ -127,8 +128,8 @@ if __name__ == "__main__":
     model_A_type = cfg.MODEL_A
     model_B_type = cfg.MODEL_B
 
-    model_A = load_pretrained_model(model_A_type)
-    model_B = load_pretrained_model(model_B_type)
+    model_A = load_pretrained_model(model_A_type, dataset, channels, points, n_classes, device)
+    model_B = load_pretrained_model(model_B_type, dataset, channels, points, n_classes, device)
 
     selection_type = cfg.SELECTION.TYPE
     selection_M = cfg.SELECTION.Diff.M
@@ -140,31 +141,31 @@ if __name__ == "__main__":
     max_depth = cfg.EXPLAINER.MAX_DEPTH
     min_samples_leaf = cfg.EXPLAINER.MIN_SAMPLES_LEAF
 
-    aug_data = np.load(f"/home/fan/Diffusion-TS/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy").astype(np.float32)
-    # aug_data = aug_data.swapaxes(1, 2)
-    aug_data = aug_data.reshape(-1, channels, points)
-    output_A, pred_target_A = output_predict_targets(model_A_type, model_A, aug_data, num_classes=n_classes)
-    output_B, pred_target_B = output_predict_targets(model_B_type, model_B, aug_data, num_classes=n_classes)
-    print(pred_target_A.sum(), pred_target_B.sum())
-    print((pred_target_A != pred_target_B).sum())
+    # aug_data = np.load(f"/home/fan/Diffusion-TS/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy").astype(np.float32)
+    # # aug_data = aug_data.swapaxes(1, 2)
+    # aug_data = aug_data.reshape(-1, channels, points)
+    # output_A, pred_target_A = output_predict_targets(model_A_type, model_A, aug_data, num_classes=n_classes)
+    # output_B, pred_target_B = output_predict_targets(model_B_type, model_B, aug_data, num_classes=n_classes)
+    # print(pred_target_A.sum(), pred_target_B.sum())
+    # print((pred_target_A != pred_target_B).sum())
     # train_data = np.concatenate((train_data, aug_data), axis=0)
 
-    epoch = test_data[0]
-    from mne.time_frequency import psd_array_multitaper, stft
-
-    # 多锥形法计算PSD
-    psd, f = psd_array_multitaper(
-        epoch,
-        sfreq=125,
-        fmin=1,
-        fmax=45,
-        bandwidth=3.0,  # 频带平滑
-        adaptive=True,  # 自适应权重
-        n_jobs=-1,
-        normalization='length'  # 归一化
-    )
-
-    x = stft(epoch, wsize=100)
+    # epoch = test_data[0]
+    # from mne.time_frequency import psd_array_multitaper, stft
+    #
+    # # 多锥形法计算PSD
+    # psd, f = psd_array_multitaper(
+    #     epoch,
+    #     sfreq=125,
+    #     fmin=1,
+    #     fmax=45,
+    #     bandwidth=3.0,  # 频带平滑
+    #     adaptive=True,  # 自适应权重
+    #     n_jobs=-1,
+    #     normalization='length'  # 归一化
+    # )
+    #
+    # x = stft(epoch, wsize=100)
 
     # models predict differences
     output_A, pred_target_A = output_predict_targets(model_A_type, model_A, train_data, num_classes=n_classes)
@@ -184,12 +185,12 @@ if __name__ == "__main__":
     #     if delta_output[idx] < delta_threshold:
     #         break
 
-    save_file = f"./feature_maps/{dataset}_{model_A.__class__.__name__}_{model_B.__class__.__name__}_{window_length}_{selection_M}"
+    save_file = f"./feature_maps/{dataset}_{model_A.__class__.__name__}_{model_B.__class__.__name__}_{window_length}_{selection_M}.new"
     if os.path.exists(save_file):
         feature_maps = load_checkpoint(save_file)
         print("feature_maps has been loaded")
     else:
-        feature_maps = diff_shapley(train_data[sort_index][:15000], model_A, model_B, window_length, selection_M, n_classes)
+        feature_maps = diff_shapley(test_data, model_A, model_B, window_length, selection_M, n_classes)
         if not isinstance(feature_maps, np.ndarray):
             feature_maps = feature_maps.detach().cpu().numpy()
         # np.save(save_file, feature_maps)

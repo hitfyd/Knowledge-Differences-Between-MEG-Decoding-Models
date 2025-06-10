@@ -91,7 +91,7 @@ def get_all_bn_params(model):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Logit.yaml")  # DecMeg2014    CamCAN
+    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Logit.yaml")  # DecMeg2014    CamCAN
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -233,7 +233,7 @@ if __name__ == "__main__":
 
     # aug = np.load(f"/home/fan/Diffusion-TS/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy")
     # aug = aug.reshape(-1, channels, points)[:5000]
-    # aug = np.load(f"{dataset}_{model_A.__class__.__name__}_{model_B.__class__.__name__}_counterfactual_sample.npy")
+    aug = np.load(f"{dataset}_{model_A.__class__.__name__}_{model_B.__class__.__name__}_counterfactual_sample.npy")
 
     # K-Fold evaluation
     skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.1, random_state=cfg.EXPERIMENT.SEED)   # 0.1   0.25
@@ -292,11 +292,12 @@ if __name__ == "__main__":
         x_test, select_indices = selection_method.transform(x_test)
         x_feature_names = feature_names[select_indices]
 
-        # x_train_aug = x_train_aug.reshape((len(x_train_aug), -1, window_length))
-        # x_test = x_test.reshape((len(x_test), -1, window_length))
-        # x_train_aug = x_train_aug.max(axis=-1)  # mean max
-        # x_test = x_test.max(axis=-1)
-        # x_feature_names = x_feature_names[::window_length]
+        if cfg.Feature_SMOOTHING:
+            x_train_aug = x_train_aug.reshape((len(x_train_aug), -1, window_length))
+            x_test = x_test.reshape((len(x_test), -1, window_length))
+            x_train_aug = x_train_aug.max(axis=-1)  # mean max
+            x_test = x_test.max(axis=-1)
+            x_feature_names = x_feature_names[::window_length]
 
         # x_train_aug = x_train_aug[:, consensus_list]
         # x_test = x_test[:, consensus_list]

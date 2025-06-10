@@ -22,7 +22,7 @@ CFG.EXPERIMENT.PROJECT = ""
 CFG.EXPERIMENT.NAME = ""
 CFG.EXPERIMENT.TAG = ""
 CFG.EXPERIMENT.SEED = 0  # Random number seed, which is beneficial to the repeatability of the experiment. 0/2024
-CFG.EXPERIMENT.GPU_IDS = "2"    # List of GPUs used
+CFG.EXPERIMENT.GPU_IDS = "0"    # List of GPUs used
 CFG.EXPERIMENT.CPU_COUNT = 4
 
 # Dataset
@@ -44,6 +44,9 @@ CFG.SELECTION.TYPE = "DiffShapley"
 CFG.SELECTION.Diff = CN()
 CFG.SELECTION.Diff.M = 8
 CFG.SELECTION.Diff.THRESHOLD = 6.0
+
+# Feature Smoothing
+CFG.Feature_SMOOTHING = False
 
 # Explainer
 CFG.EXPLAINER = CN()

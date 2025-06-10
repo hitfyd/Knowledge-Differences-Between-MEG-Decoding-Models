@@ -7,33 +7,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mne_connectivity import spectral_connectivity_epochs
 from sklearn.metrics import pairwise_distances
+from skl2onnx import convert_sklearn
+from skl2onnx.common.data_types import FloatTensorType
+from onnx2torch import convert
 
 from differlib.engine.utils import get_data_labels_from_dataset, log_msg, load_checkpoint
-from differlib.models import scikit_models, torch_models, model_dict
-
-
-class SklearnWrapper(nn.Module):
-    def __init__(self, sklearn_model):
-        super().__init__()
-        self.sklearn_model = sklearn_model
-        self.device = torch.device("cpu")  # Scikit-learn仅支持CPU
-
-    def forward(self, x):
-        # 确保输入在CPU上并转换为NumPy
-        if x.device != self.device:
-            x = x.to(self.device)
-        x_np = x.detach().cpu().numpy()
-        x_np = x_np.reshape(len(x_np), -1)
-
-        # 获取预测结果（根据需求选择预测方法）
-        with torch.no_grad():
-            if hasattr(self.sklearn_model, "predict_proba"):
-                y_pred = self.sklearn_model.predict_proba(x_np)
-            else:
-                y_pred = self.sklearn_model.predict(x_np)
-
-        # 转回PyTorch Tensor
-        return torch.from_numpy(y_pred).to(x.device)
+from differlib.models import scikit_models, torch_models, model_dict, CuMLWrapper, load_pretrained_model
 
 
 class DualMEGCounterfactualExplainer:
@@ -358,23 +337,6 @@ class DualMEGCounterfactualExplainer:
         return fig
 
 
-def load_pretrained_model(model_type):
-    print(log_msg("Loading model {}".format(model_type), "INFO"))
-    model_class, model_pretrain_path = model_dict[dataset][model_type]
-    assert (model_pretrain_path is not None), "no pretrain model {}".format(model_type)
-    pretrained_model = None
-    if model_type in scikit_models:
-        pretrained_model = load_checkpoint(model_pretrain_path)
-    elif model_type in torch_models:
-        pretrained_model = model_class(channels=channels, points=points, num_classes=n_classes)
-        pretrained_model.load_state_dict(load_checkpoint(model_pretrain_path))
-        pretrained_model = pretrained_model.cuda()
-    else:
-        print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
-    assert pretrained_model is not None
-    return pretrained_model
-
-
 # 示例使用
 if __name__ == "__main__":
     # 1. 设置设备
@@ -389,12 +351,9 @@ if __name__ == "__main__":
     channels, points, n_classes = 204, 250, 2
     sfreq, fmin, fmax = 250, 0.1, 20
 
-    model1 = load_pretrained_model("mlp")  # 实际使用时替换
-    model2 = load_pretrained_model("varcnn")
+    model1 = load_pretrained_model("rf", dataset, channels, points, n_classes, device)  # 实际使用时替换
+    model2 = load_pretrained_model("varcnn", dataset, channels, points, n_classes, device)
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
-
-    if model1.__class__.__name__ == "RandomForestClassifier":
-        model1 = SklearnWrapper(model1)
 
     meg_data = test_data
 

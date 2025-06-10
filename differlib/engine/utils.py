@@ -7,7 +7,6 @@ import numpy as np
 import sys
 import time
 
-from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 
@@ -124,35 +123,35 @@ def validate(val_loader, distiller):
 
 
 def predict(model, data, num_classes=2, batch_size=512, eval=False, softmax=True):
-    if model.__class__.__name__ in ["GaussianNB", "RandomForestClassifier", "LogisticRegression"]:
-        output = model.predict_proba(data.reshape((len(data), -1)))
-    else:
-        model.cuda()
-        model.eval()
-        data = torch.from_numpy(data)
-        data_split = torch.split(data, batch_size, dim=0)
-        output = torch.zeros(len(data), num_classes).cuda()  # 预测的置信度和置信度最大的标签编号
-        start = 0
-        if eval:
-            with torch.no_grad():
-                for batch_data in data_split:
-                    batch_data = batch_data.cuda()
-                    batch_data = batch_data.float()
-                    output[start:start+len(batch_data)] = model(batch_data)
-                    start += len(batch_data)
-        else:
+    # if model.__class__.__name__ in ["GaussianNB", "RandomForestClassifier", "LogisticRegression"]:
+    #     output = model.predict_proba(data.reshape((len(data), -1)))
+    # else:
+    model.cuda()
+    model.eval()
+    data = torch.from_numpy(data)
+    data_split = torch.split(data, batch_size, dim=0)
+    output = torch.zeros(len(data), num_classes).cuda()  # 预测的置信度和置信度最大的标签编号
+    start = 0
+    if eval:
+        with torch.no_grad():
             for batch_data in data_split:
                 batch_data = batch_data.cuda()
                 batch_data = batch_data.float()
-                output[start:start + len(batch_data)] = model(batch_data)
+                output[start:start+len(batch_data)] = model(batch_data)
                 start += len(batch_data)
-                del batch_data
-        if softmax:
-            if model.__class__.__name__ in ["LFCNN", "VARCNN"]:
-                output = torch.exp(output) / torch.sum(torch.exp(output), dim=-1, keepdim=True)
-            if model.__class__.__name__ in ["HGRN", "ATCNet"]:  #, "EEGNetv4", "NewEEGNetv1"
-                output = torch.exp(output)
-        output = output.cpu().detach().numpy()
+    else:
+        for batch_data in data_split:
+            batch_data = batch_data.cuda()
+            batch_data = batch_data.float()
+            output[start:start + len(batch_data)] = model(batch_data)
+            start += len(batch_data)
+            del batch_data
+    if softmax:
+        if model.__class__.__name__ in ["LFCNN", "VARCNN"]:
+            output = torch.exp(output) / torch.sum(torch.exp(output), dim=-1, keepdim=True)
+        if model.__class__.__name__ in ["HGRN", "ATCNet"]:  #, "EEGNetv4", "NewEEGNetv1"
+            output = torch.exp(output)
+    output = output.cpu().detach().numpy()
     return output
 
 
@@ -233,12 +232,13 @@ def save_checkpoint(obj, path):
         torch.save(obj, f)
 
 
-def load_checkpoint(path):
+def load_checkpoint(path, device: torch.device = torch.device("cpu")):
     with open(path, "rb") as f:
-        return torch.load(f, map_location="cpu")
+        return torch.load(f, map_location=device, weights_only=False)
 
 
 def save_figure(fig, save_dir, figure_name, save_dpi=400, format_list=None):
+    from matplotlib import pyplot as plt
     # EPS format for LaTeX
     # PDF format for LaTeX/Display
     # SVG format for Web

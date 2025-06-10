@@ -1,24 +1,33 @@
 import os
 
+import cuml
+import numpy as np
+import cupy as cp  # 导入 CuPy
+import torch
+from cuml.common import using_device_type
+from cuml.internals.input_utils import input_to_cupy_array
 from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from torch import nn
 
 from .DNNClassifier import lfcnn, varcnn, hgrn, mlp, linear, eegnetv4, eegnetv1
 from .SoftDecisionTree import sdt
 from .atcnet.atcnet import atcnet
 from .atcnet_new.ctnet import ctnet
 from .atcnet_new.eegnex import eegnex
-from .atcnet_new.msvtnet import msvtnet
-from .meegnet.network import meegnet
+from ..engine.utils import log_msg, load_checkpoint, predict
+
+# from .atcnet_new.msvtnet import msvtnet
+# from .meegnet.network import meegnet
 
 model_checkpoint_prefix = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "../../checkpoint/Models_Train/"
 )
 
-scikit_models = ["gnb", "rf", "lr"]
-torch_models = ["mlp", "lfcnn", "varcnn", "hgrn", "atcnet", "linear", "sdt", "eegnetv1", "eegnetv4", "msvtnet", "ctnet", "eegnex"]
+scikit_models = ["rf", "lr"]    # cuML
+torch_models = ["mlp", "lfcnn", "varcnn", "hgrn", "atcnet", "linear", "sdt", "eegnetv1", "eegnetv4", "ctnet", "eegnex"]
 
 model_dict = {
     "CamCAN": {
@@ -31,10 +40,10 @@ model_dict = {
         "linear": (linear, model_checkpoint_prefix + "CamCAN_Linear_128_0.0003_20240421215048_checkpoint.pt"),
         "mlp": (mlp, model_checkpoint_prefix + "CamCAN_MLP_128_0.0003_20240421215048_checkpoint.pt"),
         "atcnet": (atcnet, model_checkpoint_prefix + "CamCAN_ATCNet_128_0.003_20240421215048_checkpoint.pt"),
-        "meegnet": (meegnet, model_checkpoint_prefix + "CamCAN_MEEGNet_128_0.0003_20250327111123_checkpoint.pt"),
+        # "meegnet": (meegnet, model_checkpoint_prefix + "CamCAN_MEEGNet_128_0.0003_20250327111123_checkpoint.pt"),
         "eegnex": (eegnex, model_checkpoint_prefix + "CamCAN_EEGNeX_64_0.001_20250425141344_checkpoint.pt"),
         "ctnet": (ctnet, model_checkpoint_prefix + "CamCAN_CTNet_128_0.001_0.0003_0.0_20250426133227_checkpoint.pt"),
-        "msvtnet": (msvtnet, model_checkpoint_prefix + "CamCAN_MSVTNet_128_0.003_0.0_1e-06_20250426133227_checkpoint.pt"),
+        # "msvtnet": (msvtnet, model_checkpoint_prefix + "CamCAN_MSVTNet_128_0.003_0.0_1e-06_20250426133227_checkpoint.pt"),
         "sdt": (sdt, model_checkpoint_prefix + "CamCAN_SDT_Vanilla"),
         "sdt_varcnn_kd": (sdt, model_checkpoint_prefix + "CamCAN_SDT_VARCNN_KD"),
         "sdt_varcnn_fakd": (sdt, model_checkpoint_prefix + "CamCAN_SDT_VARCNN_FAKD"),
@@ -50,10 +59,10 @@ model_dict = {
         "linear": (linear, model_checkpoint_prefix + "DecMeg2014_Linear_64_0.0003_20240421215048_checkpoint.pt"),
         "mlp": (mlp, model_checkpoint_prefix + "DecMeg2014_MLP_128_0.001_20240421215048_checkpoint.pt"),
         "atcnet": (atcnet, model_checkpoint_prefix + "DecMeg2014_ATCNet_64_0.001_20240421215048_checkpoint.pt"),
-        "meegnet": (meegnet, model_checkpoint_prefix + "DecMeg2014_MEEGNet_128_0.0003_20250327111123_checkpoint.pt"),
+        # "meegnet": (meegnet, model_checkpoint_prefix + "DecMeg2014_MEEGNet_128_0.0003_20250327111123_checkpoint.pt"),
         "eegnex": (eegnex, model_checkpoint_prefix + "DecMeg2014_EEGNeX_64_0.001_20250425141344_checkpoint.pt"),
         "ctnet": (ctnet, model_checkpoint_prefix + "DecMeg2014_CTNet_64_0.003_0.0003_0.0_20250426133227_checkpoint.pt"),
-        "msvtnet": (msvtnet, model_checkpoint_prefix + "DecMeg2014_MSVTNet_128_0.003_0.0_0.0_20250429100210_checkpoint.pt"),
+        # "msvtnet": (msvtnet, model_checkpoint_prefix + "DecMeg2014_MSVTNet_128_0.003_0.0_0.0_20250429100210_checkpoint.pt"),
         "sdt": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_Vanilla"),
         "sdt_hgrn_kd": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_HGRN_KD"),
         "sdt_hgrn_fakd": (sdt, model_checkpoint_prefix + "DecMeg2014_SDT_HGRN_FAKD"),
@@ -64,3 +73,58 @@ model_dict = {
         "eegnetv1": (eegnetv1, model_checkpoint_prefix + "BCIIV2a_eegnetv1"),
     }
 }
+
+
+class CuMLWrapper(nn.Module):
+    def __init__(self, ml_model):
+        super().__init__()
+        self.ml_model = ml_model
+        self.__class__.__name__ = ml_model.__class__.__name__  # 替换类名为Scikit-learn类
+
+    def forward(self, x):
+        x = x.flatten(1).contiguous()
+        x_cupy = cp.asarray(x)  # 自动处理dtype和内存拷贝
+
+        # 获取预测结果（根据需求选择预测方法）
+        if hasattr(self.ml_model, "predict_proba"):
+            y_pred = self.ml_model.predict_proba(x_cupy)
+        else:
+            y_pred = self.ml_model.predict(x_cupy)
+
+        # 转回PyTorch Tensor
+        return torch.as_tensor(y_pred, device=x.device)
+
+
+def load_pretrained_model(model_type, dataset, channels, points, n_classes, device: torch.device = torch.device("cpu")):
+    print(log_msg("Loading model {}".format(model_type), "INFO"))
+    model_class, model_pretrain_path = model_dict[dataset][model_type]
+    assert (model_pretrain_path is not None), "no pretrain model {}".format(model_type)
+    pretrained_model = None
+    if model_type in scikit_models:
+        pretrained_model = load_checkpoint(model_pretrain_path, device)
+        pretrained_model = CuMLWrapper(pretrained_model).to(device)
+    elif model_type in torch_models:
+        pretrained_model = model_class(channels=channels, points=points, num_classes=n_classes)
+        pretrained_model.load_state_dict(load_checkpoint(model_pretrain_path, device))
+        pretrained_model = pretrained_model.to(device)
+    else:
+        print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
+    assert pretrained_model is not None
+    return pretrained_model
+
+
+def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
+    output, predict_targets = None, None
+    if model_type in scikit_models:
+        # predict_targets = model.predict(data.reshape((len(data), -1)))
+        # output = model.predict_proba(data.reshape((len(data), -1)))
+        output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
+        predict_targets = np.argmax(output, axis=1)
+    elif model_type in torch_models:
+        output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
+        predict_targets = np.argmax(output, axis=1)
+    else:
+        print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
+    assert output is not None
+    assert predict_targets is not None
+    return output, predict_targets
