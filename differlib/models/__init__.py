@@ -4,8 +4,6 @@ import cuml
 import numpy as np
 import cupy as cp  # 导入 CuPy
 import torch
-from cuml.common import using_device_type
-from cuml.internals.input_utils import input_to_cupy_array
 from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -80,16 +78,26 @@ class CuMLWrapper(nn.Module):
         super().__init__()
         self.ml_model = ml_model
         self.__class__.__name__ = ml_model.__class__.__name__  # 替换类名为Scikit-learn类
+        self.model_fil = ml_model.convert_to_fil_model(output_class=True)   # 重点在于转化为推理模型，速度大幅加快
 
     def forward(self, x):
-        x = x.flatten(1).contiguous()
-        x_cupy = cp.asarray(x)  # 自动处理dtype和内存拷贝
+        # assert x.device.type == 'cuda', "必须位于CUDA设备"
+        # assert x.dtype == torch.float32, "必须是float32"
+        x = x.flatten(1)
+        # # 确保内存连续
+        # if not x.is_contiguous():
+        #     print("uncontiguous<UNK>")
+        #     x = x.contiguous()
+        # x_cupy = cp.asarray(x)  # 在DualMEG_CounterfactualExplainer.py中报错
+        x_cupy = cp.from_dlpack(torch.utils.dlpack.to_dlpack(x))
+        # x_cupy[0, 0] = 1
+        # print(x[0, 0], x_cupy[0, 0])
 
         # 获取预测结果（根据需求选择预测方法）
         if hasattr(self.ml_model, "predict_proba"):
-            y_pred = self.ml_model.predict_proba(x_cupy)
+            y_pred = self.model_fil.predict_proba(x_cupy)
         else:
-            y_pred = self.ml_model.predict(x_cupy)
+            y_pred = self.model_fil.predict(x_cupy)
 
         # 转回PyTorch Tensor
         return torch.as_tensor(y_pred, device=x.device)

@@ -128,6 +128,8 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_
     features_num = (channels * points) // window_length
     data = torch.from_numpy(data).to(device=device)
     all_sample_feature_maps = torch.zeros((n_samples, features_num, NUM_CLASSES), device=device)
+    S1 = torch.zeros((features_num, channels, points), device=device, dtype=torch.float32)
+    S2 = torch.zeros((features_num, channels, points), device=device, dtype=torch.float32)
     # with open(log_file, "a") as writer:
     #     writer.write("n_samples: {}\n".format(n_samples))
 
@@ -157,8 +159,8 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_
             without_mask = feature_marks.unsqueeze(-1).repeat(1, 1, window_length).view(features_num, channels, points)
 
             # 批量生成S1和S2 [features_num, C, T]
-            S1 = data[index] * with_mask + reference_inputs * ~with_mask
-            S2 = data[index] * without_mask + reference_inputs * ~without_mask
+            S1[:] = data[index] * with_mask + reference_inputs * ~with_mask
+            S2[:] = data[index] * without_mask + reference_inputs * ~without_mask
 
             batch_size = 1024
             # model_list = [model1, model2]

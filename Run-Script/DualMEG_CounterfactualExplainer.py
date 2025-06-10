@@ -13,6 +13,7 @@ from onnx2torch import convert
 
 from differlib.engine.utils import get_data_labels_from_dataset, log_msg, load_checkpoint
 from differlib.models import scikit_models, torch_models, model_dict, CuMLWrapper, load_pretrained_model
+from similarity.attribution.MEG_Shapley_Values import torch_predict
 
 
 class DualMEGCounterfactualExplainer:
@@ -79,7 +80,7 @@ class DualMEGCounterfactualExplainer:
                 mode = 'same'  # 原始不一致，使其一致
 
         # 初始化反事实
-        X_cf = X_orig.clone().detach().requires_grad_(True)
+        X_cf = X_orig.clone().detach().requires_grad_(True).contiguous()
 
         # 选择优化器
         optimizer = optim.Adam([X_cf], lr=self.learning_rate)
