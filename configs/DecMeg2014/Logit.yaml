@@ -3,17 +3,17 @@ EXPERIMENT:
   TAG: "Logit"
 DATASET: "DecMeg2014"
 NUM_SPLITS: 5
-WINDOW_LENGTH: 10  # 10 5 1
-MODEL_A: "lr"
-MODEL_B: "rf"
-AUGMENTATION: "NONE"
-AUGMENT_FACTOR: 1.0
-Feature_SMOOTHING: False
+WINDOW_LENGTH: 10  # 25 10 5 1  10最好
+MODEL_A: "mlp"
+MODEL_B: "varcnn"
+AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
+AUGMENT_FACTOR: 3.0 # 1-5之间取3最好
+Feature_SMOOTHING: False  # 平滑无优势
 SELECTION:
   TYPE: "DiffShapley"
   Diff:
-    M: 8
-    THRESHOLD: 6.0
+    M: 4  # 2 4 8中4最好
+    THRESHOLD: 6.0  # 3.0和6.0具有竞争力
 EXPLAINER:
   TYPE: "Logit"
   MAX_DEPTH: 6

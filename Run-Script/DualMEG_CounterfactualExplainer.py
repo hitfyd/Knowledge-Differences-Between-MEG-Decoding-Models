@@ -352,8 +352,8 @@ if __name__ == "__main__":
     channels, points, n_classes = 204, 250, 2
     sfreq, fmin, fmax = 250, 0.1, 20
 
-    model1 = load_pretrained_model("lr", dataset, channels, points, n_classes, device)  # 实际使用时替换，优先翻转PyTorch模型的预测结果
-    model2 = load_pretrained_model("rf", dataset, channels, points, n_classes, device)
+    model1 = load_pretrained_model("mlp", dataset, channels, points, n_classes, device)  # 实际使用时替换，优先翻转PyTorch模型的预测结果
+    model2 = load_pretrained_model("varcnn", dataset, channels, points, n_classes, device)
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
 
     meg_data = test_data
@@ -383,13 +383,14 @@ if __name__ == "__main__":
         lambda_spatial=0.05,
         lambda_frequency=0.05,
         lambda_dist=0.2,
-        learning_rate=0.003,
+        learning_rate=0.001,
         max_iter=300,
         connectivity_matrix=connectivity_matrix,
         device=device
     )
 
-    X_samples, cf_samples, diffs = np.zeros_like(meg_data), np.zeros_like(meg_data), np.zeros_like(meg_data)
+    n_generate = 5
+    cf_samples = np.zeros((len(meg_data), n_generate, channels, points), dtype=np.float32)
     # 6. 选择一个样本进行解释
     for sample_idx, X_sample in enumerate(meg_data):
         # 获取原始预测
@@ -401,57 +402,53 @@ if __name__ == "__main__":
             orig_class2 = torch.argmax(orig_pred2).item()
 
         print(f"\n{sample_idx} 原始预测: 模型1={orig_class1}, 模型2={orig_class2}")
+        for i_generate in range(n_generate):
+            # # 7. 根据原始预测选择模式
+            # if orig_class1 == orig_class2:
+            #     print("预测一致，生成不一致的反事实")
+            #     mode = 'different'
+            # else:
+            #     print("预测不一致，生成一致的反事实")
+            #     mode = 'same'
+            #
+            # # 8. 生成反事实
+            # result = explainer.generate_counterfactual(X_sample, mode=mode)
+            # cf_sample = result['counterfactual']
+            # cf_classes = result['counterfactual_classes']
+            #
+            # print(f"\n反事实预测: 模型1={cf_classes[0]}, 模型2={cf_classes[1]}")
+            #
+            # # 9. 可视化结果
+            # # 创建模拟通道名称
+            # ch_names = [f"CH{i:03d}" for i in range(204)]
+            # explainer.visualize_results(
+            #     X_sample, cf_sample,
+            #     (orig_class1, orig_class2),
+            #     cf_classes,
+            #     ch_names
+            # )
 
-        # # 7. 根据原始预测选择模式
-        # if orig_class1 == orig_class2:
-        #     print("预测一致，生成不一致的反事实")
-        #     mode = 'different'
-        # else:
-        #     print("预测不一致，生成一致的反事实")
-        #     mode = 'same'
+            # 10. 生成翻转一个模型的反事实
+            print("\n生成只翻转模型1的反事实")
+            result_flip = explainer.generate_counterfactual(
+                X_sample, mode='flip_one', target_model=1
+            )
+            cf_flip = result_flip['counterfactual']
+            cf_flip_classes = result_flip['counterfactual_classes']
 
-        # # 8. 生成反事实
-        # result = explainer.generate_counterfactual(X_sample, mode=mode)
-        # cf_sample = result['counterfactual']
-        # cf_classes = result['counterfactual_classes']
-        #
-        # print(f"\n反事实预测: 模型1={cf_classes[0]}, 模型2={cf_classes[1]}")
-        #
-        # # 9. 可视化结果
-        # # 创建模拟通道名称
-        # ch_names = [f"CH{i:03d}" for i in range(204)]
-        # explainer.visualize_results(
-        #     X_sample, cf_sample,
-        #     (orig_class1, orig_class2),
-        #     cf_classes,
-        #     ch_names
-        # )
+            print(f"原始预测: 模型1={orig_class1}, 模型2={orig_class2}")
+            print(f"反事实预测: 模型1={cf_flip_classes[0]}, 模型2={cf_flip_classes[1]}")
 
-        # 10. 生成翻转一个模型的反事实
-        print("\n生成只翻转模型1的反事实")
-        result_flip = explainer.generate_counterfactual(
-            X_sample, mode='flip_one', target_model=1
-        )
-        cf_flip = result_flip['counterfactual']
-        cf_flip_classes = result_flip['counterfactual_classes']
+            # # 11. 可视化翻转结果
+            # explainer.visualize_results(
+            #     X_sample, cf_flip,
+            #     (orig_class1, orig_class2),
+            #     cf_flip_classes,
+            #     ch_names
+            # )
 
-        print(f"原始预测: 模型1={orig_class1}, 模型2={orig_class2}")
-        print(f"反事实预测: 模型1={cf_flip_classes[0]}, 模型2={cf_flip_classes[1]}")
-
-        # # 11. 可视化翻转结果
-        # explainer.visualize_results(
-        #     X_sample, cf_flip,
-        #     (orig_class1, orig_class2),
-        #     cf_flip_classes,
-        #     ch_names
-        # )
-
-        X_samples[sample_idx] = X_sample
-        cf_samples[sample_idx] = cf_flip
-        # diffs[sample_idx] = diff
+            cf_samples[sample_idx, i_generate] = cf_flip
 
     # 11. 保存结果
-    # np.save('original_sample.npy', X_samples)
     np.save(f'{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_counterfactual_sample.npy', cf_samples)
-    # np.save('difference.npy', diffs)
     print("Results saved to files.")

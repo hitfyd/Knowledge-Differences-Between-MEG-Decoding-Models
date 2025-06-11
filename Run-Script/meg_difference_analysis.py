@@ -20,73 +20,6 @@ from differlib.feature_selection import fsm_dict
 from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature_maps
 from differlib.models import model_dict, scikit_models, torch_models, load_pretrained_model, output_predict_targets
 
-# def load_pretrained_model(model_type):
-#     print(log_msg("Loading model {}".format(model_type), "INFO"))
-#     model_class, model_pretrain_path = model_dict[dataset][model_type]
-#     assert (model_pretrain_path is not None), "no pretrain model {}".format(model_type)
-#     pretrained_model = None
-#     if model_type in scikit_models:
-#         pretrained_model = load_checkpoint(model_pretrain_path)
-#     elif model_type in torch_models:
-#         pretrained_model = model_class(channels=channels, points=points, num_classes=n_classes)
-#         pretrained_model.load_state_dict(load_checkpoint(model_pretrain_path))
-#         pretrained_model = pretrained_model.cuda()
-#     else:
-#         print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
-#     assert pretrained_model is not None
-#     return pretrained_model
-#
-#
-# def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
-#     output, predict_targets = None, None
-#     if model_type in scikit_models:
-#         predict_targets = model.predict(data.reshape((len(data), -1)))
-#         output = model.predict_proba(data.reshape((len(data), -1)))
-#     elif model_type in torch_models:
-#         output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
-#         predict_targets = np.argmax(output, axis=1)
-#     else:
-#         print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
-#     assert output is not None
-#     assert predict_targets is not None
-#     return output, predict_targets
-#
-#
-# class CustomBatchNorm(BaseEstimator, TransformerMixin):
-#     def __init__(self, gamma=1.0, beta=0.0):
-#         self.gamma = gamma
-#         self.beta = beta
-#         self.mean = None
-#         self.std = None
-#
-#     def fit(self, X, y=None):
-#         self.mean = np.mean(X)
-#         self.std = np.std(X)
-#         return self
-#
-#     def transform(self, X):
-#         X_normalized = (X - self.mean) / (self.std + 1e-5)
-#         return self.gamma * X_normalized + self.beta
-#
-#
-# # 方法 2: 获取所有 BatchNorm 层参数
-# def get_all_bn_params(model):
-#     """获取模型中所有 BatchNorm 层的参数"""
-#     bn_params = {}
-#     for name, module in model.named_modules():
-#         if isinstance(module, torch.nn.BatchNorm1d):
-#             bn_params[name] = {
-#                 'weight': module.weight.data.clone(),
-#                 'bias': module.bias.data.clone(),
-#                 'running_mean': module.running_mean.clone(),
-#                 'running_var': module.running_var.clone(),
-#                 'eps': module.eps,
-#                 'momentum': module.momentum,
-#                 'num_batches_tracked': module.num_batches_tracked
-#             }
-#     print(log_msg(bn_params, "INFO"))
-#     return bn_params
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
@@ -166,34 +99,9 @@ if __name__ == "__main__":
     if selection_type in ["DiffShapley"]:
         all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B, n_classes, window_length, selection_M)
 
-        # db_path = f'./output/Consensus/{dataset}/{dataset}_ShapleyValueExplainer_attribution_testset'
-        # db = shelve.open(db_path)
-        # # 逐样本迭代
-        # sample_num = len(data)
-        # model1_name = model_A.__class__.__name__
-        # model2_name = model_B.__class__.__name__
-        # all_maps = np.zeros([sample_num, channels, points, n_classes], dtype=np.float32)
-        # all_maps2 = np.zeros_like(all_maps)
-        # for sample_id in range(sample_num):
-        #     attribution_id = f"{sample_id}_{model1_name}"
-        #     assert attribution_id in db
-        #     all_maps[sample_id] = db[attribution_id]
-        #
-        #     all_maps2[sample_id] = db[f"{sample_id}_{model2_name}"]
-        #
-        # all_sample_feature_maps = all_maps - all_maps2
-        # window_length = 1
-        # all_sample_feature_maps = all_sample_feature_maps.reshape(sample_num, -1, n_classes)
-
-        # abs_mean_maps = np.abs(all_maps).mean(axis=0)
-        # abs_feature_contribution = abs_mean_maps.sum(axis=-1).reshape(-1)  # 合并一个特征对所有类别的绝对贡献
-        # abs_top_sort = np.argsort(abs_feature_contribution)[::-1]
-        # abs_mean_maps2 = np.abs(all_maps2).mean(axis=0)
-        # abs_feature_contribution2 = abs_mean_maps2.sum(axis=-1).reshape(-1)  # 合并一个特征对所有类别的绝对贡献
-        # abs_top_sort2 = np.argsort(abs_feature_contribution2)[::-1]
-        # top_k = 1020
-        # # consensus_list = abs_top_sort[:top_k]
-        # consensus_list, consensus_masks = top_k_disagreement(abs_top_sort, abs_top_sort2, top_k, top_k)
+    if augmentation_type in ["Counterfactual"]:
+        aug = np.load(f"{dataset}_{model_A.__class__.__name__}_{model_B.__class__.__name__}_counterfactual_sample.npy")
+        # aug = np.load(f"{dataset}_{model_B.__class__.__name__}_{model_A.__class__.__name__}_counterfactual_sample.npy")
 
     # init explainer
     explainer_type = cfg.EXPLAINER.TYPE
@@ -207,35 +115,11 @@ if __name__ == "__main__":
         writer.write("Run time: {}\n".format(datetime.now()))
         writer.write("CONFIG:\n{}".format(cfg.dump()))
 
-    # scaler = CustomBatchNorm()
-    # data = scaler.fit_transform(data)
-    # test_mean, test_std = test_data.mean(), test_data.std()
-    # train_mean, train_std = train_data.mean(), train_data.std()
-    # data = (data - test_mean) / test_std * train_std + train_mean
-    # new_data = np.zeros((len(data), channels, 36))
-    # for idx, epoch in enumerate(data):
-    #     psd, f = psd_array_multitaper(
-    #         epoch,
-    #         sfreq=125,
-    #         fmin=1,
-    #         fmax=45,
-    #         bandwidth=3.0,  # 频带平滑
-    #         adaptive=True,  # 自适应权重
-    #         n_jobs=-1,
-    #         normalization='length'  # 归一化
-    #     )
-    #     new_data[idx] = psd
-
     # models predict differences
     output_A, pred_target_A = output_predict_targets(model_A_type, model_A, data, num_classes=n_classes)
     output_B, pred_target_B = output_predict_targets(model_B_type, model_B, data, num_classes=n_classes)
     delta_target = (pred_target_A != pred_target_B).astype(int)
     delta_weights = np.abs(output_A - output_B).mean(axis=1)
-
-    # aug = np.load(f"/home/fan/Diffusion-TS/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy")
-    # aug = aug.reshape(-1, channels, points)[:5000]
-    aug = np.load(f"{dataset}_{model_A.__class__.__name__}_{model_B.__class__.__name__}_counterfactual_sample.npy")
-    # aug = np.load(f"{dataset}_{model_B.__class__.__name__}_{model_A.__class__.__name__}_counterfactual_sample.npy")
 
     # K-Fold evaluation
     skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.1, random_state=cfg.EXPERIMENT.SEED)   # 0.1   0.25
@@ -244,9 +128,6 @@ if __name__ == "__main__":
     # record metrics of i-th Fold
     pd_test_metrics, pd_train_metrics = None, None
 
-    # train_results = get_all_bn_params(model_A)
-    # model_A = load_checkpoint("mlp.tmp")
-    # test_results = get_all_bn_params(model_A)
     for train_index, test_index in skf.split(data, delta_target):
         x_train = data[train_index]
         x_test = data[test_index]
@@ -254,19 +135,9 @@ if __name__ == "__main__":
         # output_A_test, pred_target_A_test = output_predict_targets(model_A_type, model_A, x_test, num_classes=n_classes)
         # output_B_test, pred_target_B_test = output_predict_targets(model_B_type, model_B, x_test, num_classes=n_classes)
 
-        x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index],
-                                                                    augment_factor=augment_factor, )
-        # if augmentation_type == "NONE":
-        #     x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor,)
-        # else:
-        #     aug_save_path = f"./aug_data/{dataset}_{skf_id}_{augment_factor}"
-        #     if os.path.exists(aug_save_path):
-        #         x_train_aug = load_checkpoint(aug_save_path)
-        #     else:
-        #         x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor, )
-        #         save_checkpoint(x_train_aug, aug_save_path)
-        # x_train_aug = np.concatenate((x_train_aug, aug), axis=0)
-        # x_train_aug = np.concatenate((x_train_aug, aug[train_index]), axis=0)
+        x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor, )
+        if augmentation_type == "Counterfactual":
+            x_train_aug = np.concatenate((x_train_aug, aug[train_index, :int(augment_factor)].reshape(-1, channels, points)), axis=0)
 
         output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug, num_classes=n_classes)
         output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug, num_classes=n_classes)
@@ -276,9 +147,6 @@ if __name__ == "__main__":
 
         x_train_aug = x_train_aug.reshape((len(x_train_aug), -1))
         x_test = x_test.reshape((len(x_test), -1))
-        # x_train_aug = new_data[train_index].reshape((len(x_train_aug), -1))
-        # x_test = new_data[test_index].reshape((len(x_test), -1))
-        # 之后数据形状均为（n_samples, channels*points）
 
         # For Feature Selection to Compute Feature Contributions
         if selection_type in ["DiffShapley"]:
@@ -300,10 +168,6 @@ if __name__ == "__main__":
             x_train_aug = x_train_aug.max(axis=-1)  # mean max
             x_test = x_test.max(axis=-1)
             x_feature_names = x_feature_names[::window_length]
-
-        # x_train_aug = x_train_aug[:, consensus_list]
-        # x_test = x_test[:, consensus_list]
-        # x_feature_names = feature_names[consensus_list]
 
         x_train = pd.DataFrame(x_train_aug, columns=x_feature_names)
         x_test = pd.DataFrame(x_test, columns=x_feature_names)
