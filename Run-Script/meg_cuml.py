@@ -46,6 +46,9 @@ for dataset in datasets:
         else:
             model = load_checkpoint(save_path, device)
 
+        if isinstance(model, RandomForestClassifier):
+            model = model.convert_to_fil_model(output_class=True)
+
         acc = accuracy_score(y_true=y_train, y_pred=model.predict(x_train))
         t_acc = accuracy_score(y_true=y_test_all, y_pred=model.predict(x_test_all))
         print(f"dataset: {dataset} model: {model_name} train accuracy: {(acc * 100):.4f}% test accuracy: {(t_acc * 100):.4f}%")

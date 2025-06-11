@@ -352,8 +352,8 @@ if __name__ == "__main__":
     channels, points, n_classes = 204, 250, 2
     sfreq, fmin, fmax = 250, 0.1, 20
 
-    model1 = load_pretrained_model("rf", dataset, channels, points, n_classes, device)  # 实际使用时替换
-    model2 = load_pretrained_model("varcnn", dataset, channels, points, n_classes, device)
+    model1 = load_pretrained_model("varcnn", dataset, channels, points, n_classes, device)  # 实际使用时替换，优先翻转PyTorch模型的预测结果
+    model2 = load_pretrained_model("rf", dataset, channels, points, n_classes, device)
     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
 
     meg_data = test_data

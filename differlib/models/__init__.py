@@ -1,12 +1,10 @@
 import os
 
-import cuml
-import numpy as np
 import cupy as cp  # 导入 CuPy
+import numpy as np
 import torch
-from sklearn.naive_bayes import GaussianNB
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
+from cuml import LogisticRegression
+from cuml.ensemble import RandomForestClassifier
 from torch import nn
 
 from .DNNClassifier import lfcnn, varcnn, hgrn, mlp, linear, eegnetv4, eegnetv1
@@ -29,7 +27,7 @@ torch_models = ["mlp", "lfcnn", "varcnn", "hgrn", "atcnet", "linear", "sdt", "ee
 
 model_dict = {
     "CamCAN": {
-        "gnb": (GaussianNB, model_checkpoint_prefix + "CamCAN_GNB"),
+        # "gnb": (GaussianNB, model_checkpoint_prefix + "CamCAN_GNB"),
         "rf": (RandomForestClassifier, model_checkpoint_prefix + "CamCAN_RF1"),
         "lr": (LogisticRegression, model_checkpoint_prefix + "CamCAN_LR"),
         "lfcnn": (lfcnn, model_checkpoint_prefix + "CamCAN_LFCNN_20220616160458_checkpoint.pt"),
@@ -48,7 +46,7 @@ model_dict = {
     },
 
     "DecMeg2014": {
-        "gnb": (GaussianNB, model_checkpoint_prefix + "DecMeg2014_GNB"),
+        # "gnb": (GaussianNB, model_checkpoint_prefix + "DecMeg2014_GNB"),
         "rf": (RandomForestClassifier, model_checkpoint_prefix + "DecMeg2014_RF1"),
         "lr": (LogisticRegression, model_checkpoint_prefix + "DecMeg2014_LR"),
         "lfcnn": (lfcnn, model_checkpoint_prefix + "DecMeg2014_LFCNN_20230601182643_checkpoint.pt"),     # "DecMeg2014_LFCNN_20220616192753_checkpoint.pt" "DecMeg2014_LFCNN_20230601182643_checkpoint.pt"
@@ -78,7 +76,8 @@ class CuMLWrapper(nn.Module):
         super().__init__()
         self.ml_model = ml_model
         self.__class__.__name__ = ml_model.__class__.__name__  # 替换类名为Scikit-learn类
-        self.model_fil = ml_model.convert_to_fil_model(output_class=True)   # 重点在于转化为推理模型，速度大幅加快
+        if isinstance(ml_model, RandomForestClassifier):
+            self.ml_model = ml_model.convert_to_fil_model(output_class=True)   # 重点在于转化为推理模型，速度大幅加快
 
     def forward(self, x):
         # assert x.device.type == 'cuda', "必须位于CUDA设备"
@@ -95,9 +94,9 @@ class CuMLWrapper(nn.Module):
 
         # 获取预测结果（根据需求选择预测方法）
         if hasattr(self.ml_model, "predict_proba"):
-            y_pred = self.model_fil.predict_proba(x_cupy)
+            y_pred = self.ml_model.predict_proba(x_cupy)
         else:
-            y_pred = self.model_fil.predict(x_cupy)
+            y_pred = self.ml_model.predict(x_cupy)
 
         # 转回PyTorch Tensor
         return torch.as_tensor(y_pred, device=x.device)
