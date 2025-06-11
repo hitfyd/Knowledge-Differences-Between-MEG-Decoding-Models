@@ -18,75 +18,74 @@ from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_da
 from differlib.explainer import explainer_dict
 from differlib.feature_selection import fsm_dict
 from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature_maps
-from differlib.models import model_dict, scikit_models, torch_models
+from differlib.models import model_dict, scikit_models, torch_models, load_pretrained_model, output_predict_targets
 
-
-def load_pretrained_model(model_type):
-    print(log_msg("Loading model {}".format(model_type), "INFO"))
-    model_class, model_pretrain_path = model_dict[dataset][model_type]
-    assert (model_pretrain_path is not None), "no pretrain model {}".format(model_type)
-    pretrained_model = None
-    if model_type in scikit_models:
-        pretrained_model = load_checkpoint(model_pretrain_path)
-    elif model_type in torch_models:
-        pretrained_model = model_class(channels=channels, points=points, num_classes=n_classes)
-        pretrained_model.load_state_dict(load_checkpoint(model_pretrain_path))
-        pretrained_model = pretrained_model.cuda()
-    else:
-        print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
-    assert pretrained_model is not None
-    return pretrained_model
-
-
-def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
-    output, predict_targets = None, None
-    if model_type in scikit_models:
-        predict_targets = model.predict(data.reshape((len(data), -1)))
-        output = model.predict_proba(data.reshape((len(data), -1)))
-    elif model_type in torch_models:
-        output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
-        predict_targets = np.argmax(output, axis=1)
-    else:
-        print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
-    assert output is not None
-    assert predict_targets is not None
-    return output, predict_targets
-
-
-class CustomBatchNorm(BaseEstimator, TransformerMixin):
-    def __init__(self, gamma=1.0, beta=0.0):
-        self.gamma = gamma
-        self.beta = beta
-        self.mean = None
-        self.std = None
-
-    def fit(self, X, y=None):
-        self.mean = np.mean(X)
-        self.std = np.std(X)
-        return self
-
-    def transform(self, X):
-        X_normalized = (X - self.mean) / (self.std + 1e-5)
-        return self.gamma * X_normalized + self.beta
-
-
-# 方法 2: 获取所有 BatchNorm 层参数
-def get_all_bn_params(model):
-    """获取模型中所有 BatchNorm 层的参数"""
-    bn_params = {}
-    for name, module in model.named_modules():
-        if isinstance(module, torch.nn.BatchNorm1d):
-            bn_params[name] = {
-                'weight': module.weight.data.clone(),
-                'bias': module.bias.data.clone(),
-                'running_mean': module.running_mean.clone(),
-                'running_var': module.running_var.clone(),
-                'eps': module.eps,
-                'momentum': module.momentum,
-                'num_batches_tracked': module.num_batches_tracked
-            }
-    print(log_msg(bn_params, "INFO"))
-    return bn_params
+# def load_pretrained_model(model_type):
+#     print(log_msg("Loading model {}".format(model_type), "INFO"))
+#     model_class, model_pretrain_path = model_dict[dataset][model_type]
+#     assert (model_pretrain_path is not None), "no pretrain model {}".format(model_type)
+#     pretrained_model = None
+#     if model_type in scikit_models:
+#         pretrained_model = load_checkpoint(model_pretrain_path)
+#     elif model_type in torch_models:
+#         pretrained_model = model_class(channels=channels, points=points, num_classes=n_classes)
+#         pretrained_model.load_state_dict(load_checkpoint(model_pretrain_path))
+#         pretrained_model = pretrained_model.cuda()
+#     else:
+#         print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
+#     assert pretrained_model is not None
+#     return pretrained_model
+#
+#
+# def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
+#     output, predict_targets = None, None
+#     if model_type in scikit_models:
+#         predict_targets = model.predict(data.reshape((len(data), -1)))
+#         output = model.predict_proba(data.reshape((len(data), -1)))
+#     elif model_type in torch_models:
+#         output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
+#         predict_targets = np.argmax(output, axis=1)
+#     else:
+#         print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
+#     assert output is not None
+#     assert predict_targets is not None
+#     return output, predict_targets
+#
+#
+# class CustomBatchNorm(BaseEstimator, TransformerMixin):
+#     def __init__(self, gamma=1.0, beta=0.0):
+#         self.gamma = gamma
+#         self.beta = beta
+#         self.mean = None
+#         self.std = None
+#
+#     def fit(self, X, y=None):
+#         self.mean = np.mean(X)
+#         self.std = np.std(X)
+#         return self
+#
+#     def transform(self, X):
+#         X_normalized = (X - self.mean) / (self.std + 1e-5)
+#         return self.gamma * X_normalized + self.beta
+#
+#
+# # 方法 2: 获取所有 BatchNorm 层参数
+# def get_all_bn_params(model):
+#     """获取模型中所有 BatchNorm 层的参数"""
+#     bn_params = {}
+#     for name, module in model.named_modules():
+#         if isinstance(module, torch.nn.BatchNorm1d):
+#             bn_params[name] = {
+#                 'weight': module.weight.data.clone(),
+#                 'bias': module.bias.data.clone(),
+#                 'running_mean': module.running_mean.clone(),
+#                 'running_var': module.running_var.clone(),
+#                 'eps': module.eps,
+#                 'momentum': module.momentum,
+#                 'num_batches_tracked': module.num_batches_tracked
+#             }
+#     print(log_msg(bn_params, "INFO"))
+#     return bn_params
 
 
 if __name__ == "__main__":
@@ -126,6 +125,8 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.EXPERIMENT.GPU_IDS
     num_gpus = torch.cuda.device_count()
     num_cpus = cfg.EXPERIMENT.CPU_COUNT
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
 
     # init dataset & models
     dataset = cfg.DATASET
@@ -148,8 +149,8 @@ if __name__ == "__main__":
     model_A_type = cfg.MODEL_A
     model_B_type = cfg.MODEL_B
 
-    model_A = load_pretrained_model(model_A_type)
-    model_B = load_pretrained_model(model_B_type)
+    model_A = load_pretrained_model(model_A_type, dataset, channels, points, n_classes, device)
+    model_B = load_pretrained_model(model_B_type, dataset, channels, points, n_classes, device)
 
     # init data augmentation
     augmentation_type = cfg.AUGMENTATION
@@ -234,6 +235,7 @@ if __name__ == "__main__":
     # aug = np.load(f"/home/fan/Diffusion-TS/OUTPUT/{dataset}/ddpm_fake_{dataset}.npy")
     # aug = aug.reshape(-1, channels, points)[:5000]
     aug = np.load(f"{dataset}_{model_A.__class__.__name__}_{model_B.__class__.__name__}_counterfactual_sample.npy")
+    # aug = np.load(f"{dataset}_{model_B.__class__.__name__}_{model_A.__class__.__name__}_counterfactual_sample.npy")
 
     # K-Fold evaluation
     skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=0.1, random_state=cfg.EXPERIMENT.SEED)   # 0.1   0.25
@@ -264,7 +266,7 @@ if __name__ == "__main__":
         #         x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor, )
         #         save_checkpoint(x_train_aug, aug_save_path)
         # x_train_aug = np.concatenate((x_train_aug, aug), axis=0)
-        x_train_aug = np.concatenate((x_train_aug, aug[train_index]), axis=0)
+        # x_train_aug = np.concatenate((x_train_aug, aug[train_index]), axis=0)
 
         output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug, num_classes=n_classes)
         output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug, num_classes=n_classes)
