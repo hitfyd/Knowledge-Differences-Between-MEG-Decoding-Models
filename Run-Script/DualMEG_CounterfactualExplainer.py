@@ -344,13 +344,13 @@ if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
-    # dataset = "CamCAN"
-    # channels, points, n_classes = 204, 100, 2
-    # sfreq, fmin, fmax = 125, 1, 45
+    dataset = "CamCAN"
+    channels, points, n_classes = 204, 100, 2
+    sfreq, fmin, fmax = 125, 1, 45
 
-    dataset = "DecMeg2014"
-    channels, points, n_classes = 204, 250, 2
-    sfreq, fmin, fmax = 250, 0.1, 20
+    # dataset = "DecMeg2014"
+    # channels, points, n_classes = 204, 250, 2
+    # sfreq, fmin, fmax = 250, 0.1, 20
 
     model1 = load_pretrained_model("mlp", dataset, channels, points, n_classes, device)  # 实际使用时替换，优先翻转PyTorch模型的预测结果
     model2 = load_pretrained_model("varcnn", dataset, channels, points, n_classes, device)
