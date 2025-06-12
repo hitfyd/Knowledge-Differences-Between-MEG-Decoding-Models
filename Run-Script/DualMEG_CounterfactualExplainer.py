@@ -10,6 +10,7 @@ from sklearn.metrics import pairwise_distances
 from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 from onnx2torch import convert
+from tqdm import tqdm
 
 from differlib.engine.utils import get_data_labels_from_dataset, log_msg, load_checkpoint
 from differlib.models import scikit_models, torch_models, model_dict, CuMLWrapper, load_pretrained_model
@@ -338,117 +339,194 @@ class DualMEGCounterfactualExplainer:
         return fig
 
 
-# 示例使用
-if __name__ == "__main__":
-    # 1. 设置设备
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Using device: {device}")
-
-    dataset = "CamCAN"
-    channels, points, n_classes = 204, 100, 2
-    sfreq, fmin, fmax = 125, 1, 45
-
-    # dataset = "DecMeg2014"
-    # channels, points, n_classes = 204, 250, 2
-    # sfreq, fmin, fmax = 250, 0.1, 20
-
-    model1 = load_pretrained_model("mlp", dataset, channels, points, n_classes, device)  # 实际使用时替换，优先翻转PyTorch模型的预测结果
-    model2 = load_pretrained_model("varcnn", dataset, channels, points, n_classes, device)
-    test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
-
-    meg_data = test_data
-
-    connectivity_matrix_file = f"{dataset}_connectivity_matrix.npy"
-    if os.path.exists(connectivity_matrix_file):
-        connectivity_matrix = np.load(connectivity_matrix_file)
+def counterfactual(model1, model2, dataset, meg_data, n_generate=5, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+    file_path = f'{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_counterfactual_sample.npy'
+    if os.path.exists(file_path):
+        cf_samples = np.load(file_path)
+        print("counterfactual has been loaded")
     else:
-        # 计算连通性矩阵 (使用PLV方法)
-        print("Calculating connectivity matrix...")
-        con = spectral_connectivity_epochs(
-            meg_data,
-            sfreq=sfreq,
-            method='plv',
-            fmin=fmin,
-            fmax=fmax,
-            faverage=True
-        )
-        connectivity_matrix = con.get_data(output='dense')[:, :, 0]
-        np.save(connectivity_matrix_file, connectivity_matrix)
+        n_samples, channels, points = meg_data.shape
+        cf_samples = np.zeros((n_samples, n_generate, channels, points), dtype=np.float32)
 
-    # 5. 创建解释器
-    explainer = DualMEGCounterfactualExplainer(
-        model1,
-        model2,
-        lambda_temp=0.05,
-        lambda_spatial=0.05,
-        lambda_frequency=0.05,
-        lambda_dist=0.2,
-        learning_rate=0.001,
-        max_iter=300,
-        connectivity_matrix=connectivity_matrix,
-        device=device
-    )
-
-    n_generate = 5
-    cf_samples = np.zeros((len(meg_data), n_generate, channels, points), dtype=np.float32)
-    # 6. 选择一个样本进行解释
-    for sample_idx, X_sample in enumerate(meg_data):
-        # 获取原始预测
-        with torch.no_grad():
-            sample_tensor = torch.tensor(X_sample, dtype=torch.float32, device=device).unsqueeze(0)
-            orig_pred1 = model1(sample_tensor)
-            orig_pred2 = model2(sample_tensor)
-            orig_class1 = torch.argmax(orig_pred1).item()
-            orig_class2 = torch.argmax(orig_pred2).item()
-
-        print(f"\n{sample_idx} 原始预测: 模型1={orig_class1}, 模型2={orig_class2}")
-        for i_generate in range(n_generate):
-            # # 7. 根据原始预测选择模式
-            # if orig_class1 == orig_class2:
-            #     print("预测一致，生成不一致的反事实")
-            #     mode = 'different'
-            # else:
-            #     print("预测不一致，生成一致的反事实")
-            #     mode = 'same'
-            #
-            # # 8. 生成反事实
-            # result = explainer.generate_counterfactual(X_sample, mode=mode)
-            # cf_sample = result['counterfactual']
-            # cf_classes = result['counterfactual_classes']
-            #
-            # print(f"\n反事实预测: 模型1={cf_classes[0]}, 模型2={cf_classes[1]}")
-            #
-            # # 9. 可视化结果
-            # # 创建模拟通道名称
-            # ch_names = [f"CH{i:03d}" for i in range(204)]
-            # explainer.visualize_results(
-            #     X_sample, cf_sample,
-            #     (orig_class1, orig_class2),
-            #     cf_classes,
-            #     ch_names
-            # )
-
-            # 10. 生成翻转一个模型的反事实
-            print("\n生成只翻转模型1的反事实")
-            result_flip = explainer.generate_counterfactual(
-                X_sample, mode='flip_one', target_model=1
+        connectivity_matrix_file = f"{dataset}_connectivity_matrix.npy"
+        if os.path.exists(connectivity_matrix_file):
+            connectivity_matrix = np.load(connectivity_matrix_file)
+        else:
+            if dataset == "CamCAN":
+                sfreq, fmin, fmax = 125, 1, 45
+            elif dataset == "DecMeg2014":
+                sfreq, fmin, fmax = 250, 0.1, 20
+            else:
+                print("Not a valid dataset")
+            # 计算连通性矩阵 (使用PLV方法)
+            print("Calculating connectivity matrix...")
+            con = spectral_connectivity_epochs(
+                meg_data,
+                sfreq=sfreq,
+                method='plv',
+                fmin=fmin,
+                fmax=fmax,
+                faverage=True
             )
-            cf_flip = result_flip['counterfactual']
-            cf_flip_classes = result_flip['counterfactual_classes']
+            connectivity_matrix = con.get_data(output='dense')[:, :, 0]
+            np.save(connectivity_matrix_file, connectivity_matrix)
 
-            print(f"原始预测: 模型1={orig_class1}, 模型2={orig_class2}")
-            print(f"反事实预测: 模型1={cf_flip_classes[0]}, 模型2={cf_flip_classes[1]}")
+        # 5. 创建解释器
+        explainer = DualMEGCounterfactualExplainer(
+            model1,
+            model2,
+            lambda_temp=0.05,
+            lambda_spatial=0.05,
+            lambda_frequency=0.05,
+            lambda_dist=0.2,
+            learning_rate=0.003,
+            max_iter=100,
+            connectivity_matrix=connectivity_matrix,
+            device=device
+        )
 
-            # # 11. 可视化翻转结果
-            # explainer.visualize_results(
-            #     X_sample, cf_flip,
-            #     (orig_class1, orig_class2),
-            #     cf_flip_classes,
-            #     ch_names
-            # )
+        # 6. 选择一个样本进行解释
+        for sample_idx, X_sample in tqdm(enumerate(meg_data)):
+            # 获取原始预测
+            with torch.no_grad():
+                sample_tensor = torch.tensor(X_sample, dtype=torch.float32, device=device).unsqueeze(0)
+                orig_pred1 = model1(sample_tensor)
+                orig_pred2 = model2(sample_tensor)
+                orig_class1 = torch.argmax(orig_pred1).item()
+                orig_class2 = torch.argmax(orig_pred2).item()
 
-            cf_samples[sample_idx, i_generate] = cf_flip
+            print(f"\n{sample_idx} 原始预测: 模型1={orig_class1}, 模型2={orig_class2}")
+            for i_generate in range(n_generate):
+                print("\n生成只翻转模型1的反事实")
+                result_flip = explainer.generate_counterfactual(
+                    X_sample, mode='flip_one', target_model=1
+                )
+                cf_flip = result_flip['counterfactual']
+                cf_flip_classes = result_flip['counterfactual_classes']
 
-    # 11. 保存结果
-    np.save(f'{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_counterfactual_sample.npy', cf_samples)
-    print("Results saved to files.")
+                print(f"原始预测: 模型1={orig_class1}, 模型2={orig_class2}")
+                print(f"反事实预测: 模型1={cf_flip_classes[0]}, 模型2={cf_flip_classes[1]}")
+
+                cf_samples[sample_idx, i_generate] = cf_flip
+
+        # 11. 保存结果
+        np.save(file_path, cf_samples)
+        print("Results saved to files.")
+
+    return cf_samples
+
+
+# # 示例使用
+# if __name__ == "__main__":
+#     # 1. 设置设备
+#     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#     print(f"Using device: {device}")
+#
+#     # dataset = "CamCAN"
+#     # channels, points, n_classes = 204, 100, 2
+#     # sfreq, fmin, fmax = 125, 1, 45
+#
+#     dataset = "DecMeg2014"
+#     channels, points, n_classes = 204, 250, 2
+#     sfreq, fmin, fmax = 250, 0.1, 20
+#
+#     model1 = load_pretrained_model("rf", dataset, channels, points, n_classes, device)  # 实际使用时替换，优先翻转PyTorch模型的预测结果
+#     model2 = load_pretrained_model("varcnn", dataset, channels, points, n_classes, device)
+#     test_data, test_labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
+#
+#     meg_data = test_data
+#
+#     connectivity_matrix_file = f"{dataset}_connectivity_matrix.npy"
+#     if os.path.exists(connectivity_matrix_file):
+#         connectivity_matrix = np.load(connectivity_matrix_file)
+#     else:
+#         # 计算连通性矩阵 (使用PLV方法)
+#         print("Calculating connectivity matrix...")
+#         con = spectral_connectivity_epochs(
+#             meg_data,
+#             sfreq=sfreq,
+#             method='plv',
+#             fmin=fmin,
+#             fmax=fmax,
+#             faverage=True
+#         )
+#         connectivity_matrix = con.get_data(output='dense')[:, :, 0]
+#         np.save(connectivity_matrix_file, connectivity_matrix)
+#
+#     # 5. 创建解释器
+#     explainer = DualMEGCounterfactualExplainer(
+#         model1,
+#         model2,
+#         lambda_temp=0.05,
+#         lambda_spatial=0.05,
+#         lambda_frequency=0.05,
+#         lambda_dist=0.2,
+#         learning_rate=0.001,
+#         max_iter=300,
+#         connectivity_matrix=connectivity_matrix,
+#         device=device
+#     )
+#
+#     n_generate = 5
+#     cf_samples = np.zeros((len(meg_data), n_generate, channels, points), dtype=np.float32)
+#     # 6. 选择一个样本进行解释
+#     for sample_idx, X_sample in enumerate(meg_data):
+#         # 获取原始预测
+#         with torch.no_grad():
+#             sample_tensor = torch.tensor(X_sample, dtype=torch.float32, device=device).unsqueeze(0)
+#             orig_pred1 = model1(sample_tensor)
+#             orig_pred2 = model2(sample_tensor)
+#             orig_class1 = torch.argmax(orig_pred1).item()
+#             orig_class2 = torch.argmax(orig_pred2).item()
+#
+#         print(f"\n{sample_idx} 原始预测: 模型1={orig_class1}, 模型2={orig_class2}")
+#         for i_generate in range(n_generate):
+#             # # 7. 根据原始预测选择模式
+#             # if orig_class1 == orig_class2:
+#             #     print("预测一致，生成不一致的反事实")
+#             #     mode = 'different'
+#             # else:
+#             #     print("预测不一致，生成一致的反事实")
+#             #     mode = 'same'
+#             #
+#             # # 8. 生成反事实
+#             # result = explainer.generate_counterfactual(X_sample, mode=mode)
+#             # cf_sample = result['counterfactual']
+#             # cf_classes = result['counterfactual_classes']
+#             #
+#             # print(f"\n反事实预测: 模型1={cf_classes[0]}, 模型2={cf_classes[1]}")
+#             #
+#             # # 9. 可视化结果
+#             # # 创建模拟通道名称
+#             # ch_names = [f"CH{i:03d}" for i in range(204)]
+#             # explainer.visualize_results(
+#             #     X_sample, cf_sample,
+#             #     (orig_class1, orig_class2),
+#             #     cf_classes,
+#             #     ch_names
+#             # )
+#
+#             # 10. 生成翻转一个模型的反事实
+#             print("\n生成只翻转模型1的反事实")
+#             result_flip = explainer.generate_counterfactual(
+#                 X_sample, mode='flip_one', target_model=1
+#             )
+#             cf_flip = result_flip['counterfactual']
+#             cf_flip_classes = result_flip['counterfactual_classes']
+#
+#             print(f"原始预测: 模型1={orig_class1}, 模型2={orig_class2}")
+#             print(f"反事实预测: 模型1={cf_flip_classes[0]}, 模型2={cf_flip_classes[1]}")
+#
+#             # # 11. 可视化翻转结果
+#             # explainer.visualize_results(
+#             #     X_sample, cf_flip,
+#             #     (orig_class1, orig_class2),
+#             #     cf_flip_classes,
+#             #     ch_names
+#             # )
+#
+#             cf_samples[sample_idx, i_generate] = cf_flip
+#
+#     # 11. 保存结果
+#     np.save(f'{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_counterfactual_sample.npy', cf_samples)
+#     print("Results saved to files.")

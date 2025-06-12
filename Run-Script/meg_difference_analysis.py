@@ -19,6 +19,7 @@ from differlib.explainer import explainer_dict
 from differlib.feature_selection import fsm_dict
 from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature_maps
 from differlib.models import model_dict, scikit_models, torch_models, load_pretrained_model, output_predict_targets
+from DualMEG_CounterfactualExplainer import counterfactual
 
 
 if __name__ == "__main__":
@@ -70,13 +71,11 @@ if __name__ == "__main__":
     data, labels = test_data, test_labels
     n_samples, channels, points = data.shape
     n_classes = len(set(labels))
-    assert channels == dataset_info_dict[dataset]["CHANNELS"]
-    assert points == dataset_info_dict[dataset]["POINTS"]
-    assert n_classes == dataset_info_dict[dataset]["NUM_CLASSES"]
     n_splits = cfg.NUM_SPLITS
     window_length = cfg.WINDOW_LENGTH
     feature_names = [f"C{c}T{t}" for c in range(channels) for t in range(points)]
     feature_names = np.array(feature_names)
+    print(f"Dataset {dataset} {data.shape} has {n_classes} classes.")
 
     # init different models and load pre-trained checkpoints
     model_A_type = cfg.MODEL_A
@@ -100,8 +99,7 @@ if __name__ == "__main__":
         all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B, n_classes, window_length, selection_M)
 
     if augmentation_type in ["Counterfactual"]:
-        aug = np.load(f"{dataset}_{model_A.__class__.__name__}_{model_B.__class__.__name__}_counterfactual_sample.npy")
-        # aug = np.load(f"{dataset}_{model_B.__class__.__name__}_{model_A.__class__.__name__}_counterfactual_sample.npy")
+        aug = counterfactual(model_A, model_B, dataset, data, device=device)
 
     # init explainer
     explainer_type = cfg.EXPLAINER.TYPE
@@ -137,7 +135,13 @@ if __name__ == "__main__":
 
         x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor, )
         if augmentation_type == "Counterfactual":
-            x_train_aug = np.concatenate((x_train_aug, aug[train_index, :int(augment_factor)].reshape(-1, channels, points)), axis=0)
+            if len(aug.shape) == 3:
+                x_train_aug = np.concatenate((x_train_aug, aug[train_index]), axis=0)
+            elif len(aug.shape) == 4:
+                x_train_aug = np.concatenate((x_train_aug, aug[train_index, :int(augment_factor)].reshape(-1, channels, points)), axis=0)
+                # x_train_aug = aug[train_index, :int(augment_factor)].reshape(-1, channels, points)
+            else:
+                print(aug.shape, "is not a valid augmentation type")
 
         output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug, num_classes=n_classes)
         output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug, num_classes=n_classes)
