@@ -7,10 +7,8 @@ import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
 from mne_connectivity import spectral_connectivity_epochs
+from numpy.core.defchararray import upper
 from sklearn.metrics import pairwise_distances
-from skl2onnx import convert_sklearn
-from skl2onnx.common.data_types import FloatTensorType
-from onnx2torch import convert
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
@@ -163,7 +161,7 @@ class DualMEGCounterfactualExplainer:
                     elif orig_classes1[i] == classes1[i] and resolved_modes[i] == 'same':
                         stop_flags[i] = True
 
-                if all(stop_flags) > batch_size*0.9:
+                if all(stop_flags) >= int(batch_size*0.75):
                     if verbose:
                         print("90%样本满足停止条件，提前终止优化")
                     break
@@ -539,7 +537,7 @@ class DualMEGCounterfactualExplainer:
         return fig
 
 
-def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=128, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+def counterfactual(model1, model2, dataset, meg_data, n_generate=3, batch_size=1024, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
     file_path = f'{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_counterfactual_sample.npy'
     if os.path.exists(file_path):
         cf_samples = np.load(file_path)
@@ -612,10 +610,10 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1
             model1,
             model2,
             lambda_dist=0.2,
-            lambda_temp=0.05,
-            lambda_spatial=0.0,
-            lambda_frequency=0.0,
-            learning_rate=0.003,
+            lambda_temp=0.2,
+            lambda_spatial=0.002,
+            lambda_frequency=0.2,
+            learning_rate=0.001,
             max_iter=100,
             connectivity_matrix=connectivity_matrix,
             device=device
