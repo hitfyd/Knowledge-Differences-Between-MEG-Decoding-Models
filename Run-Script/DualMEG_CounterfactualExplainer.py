@@ -73,79 +73,101 @@ class DualMEGCounterfactualExplainer:
         return result
 
     def generate_counterfactual_batch(self, X_batch, modes, target_models,
-                                 n_cf_per_sample=3, diversity_strategy='noise_init', verbose=True):
+                                      n_cf_per_sample=3, diversity_strategy='NONE',
+                                      verbose=True):
         """
-        批量生成MEG反事实解释
+        批量生成多个不同的MEG反事实解释
 
         参数:
         X_batch: 原始MEG样本批次 (batch_size, 204, 100)
-        modes: 反事实模式列表 ('auto', 'different', 'same', 'flip_one')
-        target_models: 目标模型列表 (1或2)
+        modes: 反事实模式列表
+        target_models: 目标模型列表
+        n_cf_per_sample: 每个样本生成的反事实数量
+        diversity_strategy: 多样性策略 ('noise_init', 'random_constraint', 'adversarial')
         verbose: 是否显示优化过程
-
-        返回:
-        包含所有反事实样本的字典
         """
-        # 转换为PyTorch张量
+        # 1. 扩展批次以容纳多个反事实样本
+        batch_size = X_batch.shape[0]
         X_orig = torch.tensor(X_batch, dtype=torch.float32, device=self.device, requires_grad=False)
-        batch_size = X_orig.shape[0]
 
-        # 验证输入参数
-        if len(modes) != batch_size:
-            modes = [modes[0]] * batch_size
-        if len(target_models) != batch_size:
-            target_models = [target_models[0]] * batch_size
+        # 重复原始样本以生成多个反事实
+        X_orig_expanded = X_orig.repeat_interleave(n_cf_per_sample, dim=0)
 
-        # 获取原始预测
+        # 2. 应用多样性策略
+        if diversity_strategy == 'noise_init':
+            # 策略1: 不同初始化噪声
+            noise = torch.randn_like(X_orig_expanded) * 0.1
+            X_cf = X_orig_expanded + noise
+        elif diversity_strategy == 'random_constraint':
+            # 策略2: 随机约束权重
+            self._apply_random_constraints()
+            X_cf = X_orig_expanded.clone()
+        elif diversity_strategy == 'adversarial':
+            # 策略3: 对抗性扰动
+            noise = torch.randn_like(X_orig_expanded) * 0.1
+            X_orig_expanded = X_orig_expanded + noise
+            adv_noise = self._generate_adversarial_noise(X_orig_expanded)
+            X_cf = X_orig_expanded + adv_noise * 0.05
+        else:
+            # 默认策略: 无随机化
+            X_cf = X_orig_expanded
+
+        # 3. 扩展其他参数
+        modes_expanded = []
+        target_models_expanded = []
+        orig_classes1_expanded = []
+        orig_classes2_expanded = []
+
         with torch.no_grad():
             orig_preds1 = self.model1(X_orig)
             orig_preds2 = self.model2(X_orig)
             orig_classes1 = torch.argmax(orig_preds1, dim=1).cpu().numpy()
             orig_classes2 = torch.argmax(orig_preds2, dim=1).cpu().numpy()
 
-        # 确定每个样本的反事实模式
-        resolved_modes = []
         for i in range(batch_size):
-            if modes[i] == 'auto':
-                if orig_classes1[i] == orig_classes2[i]:
-                    resolved_modes.append('different')
-                else:
-                    resolved_modes.append('same')
-            else:
-                resolved_modes.append(modes[i])
+            for j in range(n_cf_per_sample):
+                modes_expanded.append(modes[i])
+                target_models_expanded.append(target_models[i])
+                orig_classes1_expanded.append(orig_classes1[i])
+                orig_classes2_expanded.append(orig_classes2[i])
 
-        # 初始化反事实
-        X_cf = X_orig.clone().detach().requires_grad_(True).contiguous()
+        # 转换为张量
+        orig_classes1_expanded = torch.tensor(orig_classes1_expanded, device=self.device)
+        orig_classes2_expanded = torch.tensor(orig_classes2_expanded, device=self.device)
 
-        # noise = torch.randn_like(X_orig) * 0.1
-        # X_cf = X_orig + noise
-        # X_cf= X_cf.requires_grad_(True).contiguous()
-
-        # 选择优化器
+        # 4. 初始化优化器
+        X_cf = X_cf.detach().requires_grad_(True).contiguous()
         optimizer = optim.Adam([X_cf], lr=self.learning_rate)
 
-        # 存储损失历史
-        loss_histories = [[] for _ in range(batch_size)]
+        # 5. 优化循环
+        expanded_batch_size = batch_size * n_cf_per_sample
+        loss_histories = [[] for _ in range(expanded_batch_size)]
 
-        # 优化循环
         for iter_idx in range(self.max_iter):
             optimizer.zero_grad()
 
             # 计算总损失
             total_loss, loss_components = self._compute_loss_batch(
-                X_cf, X_orig, orig_classes1, orig_classes2, resolved_modes, target_models
+                X_cf, X_orig_expanded,
+                orig_classes1_expanded, orig_classes2_expanded,
+                modes_expanded, target_models_expanded
             )
 
             # 反向传播
             total_loss.backward()
+
+            # 应用多样性策略的梯度修改
+            if diversity_strategy == 'random_constraint' and iter_idx % 10 == 0:
+                self._apply_random_constraints()
+
             optimizer.step()
 
             # 应用值约束
             with torch.no_grad():
                 X_cf.data = torch.clamp(X_cf, -3, 3)
 
-            # 记录每个样本的损失
-            # for i in range(batch_size):
+            # 记录损失
+            # for i in range(expanded_batch_size):
             #     loss_histories[i].append(loss_components[i])
 
             # 打印进度
@@ -156,40 +178,216 @@ class DualMEGCounterfactualExplainer:
                     classes1 = torch.argmax(preds1, dim=1).cpu().numpy()
                     classes2 = torch.argmax(preds2, dim=1).cpu().numpy()
 
-                # 检查每个样本是否满足停止条件
-                stop_flags = [False] * batch_size
-                for i in range(batch_size):
-                    if orig_classes1[i] != classes1[i] and resolved_modes[i] in ['flip_one', 'different']:
-                        stop_flags[i] = True
-                    elif orig_classes1[i] == classes1[i] and resolved_modes[i] == 'same':
-                        stop_flags[i] = True
+                # 计算成功率
+                success_count = 0
+                for i in range(expanded_batch_size):
+                    orig_idx = i // n_cf_per_sample
+                    if modes_expanded[i] == 'flip_one' and target_models_expanded[i] == 1:
+                        if classes1[i] != orig_classes1[orig_idx]:
+                            success_count += 1
+                    elif modes_expanded[i] == 'flip_one' and target_models_expanded[i] == 2:
+                        if classes2[i] != orig_classes2[orig_idx]:
+                            success_count += 1
+                    elif modes_expanded[i] == 'different':
+                        if classes1[i] != classes2[i]:
+                            success_count += 1
+                    elif modes_expanded[i] == 'same':
+                        if classes1[i] == classes2[i]:
+                            success_count += 1
 
-                print(f"Iter {iter_idx}: Total Loss={total_loss.item():.4f} Stop Flags={sum(stop_flags)}/{batch_size}")
+                success_rate = success_count / expanded_batch_size
+                print(f"Iter {iter_idx}: Total Loss={total_loss.item():.4f} | "
+                      f"Success Rate={success_rate:.2%}[{success_count}/{expanded_batch_size}]")
 
-                if all(stop_flags) or sum(stop_flags) >= int(batch_size*0.95):
-                    if verbose:
-                        print("满足停止条件，提前终止优化")
-                    break
-
-        # 获取最终预测
+        # 6. 获取最终预测
         with torch.no_grad():
             preds1 = self.model1(X_cf)
             preds2 = self.model2(X_cf)
             cf_classes1 = torch.argmax(preds1, dim=1).cpu().numpy()
             cf_classes2 = torch.argmax(preds2, dim=1).cpu().numpy()
 
-        # if verbose:
-        #     print(orig_classes1, orig_classes2)
-        #     print(cf_classes1, cf_classes2)
+        # 7. 重组结果
+        counterfactuals = X_cf.detach().cpu().numpy().reshape(batch_size, n_cf_per_sample, *X_batch.shape[1:])
+        cf_classes = []
+        loss_histories_reshaped = []
+
+        for i in range(batch_size):
+            sample_cf_classes = []
+            sample_loss_hist = []
+
+            for j in range(n_cf_per_sample):
+                idx = i * n_cf_per_sample + j
+                sample_cf_classes.append((cf_classes1[idx], cf_classes2[idx]))
+                sample_loss_hist.append(loss_histories[idx])
+
+            cf_classes.append(sample_cf_classes)
+            loss_histories_reshaped.append(sample_loss_hist)
 
         # 返回结果
         return {
-            'counterfactuals': X_cf.detach().cpu().numpy(),
+            'counterfactuals': counterfactuals,  # (batch_size, n_cf_per_sample, 204, 100)
             'original_classes': list(zip(orig_classes1, orig_classes2)),
-            'cf_classes': list(zip(cf_classes1, cf_classes2)),
-            'modes': resolved_modes,
-            'loss_histories': loss_histories
+            'cf_classes': cf_classes,  # 每个样本有n_cf_per_sample个结果
+            'modes': modes,
+            'loss_histories': loss_histories_reshaped
         }
+
+    # 多样性策略辅助方法
+    def _apply_random_constraints(self):
+        """应用随机约束权重以增加多样性"""
+        # 随机化时间约束权重
+        self.lambda_temp = max(0.01, 0.05 * torch.rand(1).item())
+
+        # 随机化空间约束权重
+        self.lambda_spatial = max(0.01, 0.1 * torch.rand(1).item())
+
+        # 随机化频域约束权重
+        self.lambda_frequency = max(0.01, 0.05 * torch.rand(1).item())
+
+        # 随机化距离约束权重
+        self.lambda_dist = 0.1 + 0.1 * torch.rand(1).item()
+
+    def _generate_adversarial_noise(self, X):
+        """生成对抗性噪声以增加多样性"""
+        X.requires_grad = True
+
+        # 计算模型1的对抗损失
+        pred1 = self.model1(X)
+        target_class = 1 - torch.argmax(pred1, dim=1)  # 翻转目标类别
+        loss1 = nn.CrossEntropyLoss()(pred1, target_class)
+
+        # 计算模型2的对抗损失
+        pred2 = self.model2(X)
+        loss2 = nn.CrossEntropyLoss()(pred2, target_class)
+
+        # 组合损失
+        total_loss = loss1 + loss2
+        total_loss.backward()
+
+        # 获取梯度作为对抗方向
+        adversarial_noise = X.grad.detach().sign()
+        X.requires_grad = False
+
+        return adversarial_noise
+
+    # def generate_counterfactual_batch(self, X_batch, modes, target_models,
+    #                              n_cf_per_sample=3, diversity_strategy='noise_init', verbose=True):
+    #     """
+    #     批量生成MEG反事实解释
+    #
+    #     参数:
+    #     X_batch: 原始MEG样本批次 (batch_size, 204, 100)
+    #     modes: 反事实模式列表 ('auto', 'different', 'same', 'flip_one')
+    #     target_models: 目标模型列表 (1或2)
+    #     verbose: 是否显示优化过程
+    #
+    #     返回:
+    #     包含所有反事实样本的字典
+    #     """
+    #     # 转换为PyTorch张量
+    #     X_orig = torch.tensor(X_batch, dtype=torch.float32, device=self.device, requires_grad=False)
+    #     batch_size = X_orig.shape[0]
+    #
+    #     # 验证输入参数
+    #     if len(modes) != batch_size:
+    #         modes = [modes[0]] * batch_size
+    #     if len(target_models) != batch_size:
+    #         target_models = [target_models[0]] * batch_size
+    #
+    #     # 获取原始预测
+    #     with torch.no_grad():
+    #         orig_preds1 = self.model1(X_orig)
+    #         orig_preds2 = self.model2(X_orig)
+    #         orig_classes1 = torch.argmax(orig_preds1, dim=1).cpu().numpy()
+    #         orig_classes2 = torch.argmax(orig_preds2, dim=1).cpu().numpy()
+    #
+    #     # 确定每个样本的反事实模式
+    #     resolved_modes = []
+    #     for i in range(batch_size):
+    #         if modes[i] == 'auto':
+    #             if orig_classes1[i] == orig_classes2[i]:
+    #                 resolved_modes.append('different')
+    #             else:
+    #                 resolved_modes.append('same')
+    #         else:
+    #             resolved_modes.append(modes[i])
+    #
+    #     # 初始化反事实
+    #     X_cf = X_orig.clone().detach().requires_grad_(True).contiguous()
+    #
+    #     # noise = torch.randn_like(X_orig) * 0.1
+    #     # X_cf = X_orig + noise
+    #     # X_cf= X_cf.requires_grad_(True).contiguous()
+    #
+    #     # 选择优化器
+    #     optimizer = optim.Adam([X_cf], lr=self.learning_rate)
+    #
+    #     # 存储损失历史
+    #     loss_histories = [[] for _ in range(batch_size)]
+    #
+    #     # 优化循环
+    #     for iter_idx in range(self.max_iter):
+    #         optimizer.zero_grad()
+    #
+    #         # 计算总损失
+    #         total_loss, loss_components = self._compute_loss_batch(
+    #             X_cf, X_orig, orig_classes1, orig_classes2, resolved_modes, target_models
+    #         )
+    #
+    #         # 反向传播
+    #         total_loss.backward()
+    #         optimizer.step()
+    #
+    #         # 应用值约束
+    #         with torch.no_grad():
+    #             X_cf.data = torch.clamp(X_cf, -3, 3)
+    #
+    #         # 记录每个样本的损失
+    #         # for i in range(batch_size):
+    #         #     loss_histories[i].append(loss_components[i])
+    #
+    #         # 打印进度
+    #         if verbose and (iter_idx % 10 == 0 or iter_idx == self.max_iter - 1):
+    #             with torch.no_grad():
+    #                 preds1 = self.model1(X_cf)
+    #                 preds2 = self.model2(X_cf)
+    #                 classes1 = torch.argmax(preds1, dim=1).cpu().numpy()
+    #                 classes2 = torch.argmax(preds2, dim=1).cpu().numpy()
+    #
+    #             # 检查每个样本是否满足停止条件
+    #             stop_flags = [False] * batch_size
+    #             for i in range(batch_size):
+    #                 if orig_classes1[i] != classes1[i] and resolved_modes[i] in ['flip_one', 'different']:
+    #                     stop_flags[i] = True
+    #                 elif orig_classes1[i] == classes1[i] and resolved_modes[i] == 'same':
+    #                     stop_flags[i] = True
+    #
+    #             print(f"Iter {iter_idx}: Total Loss={total_loss.item():.4f} Stop Flags={sum(stop_flags)}/{batch_size}")
+    #
+    #             if all(stop_flags) or sum(stop_flags) >= int(batch_size*0.95):
+    #                 if verbose:
+    #                     print("满足停止条件，提前终止优化")
+    #                 break
+    #
+    #     # 获取最终预测
+    #     with torch.no_grad():
+    #         preds1 = self.model1(X_cf)
+    #         preds2 = self.model2(X_cf)
+    #         cf_classes1 = torch.argmax(preds1, dim=1).cpu().numpy()
+    #         cf_classes2 = torch.argmax(preds2, dim=1).cpu().numpy()
+    #
+    #     # if verbose:
+    #     #     print(orig_classes1, orig_classes2)
+    #     #     print(cf_classes1, cf_classes2)
+    #
+    #     # 返回结果
+    #     return {
+    #         'counterfactuals': X_cf.detach().cpu().numpy(),
+    #         'original_classes': list(zip(orig_classes1, orig_classes2)),
+    #         'cf_classes': list(zip(cf_classes1, cf_classes2)),
+    #         'modes': resolved_modes,
+    #         'loss_histories': loss_histories
+    #     }
 
     def _compute_loss_batch(self, X_cf, X_orig, orig_classes1, orig_classes2, modes, target_models):
         """计算批量总损失函数 - 向量化优化版"""
@@ -719,7 +917,7 @@ class DualMEGCounterfactualExplainer:
         return fig
 
 
-def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1024, cover=False, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+def counterfactual(model1, model2, dataset, meg_data, n_generate=1, batch_size=1024, cover=True, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
     file_path = f'{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_counterfactual_sample.npy'
     file_path_1 = f'{dataset}_{model2.__class__.__name__}_{model1.__class__.__name__}_counterfactual_sample.npy'
     if not cover and os.path.exists(file_path):
@@ -813,15 +1011,15 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1
             end_idx = min((batch_idx + 1) * batch_size, n_samples)
             current_batch = meg_data[start_idx:end_idx]
 
-            for j in range(n_generate):
-                # 批量生成反事实样本
-                batch_result = explainer.generate_counterfactual_batch(
-                    current_batch,
-                    modes=['flip_one'] * (end_idx - start_idx),  # 所有样本使用相同模式   flip_one    auto
-                    target_models=[1] * (end_idx - start_idx),  # 所有样本翻转模型1
-                    verbose=True
-                )
-                cf_samples[start_idx:end_idx, j] = batch_result['counterfactuals']
+            # 批量生成反事实样本
+            batch_result = explainer.generate_counterfactual_batch(
+                current_batch,
+                modes=['flip_one'] * (end_idx - start_idx),  # 所有样本使用相同模式   flip_one    auto
+                target_models=[1] * (end_idx - start_idx),  # 所有样本翻转模型1
+                n_cf_per_sample=n_generate,
+                verbose=True
+            )
+            cf_samples[start_idx:end_idx] = batch_result['counterfactuals']
 
         # 11. 保存结果
         np.save(file_path, cf_samples)
