@@ -72,7 +72,8 @@ class DualMEGCounterfactualExplainer:
         }
         return result
 
-    def generate_counterfactual_batch(self, X_batch, modes, target_models, verbose=True):
+    def generate_counterfactual_batch(self, X_batch, modes, target_models,
+                                 n_cf_per_sample=3, diversity_strategy='noise_init', verbose=True):
         """
         批量生成MEG反事实解释
 
@@ -116,6 +117,10 @@ class DualMEGCounterfactualExplainer:
         # 初始化反事实
         X_cf = X_orig.clone().detach().requires_grad_(True).contiguous()
 
+        # noise = torch.randn_like(X_orig) * 0.1
+        # X_cf = X_orig + noise
+        # X_cf= X_cf.requires_grad_(True).contiguous()
+
         # 选择优化器
         optimizer = optim.Adam([X_cf], lr=self.learning_rate)
 
@@ -140,8 +145,8 @@ class DualMEGCounterfactualExplainer:
                 X_cf.data = torch.clamp(X_cf, -3, 3)
 
             # 记录每个样本的损失
-            for i in range(batch_size):
-                loss_histories[i].append(loss_components[i])
+            # for i in range(batch_size):
+            #     loss_histories[i].append(loss_components[i])
 
             # 打印进度
             if verbose and (iter_idx % 10 == 0 or iter_idx == self.max_iter - 1):
@@ -151,8 +156,6 @@ class DualMEGCounterfactualExplainer:
                     classes1 = torch.argmax(preds1, dim=1).cpu().numpy()
                     classes2 = torch.argmax(preds2, dim=1).cpu().numpy()
 
-                print(f"Iter {iter_idx}: Total Loss={total_loss.item():.4f}")
-
                 # 检查每个样本是否满足停止条件
                 stop_flags = [False] * batch_size
                 for i in range(batch_size):
@@ -161,9 +164,11 @@ class DualMEGCounterfactualExplainer:
                     elif orig_classes1[i] == classes1[i] and resolved_modes[i] == 'same':
                         stop_flags[i] = True
 
-                if all(stop_flags) >= int(batch_size*0.75):
+                print(f"Iter {iter_idx}: Total Loss={total_loss.item():.4f} Stop Flags={sum(stop_flags)}/{batch_size}")
+
+                if all(stop_flags) or sum(stop_flags) >= int(batch_size*0.95):
                     if verbose:
-                        print("90%样本满足停止条件，提前终止优化")
+                        print("满足停止条件，提前终止优化")
                     break
 
         # 获取最终预测
@@ -173,9 +178,9 @@ class DualMEGCounterfactualExplainer:
             cf_classes1 = torch.argmax(preds1, dim=1).cpu().numpy()
             cf_classes2 = torch.argmax(preds2, dim=1).cpu().numpy()
 
-        if verbose:
-            print(orig_classes1, orig_classes2)
-            print(cf_classes1, cf_classes2)
+        # if verbose:
+        #     print(orig_classes1, orig_classes2)
+        #     print(cf_classes1, cf_classes2)
 
         # 返回结果
         return {
@@ -187,66 +192,243 @@ class DualMEGCounterfactualExplainer:
         }
 
     def _compute_loss_batch(self, X_cf, X_orig, orig_classes1, orig_classes2, modes, target_models):
-        """计算批量总损失函数"""
+        """计算批量总损失函数 - 向量化优化版"""
         batch_size = X_cf.shape[0]
 
-        # 获取当前预测
+        # 1. 获取当前预测
         preds1 = self.model1(X_cf)
         preds2 = self.model2(X_cf)
 
-        # 计算每个样本的损失
-        total_loss = torch.tensor(0.0, device=self.device)
+        # 2. 向量化计算距离损失
+        dist_losses = torch.mean((X_cf - X_orig) ** 2, dim=(1, 2))
+
+        # 3. 向量化计算时间平滑约束
+        time_diffs = torch.diff(X_cf, dim=2)
+        temp_penalties = torch.mean(time_diffs ** 2, dim=(1, 2))
+
+        # 添加通道间时间模式一致性惩罚 (向量化)
+        channel_vars = torch.var(X_cf, dim=1)
+        temp_penalties += 0.1 * torch.mean(channel_vars, dim=1)
+
+        # 4. 向量化计算空间相关性约束
+        X_centered = X_cf - torch.mean(X_cf, dim=2, keepdim=True)
+        cov_matrices = torch.matmul(X_centered, X_centered.transpose(1, 2)) / (X_cf.shape[2] - 1)
+
+        # 计算与预期协方差矩阵的差异 (广播机制)
+        diff = cov_matrices - self.connectivity_matrix.unsqueeze(0)
+
+        # 使用 Frobenius 范数作为惩罚 (向量化)
+        spatial_penalties = torch.norm(diff, p='fro', dim=(1, 2))
+
+        # 5. 向量化计算频域约束
+        orig_spectrum = torch.fft.rfft(X_orig, dim=2).abs()
+        cf_spectrum = torch.fft.rfft(X_cf, dim=2).abs()
+
+        # Alpha 频带 (向量化选择)
+        alpha_band = slice(1, 20)
+        frequency_penalties = torch.mean(
+            (cf_spectrum[:, :, alpha_band] - orig_spectrum[:, :, alpha_band]) ** 2,
+            dim=(1, 2)
+        )
+
+        # 6. 向量化计算预测损失 - 这是最复杂的部分
+        pred_losses = torch.zeros(batch_size, device=self.device)
+
+        # 为不同模式创建掩码
+        mask_different = torch.tensor([m == 'different' for m in modes], device=self.device)
+        mask_same = torch.tensor([m == 'same' for m in modes], device=self.device)
+        mask_flip1 = torch.tensor([m == 'flip_one' and tm == 1 for m, tm in zip(modes, target_models)],
+                                  device=self.device)
+        mask_flip2 = torch.tensor([m == 'flip_one' and tm == 2 for m, tm in zip(modes, target_models)],
+                                  device=self.device)
+
+        # 不同模式的处理
+        if mask_different.any():
+            # 计算相同类别的概率差异
+            prob_same = torch.abs(
+                preds1[torch.arange(batch_size), orig_classes1] -
+                preds2[torch.arange(batch_size), orig_classes2]
+            )
+            pred_losses.masked_scatter_(mask_different, prob_same[mask_different])
+
+        if mask_same.any():
+            # 确定目标类别
+            target_classes = torch.where(
+                preds1[torch.arange(batch_size), orig_classes1] > preds2[torch.arange(batch_size), orig_classes2],
+                torch.tensor(orig_classes1, device=self.device),
+                torch.tensor(orig_classes2, device=self.device)
+            )
+
+            # 计算损失
+            same_loss = (1 - preds1[torch.arange(batch_size), target_classes]) + \
+                        (1 - preds2[torch.arange(batch_size), target_classes])
+            pred_losses.masked_scatter_(mask_same, same_loss[mask_same])
+
+        if mask_flip1.any():
+            flip1_loss = (1 - preds1[torch.arange(batch_size), 1 - orig_classes1]) + \
+                         torch.abs(preds2[torch.arange(batch_size), orig_classes2] - 0.9)
+            pred_losses.masked_scatter_(mask_flip1, flip1_loss[mask_flip1])
+
+        if mask_flip2.any():
+            flip2_loss = (1 - preds2[torch.arange(batch_size), 1 - orig_classes2]) + \
+                         torch.abs(preds1[torch.arange(batch_size), orig_classes1] - 0.9)
+            pred_losses.masked_scatter_(mask_flip2, flip2_loss[mask_flip2])
+
+        # 7. 组合所有损失分量
+        total_per_sample = (
+                pred_losses +
+                self.lambda_dist * dist_losses +
+                self.lambda_temp * temp_penalties +
+                self.lambda_spatial * spatial_penalties +
+                self.lambda_frequency * frequency_penalties
+        )
+
+        # 7. 鲁棒损失聚合 - 忽略异常离群值
+        def robust_aggregate(losses, method='winsorized', alpha=0.1):
+            """
+            鲁棒损失聚合方法
+            :param losses: 每个样本的总损失张量
+            :param method: 聚合方法 ('winsorized', 'trimmed', 'iqr', 'huber')
+            :param alpha: 截断比例 (0-0.5)
+            :return: 聚合后的总损失
+            """
+            if method == 'trimmed':
+                # 修剪均值 - 去掉最高和最低的 alpha 比例
+                k = int(losses.numel() * alpha)
+                if k > 0:
+                    sorted_losses, _ = torch.sort(losses)
+                    trimmed = sorted_losses[:-k]
+                    return torch.mean(trimmed)
+                return torch.mean(losses)
+
+            elif method == 'winsorized':
+                # Winsorized 均值 - 将极端值替换为分位数
+                k = int(losses.numel() * alpha)
+                if k > 0:
+                    sorted_losses, _ = torch.sort(losses)
+                    lower_bound = sorted_losses[k]
+                    upper_bound = sorted_losses[-k - 1]
+                    winsorized = torch.clamp(losses, lower_bound, upper_bound)
+                    return torch.mean(winsorized)
+                return torch.mean(losses)
+
+            elif method == 'iqr':
+                # 基于四分位距的聚合
+                q1 = torch.quantile(losses, 0.25)
+                q3 = torch.quantile(losses, 0.75)
+                iqr = q3 - q1
+                lower_bound = q1 - 1.5 * iqr
+                upper_bound = q3 + 1.5 * iqr
+
+                # 创建掩码排除离群值
+                mask = (losses >= lower_bound) & (losses <= upper_bound)
+                valid_losses = losses[mask]
+
+                # 如果没有有效值，回退到中位数
+                if valid_losses.numel() == 0:
+                    return torch.median(losses)
+                return torch.mean(valid_losses)
+
+            elif method == 'huber':
+                # Huber 损失聚合 - 对离群值使用线性惩罚
+                delta = torch.median(losses)  # 自适应 delta
+                diff = torch.abs(losses - delta)
+                huber_loss = torch.where(
+                    diff < delta,
+                    0.5 * diff ** 2,
+                    delta * (diff - 0.5 * delta)
+                )
+                return delta + torch.mean(huber_loss)
+
+            elif method == 'logsumexp':
+                # Log-Sum-Exp 聚合 - 对极端值不敏感
+                max_val = torch.max(losses)
+                return torch.log(torch.mean(torch.exp(losses - max_val))) + max_val
+
+            else:  # 默认使用中位数
+                return torch.median(losses)
+
+        # 选择鲁棒聚合方法（可根据需要配置）
+        # aggregation_method = 'huber'  # 可配置为 'trimmed', 'iqr', 'huber', 'logsumexp' 或 'median'
+        # total_loss = robust_aggregate(total_per_sample, method=aggregation_method, alpha=0.05)
+        # 8. 计算批次的平均总损失
+        total_loss = torch.mean(total_per_sample)
+
+        # 9. 准备损失组件列表
         loss_components_list = []
-
-        for i in range(batch_size):
-            # 提取当前样本的预测
-            pred1 = preds1[i:i + 1]
-            pred2 = preds2[i:i + 1]
-
-            # 根据模式计算预测损失
-            pred_loss = self._prediction_loss(
-                pred1, pred2, orig_classes1[i], orig_classes2[i], modes[i], target_models[i]
-            )
-
-            # 提取当前样本的数据
-            x_cf_sample = X_cf[i]
-            x_orig_sample = X_orig[i]
-
-            # 距离损失 (最小化修改量)
-            dist_loss = torch.mean((x_cf_sample - x_orig_sample) ** 2)
-
-            # 时间平滑约束
-            temp_penalty = self._temporal_smoothness_constraint(x_cf_sample)
-
-            # 空间相关性约束
-            spatial_penalty = self._spatial_constraint(x_cf_sample)
-
-            # 频域约束
-            frequency_penalty = self._frequency_domain_constraint(x_cf_sample, x_orig_sample)
-
-            # 样本总损失
-            sample_loss = (pred_loss +
-                           self.lambda_dist * dist_loss +
-                           self.lambda_temp * temp_penalty +
-                           self.lambda_spatial * spatial_penalty +
-                           self.lambda_frequency * frequency_penalty)
-
-            total_loss += sample_loss
-
-            # 记录损失组件
-            loss_components = (
-                pred_loss.item(),
-                dist_loss.item(),
-                temp_penalty.item(),
-                spatial_penalty.item(),
-                frequency_penalty.item()
-            )
-            loss_components_list.append(loss_components)
-
-        # 平均损失
-        total_loss = total_loss / batch_size
+        # for i in range(batch_size):
+        #     loss_components = (
+        #         pred_losses[i].item(),
+        #         dist_losses[i].item(),
+        #         temp_penalties[i].item(),
+        #         spatial_penalties[i].item(),
+        #         frequency_penalties[i].item()
+        #     )
+        #     loss_components_list.append(loss_components)
 
         return total_loss, loss_components_list
+
+    # def _compute_loss_batch(self, X_cf, X_orig, orig_classes1, orig_classes2, modes, target_models):
+    #     """计算批量总损失函数"""
+    #     batch_size = X_cf.shape[0]
+    #
+    #     # 获取当前预测
+    #     preds1 = self.model1(X_cf)
+    #     preds2 = self.model2(X_cf)
+    #
+    #     # 计算每个样本的损失
+    #     total_loss = torch.tensor(0.0, device=self.device)
+    #     loss_components_list = []
+    #
+    #     for i in range(batch_size):
+    #         # 提取当前样本的预测
+    #         pred1 = preds1[i:i + 1]
+    #         pred2 = preds2[i:i + 1]
+    #
+    #         # 根据模式计算预测损失
+    #         pred_loss = self._prediction_loss(
+    #             pred1, pred2, orig_classes1[i], orig_classes2[i], modes[i], target_models[i]
+    #         )
+    #
+    #         # 提取当前样本的数据
+    #         x_cf_sample = X_cf[i]
+    #         x_orig_sample = X_orig[i]
+    #
+    #         # 距离损失 (最小化修改量)
+    #         dist_loss = torch.mean((x_cf_sample - x_orig_sample) ** 2)
+    #
+    #         # 时间平滑约束
+    #         temp_penalty = self._temporal_smoothness_constraint(x_cf_sample)
+    #
+    #         # 空间相关性约束
+    #         spatial_penalty = self._spatial_constraint(x_cf_sample)
+    #
+    #         # 频域约束
+    #         frequency_penalty = self._frequency_domain_constraint(x_cf_sample, x_orig_sample)
+    #
+    #         # 样本总损失
+    #         sample_loss = (pred_loss +
+    #                        self.lambda_dist * dist_loss +
+    #                        self.lambda_temp * temp_penalty +
+    #                        self.lambda_spatial * spatial_penalty +
+    #                        self.lambda_frequency * frequency_penalty)
+    #
+    #         total_loss += sample_loss
+    #
+    #         # 记录损失组件
+    #         loss_components = (
+    #             pred_loss.item(),
+    #             dist_loss.item(),
+    #             temp_penalty.item(),
+    #             spatial_penalty.item(),
+    #             frequency_penalty.item()
+    #         )
+    #         loss_components_list.append(loss_components)
+    #
+    #     # 平均损失
+    #     total_loss = total_loss / batch_size
+    #
+    #     return total_loss, loss_components_list
 
     # def generate_counterfactual(self, X, mode='auto', target_model=None, verbose=True):
     #     """
@@ -537,10 +719,14 @@ class DualMEGCounterfactualExplainer:
         return fig
 
 
-def counterfactual(model1, model2, dataset, meg_data, n_generate=3, batch_size=1024, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1024, cover=False, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
     file_path = f'{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_counterfactual_sample.npy'
-    if os.path.exists(file_path):
+    file_path_1 = f'{dataset}_{model2.__class__.__name__}_{model1.__class__.__name__}_counterfactual_sample.npy'
+    if not cover and os.path.exists(file_path):
         cf_samples = np.load(file_path)
+        print("counterfactual has been loaded")
+    elif not cover and os.path.exists(file_path_1):
+        cf_samples = np.load(file_path_1)
         print("counterfactual has been loaded")
     else:
         n_samples, channels, points = meg_data.shape
@@ -609,12 +795,12 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=3, batch_size=1
         explainer = DualMEGCounterfactualExplainer(
             model1,
             model2,
-            lambda_dist=0.2,
-            lambda_temp=0.2,
-            lambda_spatial=0.002,
-            lambda_frequency=0.2,
-            learning_rate=0.001,
-            max_iter=100,
+            lambda_dist=0.5,
+            lambda_temp=0.5,
+            lambda_spatial=0.01,
+            lambda_frequency=0.5,
+            learning_rate=0.01, # DecMeg2014 0.01   CamCAN 0.003
+            max_iter=500,
             connectivity_matrix=connectivity_matrix,
             device=device
         )
@@ -631,7 +817,7 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=3, batch_size=1
                 # 批量生成反事实样本
                 batch_result = explainer.generate_counterfactual_batch(
                     current_batch,
-                    modes=['auto'] * (end_idx - start_idx),  # 所有样本使用相同模式   flip_one    auto
+                    modes=['flip_one'] * (end_idx - start_idx),  # 所有样本使用相同模式   flip_one    auto
                     target_models=[1] * (end_idx - start_idx),  # 所有样本翻转模型1
                     verbose=True
                 )

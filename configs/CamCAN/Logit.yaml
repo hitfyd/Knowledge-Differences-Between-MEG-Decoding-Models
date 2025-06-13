@@ -5,15 +5,15 @@ DATASET: "CamCAN"
 NUM_SPLITS: 5
 WINDOW_LENGTH: 5
 MODEL_A: "rf"
-MODEL_B: "mlp"
-AUGMENTATION: "NONE"  # "Counterfactual"  "NONE"  "BASE"
-AUGMENT_FACTOR: 1.0
+MODEL_B: "varcnn"
+AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
+AUGMENT_FACTOR: 3.0
 Feature_SMOOTHING: False
 SELECTION:
   TYPE: "DiffShapley"
   Diff:
     M: 4
-    THRESHOLD: 6.0
+    THRESHOLD: 3.0
 EXPLAINER:
   TYPE: "Logit"
   MAX_DEPTH: 6
