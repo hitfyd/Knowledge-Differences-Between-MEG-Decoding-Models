@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mne_connectivity import spectral_connectivity_epochs
 from numpy.core.defchararray import upper
+from scipy.optimize import minimize
 from sklearn.metrics import pairwise_distances
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
@@ -73,7 +74,7 @@ class DualMEGCounterfactualExplainer:
         return result
 
     def generate_counterfactual_batch(self, X_batch, modes, target_models,
-                                      n_cf_per_sample=3, diversity_strategy='NONE',
+                                      n_cf_per_sample=3, diversity_strategy='noise_init', optimizer_type='adam',  # 新增参数：'adam' 或 'lbfgs'
                                       verbose=True):
         """
         批量生成多个不同的MEG反事实解释
@@ -135,49 +136,105 @@ class DualMEGCounterfactualExplainer:
         orig_classes1_expanded = torch.tensor(orig_classes1_expanded, device=self.device)
         orig_classes2_expanded = torch.tensor(orig_classes2_expanded, device=self.device)
 
-        # 4. 初始化优化器
-        X_cf = X_cf.detach().requires_grad_(True).contiguous()
-        optimizer = optim.Adam([X_cf], lr=self.learning_rate)
-
         # 5. 优化循环
         expanded_batch_size = batch_size * n_cf_per_sample
         loss_histories = [[] for _ in range(expanded_batch_size)]
 
-        for iter_idx in range(self.max_iter):
-            optimizer.zero_grad()
+        X_cf = X_cf.detach().requires_grad_(True).contiguous()
+        if optimizer_type.lower() == 'adam':
+            # 4. 初始化优化器
+            optimizer = optim.Adam([X_cf], lr=self.learning_rate)
 
-            # 计算总损失
-            total_loss, loss_components = self._compute_loss_batch(
-                X_cf, X_orig_expanded,
-                orig_classes1_expanded, orig_classes2_expanded,
-                modes_expanded, target_models_expanded
+            for iter_idx in range(self.max_iter):
+                optimizer.zero_grad()
+
+                # 计算总损失
+                total_loss, loss_components = self._compute_loss_batch(
+                    X_cf, X_orig_expanded,
+                    orig_classes1_expanded, orig_classes2_expanded,
+                    modes_expanded, target_models_expanded
+                )
+
+                # 反向传播
+                total_loss.backward()
+
+                # 应用多样性策略的梯度修改
+                if diversity_strategy == 'random_constraint' and iter_idx % 10 == 0:
+                    self._apply_random_constraints()
+
+                optimizer.step()
+
+                # 应用值约束
+                with torch.no_grad():
+                    X_cf.data = torch.clamp(X_cf, -3, 3)
+
+                # 记录损失
+                # for i in range(expanded_batch_size):
+                #     loss_histories[i].append(loss_components[i])
+
+                # 打印进度
+                if verbose and (iter_idx % 10 == 0 or iter_idx == self.max_iter - 1):
+                    with torch.no_grad():
+                        preds1 = self.model1(X_cf)
+                        preds2 = self.model2(X_cf)
+                        classes1 = torch.argmax(preds1, dim=1).cpu().numpy()
+                        classes2 = torch.argmax(preds2, dim=1).cpu().numpy()
+
+                    # 计算成功率
+                    success_count = 0
+                    for i in range(expanded_batch_size):
+                        orig_idx = i // n_cf_per_sample
+                        if modes_expanded[i] == 'flip_one' and target_models_expanded[i] == 1:
+                            if classes1[i] != orig_classes1[orig_idx]:
+                                success_count += 1
+                        elif modes_expanded[i] == 'flip_one' and target_models_expanded[i] == 2:
+                            if classes2[i] != orig_classes2[orig_idx]:
+                                success_count += 1
+                        elif modes_expanded[i] == 'different':
+                            if classes1[i] != classes2[i]:
+                                success_count += 1
+                        elif modes_expanded[i] == 'same':
+                            if classes1[i] == classes2[i]:
+                                success_count += 1
+
+                    success_rate = success_count / expanded_batch_size
+                    print(f"Iter {iter_idx}: Total Loss={total_loss.item():.4f} | "
+                          f"Success Rate={success_rate:.2%}[{success_count}/{expanded_batch_size}]")
+
+                    if success_count >= int(expanded_batch_size * 0.99):
+                        if verbose:
+                            print("满足停止条件，提前终止优化")
+                        break
+        elif optimizer_type.lower() == 'lbfgs':
+            # """使用PyTorch的L-BFGS实现优化 (无边界约束)"""
+            # X_cf_tensor = torch.tensor(X_cf, dtype=torch.float32, device=self.device, requires_grad=True)
+            # 创建优化器
+            optimizer = optim.LBFGS(
+                [X_cf],
+                lr=0.8,  # 较大的学习率
+                max_iter=500,  # 每个样本的迭代次数
+                history_size=10,
+                line_search_fn='strong_wolfe'
             )
 
-            # 反向传播
-            total_loss.backward()
+            def closure():
+                optimizer.zero_grad()
+                loss, _ = self._compute_loss_batch(
+                    X_cf, X_orig_expanded,
+                    orig_classes1_expanded, orig_classes2_expanded,
+                    modes_expanded, target_models_expanded
+                )
+                loss.backward()
+                return loss
 
-            # 应用多样性策略的梯度修改
-            if diversity_strategy == 'random_constraint' and iter_idx % 10 == 0:
-                self._apply_random_constraints()
+            for iter_idx in range(5):
+                loss = optimizer.step(closure)
 
-            optimizer.step()
-
-            # 应用值约束
-            with torch.no_grad():
-                X_cf.data = torch.clamp(X_cf, -3, 3)
-
-            # 记录损失
-            # for i in range(expanded_batch_size):
-            #     loss_histories[i].append(loss_components[i])
-
-            # 打印进度
-            if verbose and (iter_idx % 10 == 0 or iter_idx == self.max_iter - 1):
                 with torch.no_grad():
                     preds1 = self.model1(X_cf)
                     preds2 = self.model2(X_cf)
                     classes1 = torch.argmax(preds1, dim=1).cpu().numpy()
                     classes2 = torch.argmax(preds2, dim=1).cpu().numpy()
-
                 # 计算成功率
                 success_count = 0
                 for i in range(expanded_batch_size):
@@ -196,8 +253,14 @@ class DualMEGCounterfactualExplainer:
                             success_count += 1
 
                 success_rate = success_count / expanded_batch_size
-                print(f"Iter {iter_idx}: Total Loss={total_loss.item():.4f} | "
+                print(f"Iter {iter_idx}: Total Loss={loss.item():.4f} | "
                       f"Success Rate={success_rate:.2%}[{success_count}/{expanded_batch_size}]")
+
+                # # 应用值约束 (近似边界约束)
+                # with torch.no_grad():
+                #     X_cf.data = torch.clamp(X_cf, -3, 3)
+        else:
+            raise ValueError(f"不支持的优化器类型: {optimizer_type}")
 
         # 6. 获取最终预测
         with torch.no_grad():
@@ -231,6 +294,70 @@ class DualMEGCounterfactualExplainer:
             'modes': modes,
             'loss_histories': loss_histories_reshaped
         }
+
+    # 辅助方法：计算单个样本的损失 (用于L-BFGS-B)
+    def _compute_loss_single(self, x_cf, x_orig, orig_class1, orig_class2, mode, target_model):
+        """计算单个样本的损失 (NumPy版本)"""
+        # 转换为Tensor
+        x_cf_tensor = torch.tensor(x_cf, dtype=torch.float32, device=self.device)
+        x_orig_tensor = torch.tensor(x_orig, dtype=torch.float32, device=self.device)
+
+        # 获取当前预测
+        pred1 = self.model1(x_cf_tensor.unsqueeze(0))
+        pred2 = self.model2(x_cf_tensor.unsqueeze(0))
+
+        # 根据模式计算预测损失
+        if mode == 'different':
+            prob_same = torch.abs(pred1[0, orig_class1] - pred2[0, orig_class2])
+            pred_loss = prob_same.item()
+        elif mode == 'same':
+            if orig_class1 == orig_class2:
+                target_class = orig_class1
+            else:
+                if pred1[0, orig_class1] > pred2[0, orig_class2]:
+                    target_class = orig_class1
+                else:
+                    target_class = orig_class2
+            pred_loss = (1 - pred1[0, target_class].item()) + (1 - pred2[0, target_class].item())
+        elif mode == 'flip_one':
+            if target_model == 1:
+                pred_loss = (1 - pred1[0, 1 - orig_class1].item()) + \
+                            torch.abs(pred2[0, orig_class2] - 0.9).item()
+            else:
+                pred_loss = (1 - pred2[0, 1 - orig_class2].item()) + \
+                            torch.abs(pred1[0, orig_class1] - 0.9).item()
+        else:
+            pred_loss = 0.0
+
+        # 距离损失
+        dist_loss = torch.mean((x_cf_tensor - x_orig_tensor) ** 2).item()
+
+        # 时间平滑约束
+        time_diffs = torch.diff(x_cf_tensor, dim=1)
+        temp_penalty = torch.mean(time_diffs ** 2).item()
+
+        # 空间相关性约束
+        X_centered = x_cf_tensor - torch.mean(x_cf_tensor, dim=1, keepdim=True)
+        cov_matrix = torch.mm(X_centered, X_centered.t()) / (x_cf_tensor.shape[1] - 1)
+        diff = cov_matrix - self.connectivity_matrix
+        spatial_penalty = torch.norm(diff, p='fro').item()
+
+        # 频域约束
+        orig_spectrum = torch.fft.rfft(x_orig_tensor, dim=1).abs()
+        cf_spectrum = torch.fft.rfft(x_cf_tensor, dim=1).abs()
+        alpha_band = slice(1, 45)
+        frequency_penalty = torch.mean(
+            (cf_spectrum[:, alpha_band] - orig_spectrum[:, alpha_band]) ** 2
+        ).item()
+
+        # 总损失
+        total_loss = (pred_loss +
+                      self.lambda_dist * dist_loss +
+                      self.lambda_temp * temp_penalty +
+                      self.lambda_spatial * spatial_penalty +
+                      self.lambda_frequency * frequency_penalty)
+
+        return total_loss, (pred_loss, dist_loss, temp_penalty, spatial_penalty, frequency_penalty)
 
     # 多样性策略辅助方法
     def _apply_random_constraints(self):
@@ -917,7 +1044,7 @@ class DualMEGCounterfactualExplainer:
         return fig
 
 
-def counterfactual(model1, model2, dataset, meg_data, n_generate=1, batch_size=1024, cover=True, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=256, cover=True, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
     file_path = f'{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_counterfactual_sample.npy'
     file_path_1 = f'{dataset}_{model2.__class__.__name__}_{model1.__class__.__name__}_counterfactual_sample.npy'
     if not cover and os.path.exists(file_path):
