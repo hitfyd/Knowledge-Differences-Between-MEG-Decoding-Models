@@ -218,7 +218,7 @@ class JointSurrogateTree:
             self.tree1 = par_node1
             self.tree2 = par_node2
         else:
-            print(f"diverge with e1={entropy1}, e2={entropy2}, e={entropy}")
+            # print(f"diverge with e1={entropy1}, e2={entropy2}, e={entropy}")
             # for tree1, use col1, cutoff1 to partition the data
             y1_left = y1[x1[:, col1] < cutoff1]
             y1_right = y1[x1[:, col1] >= cutoff1]
@@ -416,7 +416,7 @@ class JointSurrogateTree:
 
         end_time = time.time()  # 获取当前时间戳
         elapsed_time = end_time - start_time  # 计算时间差
-        print("find_best_split_of_all_double time：{:.6f}s".format(elapsed_time))
+        # print("find_best_split_of_all_double time：{:.6f}s".format(elapsed_time))
 
         return col, cutoff, min_entropy
 

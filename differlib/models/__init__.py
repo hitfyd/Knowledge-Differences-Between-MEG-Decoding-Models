@@ -99,7 +99,9 @@ class CuMLWrapper(nn.Module):
             y_pred = self.ml_model.predict(x_cupy)
 
         # 转回PyTorch Tensor
-        return torch.as_tensor(y_pred, device=x.device)
+        output= torch.as_tensor(y_pred, device=x.device)
+        # output.requires_grad = True
+        return output
 
 
 def load_pretrained_model(model_type, dataset, channels, points, n_classes, device: torch.device = torch.device("cpu")):
