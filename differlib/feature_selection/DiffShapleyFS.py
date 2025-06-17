@@ -39,8 +39,8 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
         time_end = time.perf_counter()  # 记录结束时间
         run_time = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
         print("DiffShapley Computation Time ({} {} {}): {:.6f}s".format(dataset, {model1.__class__.__name__}, {model2.__class__.__name__}, run_time))
-        with open(log_file, "a") as writer:
-            writer.write("DiffShapley Computation Time ({} {} {}): {:.6f}s".format(dataset, {model1.__class__.__name__}, {model2.__class__.__name__}, run_time))
+        # with open(log_file, "a") as writer:
+        #     writer.write("DiffShapley Computation Time ({} {} {}): {:.6f}s".format(dataset, {model1.__class__.__name__}, {model2.__class__.__name__}, run_time))
     return all_sample_feature_maps
 
 

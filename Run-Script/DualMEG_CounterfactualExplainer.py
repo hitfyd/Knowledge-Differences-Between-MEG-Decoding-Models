@@ -97,7 +97,7 @@ class DualMEGCounterfactualExplainer:
         # 2. 应用多样性策略
         if diversity_strategy == 'noise_init':
             # 策略1: 不同初始化噪声
-            noise = torch.randn_like(X_orig_expanded) * 0.1
+            noise = (torch.randn_like(X_orig_expanded) * (X_orig_expanded.max() - X_orig_expanded.min()) + X_orig_expanded.min()) * 0.01
             X_cf = X_orig_expanded + noise
         elif diversity_strategy == 'random_constraint':
             # 策略2: 随机约束权重
@@ -1044,9 +1044,13 @@ class DualMEGCounterfactualExplainer:
         return fig
 
 
-def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=256, cover=True, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
-    file_path = f'{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_counterfactual_sample.npy'
-    file_path_1 = f'{dataset}_{model2.__class__.__name__}_{model1.__class__.__name__}_counterfactual_sample.npy'
+def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=256, cover=False, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+    save_path = "./counterfactuals/"
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    file_path = os.path.join(save_path, f'{dataset}_{model1.__class__.__name__}_{model2.__class__.__name__}_counterfactual_sample.npy')
+    file_path_1 = os.path.join(save_path, f'{dataset}_{model2.__class__.__name__}_{model1.__class__.__name__}_counterfactual_sample.npy')
     if not cover and os.path.exists(file_path):
         cf_samples = np.load(file_path)
         print("counterfactual has been loaded")
@@ -1124,8 +1128,8 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=2
             lambda_temp=0.5,
             lambda_spatial=0.01,
             lambda_frequency=0.5,
-            learning_rate=0.01, # DecMeg2014 0.01   CamCAN 0.003
-            max_iter=500,
+            learning_rate=0.003, # DecMeg2014 0.01   CamCAN 0.003
+            max_iter=100,
             connectivity_matrix=connectivity_matrix,
             device=device
         )
@@ -1144,6 +1148,8 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=2
                 modes=['flip_one'] * (end_idx - start_idx),  # 所有样本使用相同模式   flip_one    auto
                 target_models=[1] * (end_idx - start_idx),  # 所有样本翻转模型1
                 n_cf_per_sample=n_generate,
+                diversity_strategy='noise_init',
+                optimizer_type='adam',     # lbfgs adam
                 verbose=True
             )
             cf_samples[start_idx:end_idx] = batch_result['counterfactuals']
