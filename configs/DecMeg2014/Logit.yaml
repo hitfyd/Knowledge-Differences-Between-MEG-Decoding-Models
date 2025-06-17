@@ -5,8 +5,8 @@ DATASET: "DecMeg2014"
 NUM_SPLITS: 5
 WINDOW_LENGTH: 10  # 25 10 5 1  10最好
 MODEL_A: "rf"
-MODEL_B: "atcnet"
-AUGMENTATION: "NONE"  # "Counterfactual"  "NONE"  "BASE"
+MODEL_B: "varcnn"
+AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
 AUGMENT_FACTOR: 3.0 # 1-5之间取3最好
 Feature_SMOOTHING: False  # 平滑无优势
 SELECTION:
