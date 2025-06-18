@@ -59,7 +59,7 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.EXPERIMENT.GPU_IDS
     num_gpus = torch.cuda.device_count()
     num_cpus = cfg.EXPERIMENT.CPU_COUNT
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')     # 'cuda:1'
     print(f"Using device: {device}")
 
     # init dataset & models

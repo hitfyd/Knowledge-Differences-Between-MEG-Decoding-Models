@@ -12,7 +12,7 @@ Feature_SMOOTHING: False
 SELECTION:
   TYPE: "DiffShapley"
   Diff:
-    M: 4
+    M: 2
     THRESHOLD: 3.0
 EXPLAINER:
   TYPE: "Logit"
