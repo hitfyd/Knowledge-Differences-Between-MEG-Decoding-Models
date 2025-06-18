@@ -31,6 +31,11 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
         print("feature_maps has been loaded")
     else:
         time_start = time.perf_counter()
+        # 临时优化
+        if {model1.__class__.__name__} in ["ATCNet"]:
+            model1 = torch.compile(model1, mode="max-autotune")
+        if {model2.__class__.__name__} in ["ATCNet"]:
+            model2 = torch.compile(model2, mode="max-autotune")
         all_sample_feature_maps = diff_shapley(data, model1, model2, window_length, M, n_classes, log_file=log_file)
         if not isinstance(all_sample_feature_maps, np.ndarray):
             all_sample_feature_maps = all_sample_feature_maps.detach().cpu().numpy()
@@ -123,7 +128,7 @@ class DiffShapleyFS(FSMethod):
         return x[:, indices], indices
 
 
-def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_num=100, device: torch.device = torch.device('cuda'), log_file=None):
+def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_num=100, batch_size = 1024, device: torch.device = torch.device('cuda'), log_file=None):
     n_samples, channels, points = data.shape
     features_num = (channels * points) // window_length
     data = torch.from_numpy(data).to(device=device)
@@ -162,7 +167,6 @@ def diff_shapley(data, model1, model2, window_length, M, NUM_CLASSES, reference_
             S1[:] = data[index] * with_mask + reference_inputs * ~with_mask
             S2[:] = data[index] * without_mask + reference_inputs * ~without_mask
 
-            batch_size = 1024
             # model_list = [model1, model2]
             # # 预处理数据一次，避免重复转换
             # S1_flat = S1.view(len(S1), -1).cpu().numpy()  # 先展平再转换

@@ -385,7 +385,10 @@ def torch_predict(model: torch.nn.Module, inputs: torch.Tensor, batch_size=1024)
         if len(inputs) > batch_size:  # 分批次处理防止OOM
             outputs = []
             for x in torch.split(inputs, batch_size):  # 可调整分块大小
-                outputs.append(model(x))
+                if hasattr(model, '_orig_mod'):
+                    outputs.append(model(x).clone())
+                else:
+                    outputs.append(model(x))
             outputs = torch.cat(outputs, dim=0)
         else:
             outputs = model(inputs)

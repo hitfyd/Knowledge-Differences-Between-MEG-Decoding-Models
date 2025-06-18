@@ -120,8 +120,8 @@ class EEGModuleMixin(metaclass=NumpyDocstringInheritanceInitMeta):
 
     @property
     def chs_info(self):
-        if self._chs_info is None:
-            raise ValueError("chs_info not specified.")
+        # if self._chs_info is None:
+        #     raise ValueError("chs_info not specified.")
         return self._chs_info
 
     @property

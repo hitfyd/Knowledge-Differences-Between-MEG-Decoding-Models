@@ -35,8 +35,8 @@ class DualMEGCounterfactualExplainer:
         max_iter: 最大优化迭代次数
         device: 计算设备 (CPU/GPU)
         """
-        self.model1 = model1.to(device).eval()
-        self.model2 = model2.to(device).eval()
+        self.model1 = model1.to(device)#.eval()
+        self.model2 = model2.to(device)#.eval()
         self.lambda_temp = lambda_temp
         self.lambda_spatial = lambda_spatial
         self.lambda_dist = lambda_dist
@@ -111,7 +111,7 @@ class DualMEGCounterfactualExplainer:
             X_cf = X_orig_expanded + adv_noise * 0.05
         else:
             # 默认策略: 无随机化
-            X_cf = X_orig_expanded
+            X_cf = X_orig_expanded.clone()
 
         # 3. 扩展其他参数
         modes_expanded = []
@@ -1044,7 +1044,7 @@ class DualMEGCounterfactualExplainer:
         return fig
 
 
-def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=256, cover=False, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=128, cover=False, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
     save_path = "./counterfactuals/"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -1128,8 +1128,8 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=2
             lambda_temp=0.5,
             lambda_spatial=0.01,
             lambda_frequency=0.5,
-            learning_rate=0.003, # DecMeg2014 0.01   CamCAN 0.003
-            max_iter=100,
+            learning_rate=0.03, # DecMeg2014 0.01   CamCAN 0.003
+            max_iter=50,
             connectivity_matrix=connectivity_matrix,
             device=device
         )

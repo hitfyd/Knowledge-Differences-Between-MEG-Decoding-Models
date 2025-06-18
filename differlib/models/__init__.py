@@ -36,6 +36,7 @@ model_dict = {
         "linear": (linear, model_checkpoint_prefix + "CamCAN_Linear_128_0.0003_20240421215048_checkpoint.pt"),
         "mlp": (mlp, model_checkpoint_prefix + "CamCAN_MLP_128_0.0003_20240421215048_checkpoint.pt"),
         "atcnet": (atcnet, model_checkpoint_prefix + "CamCAN_ATCNet_128_0.003_20240421215048_checkpoint.pt"),
+        # "atcnet": (atcnet, model_checkpoint_prefix + "compile_model_CamCAN_atcnet.pt"),
         # "meegnet": (meegnet, model_checkpoint_prefix + "CamCAN_MEEGNet_128_0.0003_20250327111123_checkpoint.pt"),
         "eegnex": (eegnex, model_checkpoint_prefix + "CamCAN_EEGNeX_64_0.001_20250425141344_checkpoint.pt"),
         "ctnet": (ctnet, model_checkpoint_prefix + "CamCAN_CTNet_128_0.001_0.0003_0.0_20250426133227_checkpoint.pt"),
@@ -55,6 +56,7 @@ model_dict = {
         "linear": (linear, model_checkpoint_prefix + "DecMeg2014_Linear_64_0.0003_20240421215048_checkpoint.pt"),
         "mlp": (mlp, model_checkpoint_prefix + "DecMeg2014_MLP_128_0.001_20240421215048_checkpoint.pt"),
         "atcnet": (atcnet, model_checkpoint_prefix + "DecMeg2014_ATCNet_64_0.001_20240421215048_checkpoint.pt"),
+        # "atcnet": (atcnet, model_checkpoint_prefix + "compile_model_DecMeg2014_atcnet.pt"),
         # "meegnet": (meegnet, model_checkpoint_prefix + "DecMeg2014_MEEGNet_128_0.0003_20250327111123_checkpoint.pt"),
         "eegnex": (eegnex, model_checkpoint_prefix + "DecMeg2014_EEGNeX_64_0.001_20250425141344_checkpoint.pt"),
         "ctnet": (ctnet, model_checkpoint_prefix + "DecMeg2014_CTNet_64_0.003_0.0003_0.0_20250426133227_checkpoint.pt"),
@@ -115,6 +117,20 @@ def load_pretrained_model(model_type, dataset, channels, points, n_classes, devi
     elif model_type in torch_models:
         pretrained_model = model_class(channels=channels, points=points, num_classes=n_classes)
         pretrained_model.load_state_dict(load_checkpoint(model_pretrain_path, device))
+        # if model_type in ['atcnet']:
+        #     save_path = "./compile_models/"
+        #     if not os.path.exists(save_path):
+        #         os.makedirs(save_path)
+        #     cache_file = os.path.join(save_path, f"{dataset}_{model_type}_compile_cache.pkl")
+        #     if os.path.exists(cache_file):
+        #         artifact_bytes = torch.load(cache_file)
+        #         torch.compiler.load_cache_artifacts(artifact_bytes)
+        #     pretrained_model = torch.compile(pretrained_model, mode="reduce-overhead")
+        #     pretrained_model.__class__.__name__ = "ATCNet"
+        #     # artifacts = torch.compiler.save_cache_artifacts()
+        #     # assert artifacts is not None
+        #     # artifact_bytes, cache_info = artifacts
+        #     # torch.save(artifact_bytes, cache_file)
         pretrained_model = pretrained_model.to(device)
     else:
         print(log_msg("No pretrain model {} found".format(model_type), "INFO"))

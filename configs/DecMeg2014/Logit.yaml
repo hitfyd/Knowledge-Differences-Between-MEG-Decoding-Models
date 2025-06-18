@@ -5,14 +5,14 @@ DATASET: "DecMeg2014"
 NUM_SPLITS: 5
 WINDOW_LENGTH: 10  # 25 10 5 1  10最好
 MODEL_A: "rf"
-MODEL_B: "varcnn"
+MODEL_B: "atcnet"
 AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
 AUGMENT_FACTOR: 3.0 # 1-5之间取3最好
 Feature_SMOOTHING: False  # 平滑无优势
 SELECTION:
   TYPE: "DiffShapley" # "DiffShapley" "NONE"
   Diff:
-    M: 4  # 2 4 8中4最好
+    M: 2  # 2 4 8中4最好
     THRESHOLD: 3.0  # 3.0和6.0具有竞争力
 EXPLAINER:
   TYPE: "Logit"
