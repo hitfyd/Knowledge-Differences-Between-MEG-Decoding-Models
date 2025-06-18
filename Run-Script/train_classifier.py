@@ -95,12 +95,15 @@ learn_rate_decay = 0.1
 decay_epochs = [150]
 
 # datasets
-datasets = ["CamCAN", "DecMeg2014"]     # "DecMeg2014", "CamCAN", "ebrains", "BCIIV2a"
-models = [sdt, linear, mlp, lfcnn, varcnn, hgrn, atcnet, megnet, ctnet, eegnex, msvtnet, attentionbasenet]
+# datasets = ["CamCAN", "DecMeg2014"]     # "DecMeg2014", "CamCAN", "ebrains", "BCIIV2a"
+datasets = ["BCIIV2a"]
+# models = [sdt, linear, mlp, lfcnn, varcnn, hgrn, atcnet, megnet, ctnet, eegnex, msvtnet, attentionbasenet]
 # models = [lfcnn, hgrn, eegnetv1, eegnetv4, atcnet]
 # models = [atcnet, mlp, linear]
 # models = [sdt, lfcnn, varcnn, hgrn]
-physical_channels = 102
+models = [eegnetv4, eegnetv1, ctnet]
+# physical_channels = 102
+physical_channels = 22
 
 # log config
 log_path = f"./output/Train_Classifier_{run_time}/"
