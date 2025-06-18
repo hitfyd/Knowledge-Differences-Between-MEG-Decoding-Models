@@ -4,7 +4,7 @@ EXPERIMENT:
 DATASET: "DecMeg2014"
 NUM_SPLITS: 5
 WINDOW_LENGTH: 10  # 25 10 5 1  10最好
-MODEL_A: "rf"
+MODEL_A: "lfcnn"
 MODEL_B: "atcnet"
 AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
 AUGMENT_FACTOR: 3.0 # 1-5之间取3最好
