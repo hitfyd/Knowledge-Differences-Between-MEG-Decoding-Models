@@ -67,7 +67,7 @@ class DualMEGCounterfactualExplainer:
             'original_classes': batch_result['original_classes'][0],
             'counterfactual_classes': batch_result['cf_classes'][0],
             'mode': mode,
-            'loss_history': batch_result['loss_histories'][0]
+            # 'loss_history': batch_result['loss_histories'][0]
         }
         return result
 
@@ -273,10 +273,10 @@ class DualMEGCounterfactualExplainer:
             for j in range(n_cf_per_sample):
                 idx = i * n_cf_per_sample + j
                 sample_cf_classes.append((cf_classes1[idx], cf_classes2[idx]))
-                sample_loss_hist.append(loss_histories[idx])
+                # sample_loss_hist.append(loss_histories[idx])
 
             cf_classes.append(sample_cf_classes)
-            loss_histories_reshaped.append(sample_loss_hist)
+            # loss_histories_reshaped.append(sample_loss_hist)
 
         # 返回结果
         return {
@@ -284,7 +284,7 @@ class DualMEGCounterfactualExplainer:
             'original_classes': list(zip(orig_classes1, orig_classes2)),
             'cf_classes': cf_classes,  # 每个样本有n_cf_per_sample个结果
             'modes': modes,
-            'loss_histories': loss_histories_reshaped
+            # 'loss_histories': loss_histories_reshaped
         }
 
     def _compute_loss_batch(self, X_cf, X_orig, orig_classes1, orig_classes2, modes, target_models):

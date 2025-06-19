@@ -5,7 +5,7 @@ DATASET: "CamCAN"
 NUM_SPLITS: 5
 WINDOW_LENGTH: 5
 MODEL_A: "rf"
-MODEL_B: "varcnn"
+MODEL_B: "mlp"
 AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
 AUGMENT_FACTOR: 3.0
 Feature_SMOOTHING: False

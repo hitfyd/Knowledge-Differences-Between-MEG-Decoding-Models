@@ -1,7 +1,7 @@
 #!/bin/bash
 
 dataset='CamCAN'  # CamCAN or DecMeg2014
-models=('rf' 'lr' 'mlp' 'lfcnn' 'varcnn' 'hgrn' 'atcnet' 'ctnet') # 'gnb' 'rf' 'lr' 'mlp' 'lfcnn' 'varcnn' 'hgrn' 'atcnet'
+models=('rf' 'mlp' 'lfcnn' 'varcnn' 'hgrn' 'atcnet' 'ctnet') # 'gnb' 'rf' 'lr' 'mlp' 'lfcnn' 'varcnn' 'hgrn' 'atcnet'
 explainers=('Logit' 'Delta' 'MERLIN' 'SS' 'IMD')  # 'SS' 'IMD' 'Delta' 'MERLIN' 'Logit'
 
 N_M=${#models[@]}
