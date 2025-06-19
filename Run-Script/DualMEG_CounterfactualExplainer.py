@@ -35,8 +35,14 @@ class DualMEGCounterfactualExplainer:
         max_iter: 最大优化迭代次数
         device: 计算设备 (CPU/GPU)
         """
-        self.model1 = model1.to(device)#.eval()
-        self.model2 = model2.to(device)#.eval()
+        # 如果模型是CuMLWrapper（RF），其无法计算梯度，反事实样本计算较为困难
+        self.model1 = model1.to(device).eval()
+        self.model2 = model2.to(device).eval()
+        # 临时处理，HGRN包含RNN结果，必须在train模式下优化loss
+        if self.model1.__class__.__name__ == 'HGRN':
+            self.model1.train()
+        if self.model2.__class__.__name__ == 'HGRN':
+            self.model2.train()
         self.lambda_temp = lambda_temp
         self.lambda_spatial = lambda_spatial
         self.lambda_dist = lambda_dist

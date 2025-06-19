@@ -88,11 +88,11 @@ criterion = nn.CrossEntropyLoss()
 # learn_rate_list = [1e-3]
 l1_penalty_list = [0.0, 0.0003]
 l2_penalty_list = [0.0, 0.000001]
-batch_size_list = [64, 128]
-learn_rate_list = [3e-4, 1e-3, 3e-3]
-MAX_TRAIN_EPOCHS = 200
-learn_rate_decay = 0.1
-decay_epochs = [150]
+batch_size_list = [128]     # 64, 128
+learn_rate_list = [1e-3, 3e-3]    # 3e-4, 1e-3, 3e-3
+MAX_TRAIN_EPOCHS = 100
+# learn_rate_decay = 0.1
+# decay_epochs = [150]
 
 # datasets
 # datasets = ["CamCAN", "DecMeg2014"]     # "DecMeg2014", "CamCAN", "ebrains", "BCIIV2a"
@@ -101,7 +101,7 @@ datasets = ["BCIIV2a"]
 # models = [lfcnn, hgrn, eegnetv1, eegnetv4, atcnet]
 # models = [atcnet, mlp, linear]
 # models = [sdt, lfcnn, varcnn, hgrn]
-models = [eegnetv4, eegnetv1]
+models = [ctnet, eegnetv4, eegnetv1]
 # physical_channels = 102
 physical_channels = 22
 
@@ -113,7 +113,7 @@ with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
     writer.write(f"Run time: {run_time}\t Seed: {seed}\n")
     writer.write(f"batch_size_list: {batch_size_list}\tlearn_rate_list: {learn_rate_list}\t"
                  f"MAX_TRAIN_EPOCHS: {MAX_TRAIN_EPOCHS}\t"
-                 f"learn_rate_decay: {learn_rate_decay}\tdecay_epochs: {decay_epochs}\t"
+                 # f"learn_rate_decay: {learn_rate_decay}\tdecay_epochs: {decay_epochs}\t"
                  f"datasets: {datasets}\tmodels: {models}\n")
 
 # init dataset & models
@@ -145,8 +145,8 @@ for dataset in datasets:
                         best_checkpoint_path = os.path.join(log_path, f"{dataset}_{model_name}_{batch_size}_{learn_rate}_"
                                                                       f"{l1_penalty}_{l2_penalty}_{run_time}_checkpoint.pt")
                         for epoch in range(MAX_TRAIN_EPOCHS):
-                            if epoch in decay_epochs:
-                                learn_rate = learn_rate * learn_rate_decay
+                            # if epoch in decay_epochs:
+                            #     learn_rate = learn_rate * learn_rate_decay
 
                             train_accuracy, train_loss = train(model, train_loader, epoch, learn_rate, l1_penalty, l2_penalty)
                             test_accuracy, test_loss = test(model, test_loader)

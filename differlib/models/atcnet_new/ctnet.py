@@ -40,6 +40,9 @@ def ctnet(channels=204, points=100, num_classes=2, **kwargs):
     elif points == 250:   # DecMeg2014 Dataset
         input_window_seconds = 1
         sfreq = 250
+    elif points == 1125:
+        input_window_seconds = 4.5
+        sfreq = 250
     else:
         input_window_seconds = 0.8
         sfreq = 125
