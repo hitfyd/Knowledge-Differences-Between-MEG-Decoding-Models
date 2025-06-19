@@ -323,7 +323,7 @@ class JointSurrogateTree:
 
         end_time = time.time()  # 获取当前时间戳
         elapsed_time = end_time - start_time  # 计算时间差
-        print("find_best_split_of_all time：{:.6f}s".format(elapsed_time))
+        # print("find_best_split_of_all time：{:.6f}s".format(elapsed_time))
 
         return col, cutoff, min_entropy
 
@@ -416,7 +416,7 @@ class JointSurrogateTree:
 
         end_time = time.time()  # 获取当前时间戳
         elapsed_time = end_time - start_time  # 计算时间差
-        print("find_best_split_of_all_double time：{:.6f}s".format(elapsed_time))
+        # print("find_best_split_of_all_double time：{:.6f}s".format(elapsed_time))
 
         return col, cutoff, min_entropy
 
