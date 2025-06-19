@@ -88,9 +88,9 @@ criterion = nn.CrossEntropyLoss()
 # learn_rate_list = [1e-3]
 l1_penalty_list = [0.0, 0.0003]
 l2_penalty_list = [0.0, 0.000001]
-batch_size_list = [128]     # 64, 128
-learn_rate_list = [1e-3, 3e-3]    # 3e-4, 1e-3, 3e-3
-MAX_TRAIN_EPOCHS = 100
+batch_size_list = [64, 128]     # 64, 128
+learn_rate_list = [3e-4, 1e-3, 3e-3]    # 3e-4, 1e-3, 3e-3
+MAX_TRAIN_EPOCHS = 200
 # learn_rate_decay = 0.1
 # decay_epochs = [150]
 
@@ -101,7 +101,7 @@ datasets = ["BCIIV2a"]
 # models = [lfcnn, hgrn, eegnetv1, eegnetv4, atcnet]
 # models = [atcnet, mlp, linear]
 # models = [sdt, lfcnn, varcnn, hgrn]
-models = [ctnet, eegnetv4, eegnetv1]
+models = [eegnetv4, eegnetv1]
 # physical_channels = 102
 physical_channels = 22
 

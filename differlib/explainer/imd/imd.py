@@ -274,6 +274,9 @@ class SeparateSurrogate(IMDExplainer):
     def fit(self, X_train: pd.DataFrame, Y1, Y2, max_depth, feature_names=None, **kwargs):
         super().fit(X_train, Y1, Y2, max_depth=max_depth, split_criterion=2, alpha=1.0, verbose=True, feature_names=feature_names)
 
+    def fit_detail(self, X_train: pd.DataFrame, Y1, Y2, max_depth, verbose=True, **kwargs):
+        return super().fit_detail(X_train, Y1, Y2, max_depth=max_depth, split_criterion=2, alpha=1.0, verbose=verbose, **kwargs)
+
     def predict(self, X, *argv, **kwargs):
         """Predict diff-labels.
         """
