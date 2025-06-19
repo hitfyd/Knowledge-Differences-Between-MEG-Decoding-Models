@@ -65,8 +65,8 @@ model_dict = {
     },
 
     "BCIIV2a": {
-        "eegnetv4": (eegnetv4, model_checkpoint_prefix + "BCIIV2a_eegnetv4"),
-        "eegnetv1": (eegnetv1, model_checkpoint_prefix + "BCIIV2a_eegnetv1"),
+        "eegnetv4": (eegnetv4, model_checkpoint_prefix + "BCIIV2a_EEGNetv4_128_0.001_0.0003_1e-06_20250619113803_checkpoint.pt"),
+        "eegnetv1": (eegnetv1, model_checkpoint_prefix + "BCIIV2a_NewEEGNetv1_64_0.003_0.0003_1e-06_20250619113803_checkpoint.pt"),
     }
 }
 

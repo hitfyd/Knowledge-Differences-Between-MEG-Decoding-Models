@@ -14,7 +14,7 @@ do
     for (( c=0 ; c<N_E ; $(( c++ )) ))
     do
       echo ${dataset} "${explainers[c]}" "${models[a]}" "${models[b]}"
-      python difference_analysis.py --cfg ../configs/${dataset}/"${explainers[c]}".yaml MODEL_A "${models[a]}" MODEL_B "${models[b]}"
+      python meg_difference_analysis.py --cfg ../configs/${dataset}/"${explainers[c]}".yaml MODEL_A "${models[a]}" MODEL_B "${models[b]}"
     done
   done
 done

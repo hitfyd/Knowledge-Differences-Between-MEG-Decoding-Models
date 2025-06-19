@@ -12,6 +12,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
 
 from differlib.augmentation import am_dict
+from differlib.augmentation.DualMEG_CounterfactualExplainer import counterfactual
 from differlib.engine.cfg import CFG as cfg
 from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, get_data_loader,
                                     save_checkpoint, dataset_info_dict, predict)
@@ -19,12 +20,11 @@ from differlib.explainer import explainer_dict
 from differlib.feature_selection import fsm_dict
 from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature_maps
 from differlib.models import model_dict, scikit_models, torch_models, load_pretrained_model, output_predict_targets
-from DualMEG_CounterfactualExplainer import counterfactual
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/SS.yaml")  # DecMeg2014    CamCAN
+    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Logit.yaml")  # DecMeg2014    CamCAN
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -99,7 +99,7 @@ if __name__ == "__main__":
         all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B, n_classes, window_length, selection_M)
 
     if augmentation_type in ["Counterfactual"]:
-        aug = counterfactual(model_A, model_B, dataset, data, device=device)
+        aug = counterfactual(model_A, model_B, dataset, data, cover=False, device=device)
 
     # init explainer
     explainer_type = cfg.EXPLAINER.TYPE

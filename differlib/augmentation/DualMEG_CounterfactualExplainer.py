@@ -73,6 +73,7 @@ class DualMEGCounterfactualExplainer:
 
     def generate_counterfactual_batch(self, X_batch, modes, target_models,
                                       n_cf_per_sample=3, diversity_strategy='noise_init', optimizer_type='adam',  # 新增参数：'adam' 或 'lbfgs'
+                                      patience=3, ideal_success_rate=0.99,
                                       verbose=True):
         """
         批量生成多个不同的MEG反事实解释
@@ -126,13 +127,15 @@ class DualMEGCounterfactualExplainer:
 
         # 5. 优化循环
         expanded_batch_size = batch_size * n_cf_per_sample
-        loss_histories = [[] for _ in range(expanded_batch_size)]
 
         X_cf = X_cf.detach().requires_grad_(True).contiguous()
         if optimizer_type.lower() == 'adam':
             # 4. 初始化优化器
             optimizer = optim.Adam([X_cf], lr=self.learning_rate)
 
+            # 早停设置
+            best_success_count = 0
+            stopping_counter = 0
             for iter_idx in range(self.max_iter):
                 optimizer.zero_grad()
 
@@ -145,20 +148,11 @@ class DualMEGCounterfactualExplainer:
 
                 # 反向传播
                 total_loss.backward()
-
-                # 应用多样性策略的梯度修改
-                if diversity_strategy == 'random_constraint' and iter_idx % 10 == 0:
-                    self._apply_random_constraints()
-
                 optimizer.step()
 
                 # 应用值约束
                 with torch.no_grad():
                     X_cf.data = torch.clamp(X_cf, -3, 3)
-
-                # 记录损失
-                # for i in range(expanded_batch_size):
-                #     loss_histories[i].append(loss_components[i])
 
                 # 打印进度
                 if verbose and (iter_idx % 10 == 0 or iter_idx == self.max_iter - 1):
@@ -189,9 +183,19 @@ class DualMEGCounterfactualExplainer:
                     print(f"Iter {iter_idx}: Total Loss={total_loss.item():.4f} | "
                           f"Success Rate={success_rate:.2%}[{success_count}/{expanded_batch_size}]")
 
-                    if success_count >= int(expanded_batch_size * 0.99):
+                    if success_rate >= ideal_success_rate:
                         if verbose:
-                            print("满足停止条件，提前终止优化")
+                            print("满足理想停止条件，提前终止优化")
+                        break
+
+                    if success_count >= best_success_count:
+                        best_success_count = success_count
+                        stopping_counter = 0
+                    else:
+                        stopping_counter += 1
+                    if stopping_counter >= patience:
+                        if verbose:
+                            print("满足早停条件，提前终止优化")
                         break
         elif optimizer_type.lower() == 'lbfgs':
             # """使用PyTorch的L-BFGS实现优化 (无边界约束)"""
@@ -538,6 +542,8 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1
                 sfreq, fmin, fmax = 125, 1, 45
             elif dataset == "DecMeg2014":
                 sfreq, fmin, fmax = 250, 0.1, 20
+            elif dataset == "BCIIV2a":
+                sfreq, fmin, fmax = 250, 0.5, 100
             else:
                 print("Not a valid dataset")
             # 计算连通性矩阵 (使用PLV方法)
@@ -560,8 +566,8 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1
             lambda_temp=0.5,
             lambda_spatial=0.01,
             lambda_frequency=0.5,
-            learning_rate=0.03, # DecMeg2014 0.01   CamCAN 0.003
-            max_iter=50,
+            learning_rate=0.003, # DecMeg2014 0.01   CamCAN 0.003
+            max_iter=500,
             connectivity_matrix=connectivity_matrix,
             device=device
         )

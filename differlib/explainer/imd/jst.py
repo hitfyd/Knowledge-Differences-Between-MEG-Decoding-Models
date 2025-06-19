@@ -82,6 +82,11 @@ class JointSurrogateTree:
                      log_to_driver=False,  # 日志记录不配置到driver
                      )
 
+    def __del__(self):
+        # 确保 Ray 正确关闭
+        if ray.is_initialized():
+            ray.shutdown()
+
     def H(self, y, mode='entropy'):
         if isinstance(y, pd.Series):
             y = y.to_numpy()

@@ -32,10 +32,12 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
     else:
         time_start = time.perf_counter()
         # 临时优化
-        if model1.__class__.__name__ in ["ATCNet"]:
+        if model1.__class__.__name__ in ["ATCNet", "NewEEGNetv1"]:
             model1 = torch.compile(model1, mode="max-autotune")
         if model2.__class__.__name__ in ["ATCNet"]:
             model2 = torch.compile(model2, mode="max-autotune")
+        if model2.__class__.__name__ in ["EEGNetv4"]:
+            model2 = torch.compile(model2, mode="default")
         all_sample_feature_maps = diff_shapley(data, model1, model2, window_length, M, n_classes, log_file=log_file)
         if not isinstance(all_sample_feature_maps, np.ndarray):
             all_sample_feature_maps = all_sample_feature_maps.detach().cpu().numpy()
