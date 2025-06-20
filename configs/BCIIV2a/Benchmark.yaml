@@ -1,9 +1,9 @@
 EXPERIMENT:
   PROJECT: "BCIIV2a"
-  TAG: "Logit"
+  TAG: "Benchmark"
 DATASET: "BCIIV2a"
 NUM_SPLITS: 5
-WINDOW_LENGTH: 125
+WINDOW_LENGTH: 5
 MODEL_A: "eegnetv1"
 MODEL_B: "eegnetv4"
 AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
@@ -15,5 +15,5 @@ SELECTION:
     M: 8
     THRESHOLD: 3.0
 EXPLAINER:
-  TYPE: "Logit"
+  TYPE: "Logit;Delta_Official;SS;IMD;MERLIN"
   MAX_DEPTH: 6

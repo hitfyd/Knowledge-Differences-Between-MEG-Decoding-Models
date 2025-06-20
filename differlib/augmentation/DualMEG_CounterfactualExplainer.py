@@ -72,7 +72,7 @@ class DualMEGCounterfactualExplainer:
         return result
 
     def generate_counterfactual_batch(self, X_batch, modes, target_models,
-                                      n_cf_per_sample=3, diversity_strategy='noise_init', optimizer_type='adam',  # 新增参数：'adam' 或 'lbfgs'
+                                      n_cf_per_sample=5, diversity_strategy='noise_init', optimizer_type='adam',  # 新增参数：'adam' 或 'lbfgs'
                                       patience=3, ideal_success_rate=0.99,
                                       verbose=True):
         """
@@ -566,7 +566,7 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1
             lambda_temp=0.5,
             lambda_spatial=0.01,
             lambda_frequency=0.5,
-            learning_rate=0.003, # DecMeg2014 0.01   CamCAN 0.003
+            learning_rate=0.01, # DecMeg2014 0.01   CamCAN 0.003
             max_iter=500,
             connectivity_matrix=connectivity_matrix,
             device=device
