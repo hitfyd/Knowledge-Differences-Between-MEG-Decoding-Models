@@ -3,12 +3,12 @@ EXPERIMENT:
   TAG: "Benchmark"
 DATASET: "BCIIV2a"
 NUM_SPLITS: 5
-WINDOW_LENGTH: 5
+WINDOW_LENGTH: 125
 MODEL_A: "eegnetv1"
 MODEL_B: "eegnetv4"
-AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
+AUGMENTATION: "NONE"  # "Counterfactual"  "NONE"  "BASE"
 AUGMENT_FACTOR: 3.0
-Feature_SMOOTHING: False
+Feature_SMOOTHING: True
 SELECTION:
   TYPE: "DiffShapley"
   Diff:
