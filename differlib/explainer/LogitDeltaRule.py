@@ -172,6 +172,9 @@ class LogitDeltaRule(DISExplainer):
         # y_test1_ = y_test2 + logit_delta
         # pred_target = (y_test1_.argmax(axis=1) != pred_target_2).astype(int)
         # pred_target = (logit_proxy_y1.argmax(axis=1) != logit_proxy_y2.argmax(axis=1)).astype(int)
+        if len(set(pred_target_1)) > 2:
+            delta_target = (pred_target_1 ^ pred_target_2).astype(int)
+            pred_target = (pred_target_1 ^ y_test2_.argmax(axis=1)).astype(int)
 
         # calcuate loss
         squared_loss = sklearn.metrics.mean_squared_error(logit_delta, y_logit_delta)
@@ -181,9 +184,9 @@ class LogitDeltaRule(DISExplainer):
 
         metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
         metrics[name + "-accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
-        metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target)
-        metrics[name + "-recall"] = sklearn.metrics.recall_score(delta_target, pred_target)
-        metrics[name + "-f1"] = sklearn.metrics.f1_score(delta_target, pred_target)
+        metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target, average='weighted')
+        metrics[name + "-recall"] = sklearn.metrics.recall_score(delta_target, pred_target, average='weighted')
+        metrics[name + "-f1"] = sklearn.metrics.f1_score(delta_target, pred_target, average='weighted')
 
         metrics["num-rules"] = len(self.diffrules)
 
