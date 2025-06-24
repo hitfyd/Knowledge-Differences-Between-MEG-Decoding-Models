@@ -111,8 +111,8 @@ class DeltaExplainer(DISExplainer):
             print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.2f}%")
 
         delta_target = (Y1 != Y2).astype(int)
-        if len(set(Y1)) > 2:
-            delta_target = (Y1 ^ Y2).astype(int)
+        # if len(set(Y1)) > 2:
+        #     delta_target = (Y1 ^ Y2).astype(int)
 
         self.delta_tree = DecisionTreeClassifier(max_depth=max_depth, min_samples_leaf=min_samples_leaf, ccp_alpha=ccp_alpha)
         self.delta_tree.fit(X_train, delta_target)
@@ -140,8 +140,8 @@ class DeltaExplainer(DISExplainer):
 
         delta_target = (y_test1 != y_test2).astype(int)
         pred_target = self.delta_tree.predict(x_test)
-        if len(set(y_test1)) > 2:
-            delta_target = (y_test1 ^ y_test2).astype(int)
+        # if len(set(y_test1)) > 2:
+        #     delta_target = (y_test1 ^ y_test2).astype(int)
         metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
         metrics[name + "-accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
         metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target, average='weighted')

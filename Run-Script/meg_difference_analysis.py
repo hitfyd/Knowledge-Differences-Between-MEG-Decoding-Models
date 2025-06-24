@@ -99,7 +99,7 @@ if __name__ == "__main__":
         all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B, n_classes, window_length, selection_M)
 
     if augmentation_type in ["Counterfactual"]:
-        aug = counterfactual(model_A, model_B, dataset, data, cover=True, device=device)
+        aug = counterfactual(model_A, model_B, dataset, data, cover=False, device=device)
 
     # init explainer
     explainer_types = cfg.EXPLAINER.TYPE.split(";")

@@ -4,9 +4,9 @@ EXPERIMENT:
 DATASET: "BCIIV2a"
 NUM_SPLITS: 5
 WINDOW_LENGTH: 125
-MODEL_A: "eegnetv1"
-MODEL_B: "eegnetv4"
-AUGMENTATION: "NONE"  # "Counterfactual"  "NONE"  "BASE"
+MODEL_A: "eegnetv4"
+MODEL_B: "eegnetv1"
+AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
 AUGMENT_FACTOR: 3.0
 Feature_SMOOTHING: False
 SELECTION:
