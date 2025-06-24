@@ -24,7 +24,7 @@ from differlib.models import model_dict, scikit_models, torch_models, load_pretr
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/BCIIV2a/Benchmark.yaml")  # DecMeg2014    CamCAN
+    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Benchmark.yaml")  # DecMeg2014    CamCAN
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -99,7 +99,7 @@ if __name__ == "__main__":
         all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B, n_classes, window_length, selection_M)
 
     if augmentation_type in ["Counterfactual"]:
-        aug = counterfactual(model_A, model_B, dataset, data, cover=False, device=device)
+        aug = counterfactual(model_A, model_B, dataset, data, cover=True, device=device)
 
     # init explainer
     explainer_types = cfg.EXPLAINER.TYPE.split(";")
