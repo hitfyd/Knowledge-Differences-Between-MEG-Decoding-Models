@@ -74,7 +74,7 @@ class JointSurrogateTree:
         self.diffrules = []
 
         if not ray.is_initialized():
-            ray.init(num_gpus=0, num_cpus=None,  # 计算资源
+            ray.init(num_gpus=0, num_cpus=64,  # 计算资源
                      local_mode=False,  # 是否启动串行模型，用于调试
                      ignore_reinit_error=True,  # 重复启动不视为错误
                      include_dashboard=False,  # 是否启动仪表盘

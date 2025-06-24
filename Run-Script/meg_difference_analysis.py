@@ -123,11 +123,11 @@ if __name__ == "__main__":
     # K-Fold evaluation
     skf = StratifiedShuffleSplit(n_splits=n_splits, test_size=cfg.TEST_SIZE, random_state=cfg.EXPERIMENT.SEED)   # 0.1   0.25
     # skf = StratifiedKFold(n_splits=n_splits)
-    skf_id = 0
 
     for explainer_type in explainer_types:
         explainer = explainer_dict[explainer_type]()
 
+        skf_id = 0
         # record metrics of i-th Fold
         pd_test_metrics, pd_train_metrics = None, None
         for train_index, test_index in skf.split(data, delta_target):
