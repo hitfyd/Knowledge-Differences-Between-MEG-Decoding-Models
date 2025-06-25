@@ -6,7 +6,7 @@ NUM_SPLITS: 5
 WINDOW_LENGTH: 10
 MODEL_A: "rf"
 MODEL_B: "mlp"
-AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
+AUGMENTATION: "NONE"  # "Counterfactual"  "NONE"  "BASE"
 AUGMENT_FACTOR: 3.0
 Feature_SMOOTHING: False
 SELECTION:

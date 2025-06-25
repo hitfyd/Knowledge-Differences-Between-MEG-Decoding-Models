@@ -3,10 +3,11 @@ EXPERIMENT:
   TAG: "Benchmark"
 DATASET: "BCIIV2a"
 NUM_SPLITS: 5
+TEST_SIZE: 0.25
 WINDOW_LENGTH: 125
 MODEL_A: "eegnetv4"
 MODEL_B: "eegnetv1"
-AUGMENTATION: "NONE"  # "Counterfactual"  "NONE"  "BASE"
+AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
 AUGMENT_FACTOR: 3.0
 Feature_SMOOTHING: False
 SELECTION:

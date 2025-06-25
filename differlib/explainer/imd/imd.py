@@ -150,7 +150,7 @@ class IMDExplainer(DISExplainer):
 
         acc1 = jstobj.predict(x1, t1)
         acc2 = jstobj.predict(x1, t2)
-        print(acc1, acc2)
+        # print(acc1, acc2)
 
         # prepare regions from the rules
         cat_dict, nums = _parse_feature_names(feature_names)

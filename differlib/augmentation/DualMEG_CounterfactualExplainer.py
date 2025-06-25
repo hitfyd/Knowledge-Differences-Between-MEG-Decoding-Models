@@ -9,6 +9,8 @@ from mne_connectivity import spectral_connectivity_epochs
 from sklearn.metrics import pairwise_distances
 from tqdm import tqdm
 
+from similarity.attribution.MEG_Shapley_Values import torch_predict
+
 
 class DualMEGCounterfactualExplainer:
     def __init__(self, model1, model2, lambda_temp=0.1, lambda_spatial=0.05,
@@ -74,7 +76,7 @@ class DualMEGCounterfactualExplainer:
     def generate_counterfactual_batch(self, X_batch, modes, target_models,
                                       n_cf_per_sample=5, diversity_strategy='noise_init', optimizer_type='adam',  # 新增参数：'adam' 或 'lbfgs'
                                       patience=3, ideal_success_rate=0.99,
-                                      verbose=True):
+                                      verbose=True, verbose_iter_idx=3):
         """
         批量生成多个不同的MEG反事实解释
 
@@ -109,6 +111,8 @@ class DualMEGCounterfactualExplainer:
         orig_classes2_expanded = []
 
         with torch.no_grad():
+            # orig_preds1, _ = torch_predict(self.model1, X_orig)
+            # orig_preds2, _ = torch_predict(self.model2, X_orig)
             orig_preds1 = self.model1(X_orig)
             orig_preds2 = self.model2(X_orig)
             orig_classes1 = torch.argmax(orig_preds1, dim=1).cpu().numpy()
@@ -155,8 +159,10 @@ class DualMEGCounterfactualExplainer:
                     X_cf.data = torch.clamp(X_cf, -3, 3)
 
                 # 打印进度
-                if verbose and (iter_idx % 10 == 0 or iter_idx == self.max_iter - 1):
+                if verbose and (iter_idx % verbose_iter_idx == 0 or iter_idx == self.max_iter - 1):
                     with torch.no_grad():
+                        # preds1, _ = torch_predict(self.model1, X_cf)
+                        # preds2, _ = torch_predict(self.model2, X_cf)
                         preds1 = self.model1(X_cf)
                         preds2 = self.model2(X_cf)
                         classes1 = torch.argmax(preds1, dim=1).cpu().numpy()
@@ -188,7 +194,7 @@ class DualMEGCounterfactualExplainer:
                             print("满足理想停止条件，提前终止优化")
                         break
 
-                    if success_count >= best_success_count:
+                    if success_count > best_success_count:
                         best_success_count = success_count
                         stopping_counter = 0
                     else:
@@ -223,6 +229,8 @@ class DualMEGCounterfactualExplainer:
                 loss = optimizer.step(closure)
 
                 with torch.no_grad():
+                    # preds1, _ = torch_predict(self.model1, X_cf)
+                    # preds2, _ = torch_predict(self.model2, X_cf)
                     preds1 = self.model1(X_cf)
                     preds2 = self.model2(X_cf)
                     classes1 = torch.argmax(preds1, dim=1).cpu().numpy()
@@ -256,6 +264,8 @@ class DualMEGCounterfactualExplainer:
 
         # 6. 获取最终预测
         with torch.no_grad():
+            # preds1, _ = torch_predict(self.model1, X_cf)
+            # preds2, _ = torch_predict(self.model2, X_cf)
             preds1 = self.model1(X_cf)
             preds2 = self.model2(X_cf)
             cf_classes1 = torch.argmax(preds1, dim=1).cpu().numpy()
@@ -292,6 +302,8 @@ class DualMEGCounterfactualExplainer:
         batch_size = X_cf.shape[0]
 
         # 1. 获取当前预测
+        # preds1, _ = torch_predict(self.model1, X_cf)
+        # preds2, _ = torch_predict(self.model2, X_cf)
         preds1 = self.model1(X_cf)
         preds2 = self.model2(X_cf)
 
@@ -517,7 +529,7 @@ class DualMEGCounterfactualExplainer:
         return fig
 
 
-def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=128, cover=False, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=128, cover=False, target_model=1, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
     save_path = "./counterfactuals/"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -527,9 +539,9 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1
     if not cover and os.path.exists(file_path):
         cf_samples = np.load(file_path)
         print("counterfactual has been loaded")
-    elif not cover and os.path.exists(file_path_1):
-        cf_samples = np.load(file_path_1)
-        print("counterfactual has been loaded")
+    # elif not cover and os.path.exists(file_path_1):
+    #     cf_samples = np.load(file_path_1)
+    #     print("counterfactual has been loaded")
     else:
         n_samples, channels, points = meg_data.shape
         cf_samples = np.zeros((n_samples, n_generate, channels, points), dtype=np.float32)
@@ -564,9 +576,9 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1
             model2,
             lambda_dist=0.5,
             lambda_temp=0.5,
-            lambda_spatial=0.01,
-            lambda_frequency=0.5,
-            learning_rate=0.03, # DecMeg2014 0.01   CamCAN 0.003
+            lambda_spatial=0.001,
+            lambda_frequency=0.05,
+            learning_rate=0.01, # DecMeg2014 0.01   CamCAN 0.003
             max_iter=500,
             connectivity_matrix=connectivity_matrix,
             device=device
@@ -584,7 +596,7 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1
             batch_result = explainer.generate_counterfactual_batch(
                 current_batch,
                 modes=['flip_one'] * (end_idx - start_idx),  # 所有样本使用相同模式   flip_one    auto
-                target_models=[1] * (end_idx - start_idx),  # 所有样本翻转模型1
+                target_models=[target_model] * (end_idx - start_idx),  # 所有样本翻转模型1
                 n_cf_per_sample=n_generate,
                 diversity_strategy='noise_init',
                 optimizer_type='adam',     # lbfgs adam

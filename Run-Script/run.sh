@@ -2,7 +2,7 @@
 
 dataset='DecMeg2014'  # CamCAN or DecMeg2014
 models=('rf' 'mlp' 'lfcnn' 'varcnn' 'hgrn' 'atcnet' 'ctnet') # 'gnb' 'rf' 'lr' 'mlp' 'lfcnn' 'varcnn' 'hgrn' 'atcnet'
-explainers=('Logit' 'Delta' 'MERLIN' 'SS' 'IMD')  # 'SS' 'IMD' 'Delta' 'MERLIN' 'Logit'
+AUGMENTATION=('Counterfactual' 'NONE')  # 'Counterfactual' 'NONE'
 
 N_M=${#models[@]}
 N_E=${#explainers[@]}

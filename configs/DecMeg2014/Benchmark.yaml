@@ -3,10 +3,11 @@ EXPERIMENT:
   TAG: "Logit"
 DATASET: "DecMeg2014"
 NUM_SPLITS: 5
+TEST_SIZE: 0.1
 WINDOW_LENGTH: 25  # 25 10 5 1  10最好
-MODEL_A: "rf"
+MODEL_A: "mlp"
 MODEL_B: "atcnet"
-AUGMENTATION: "NONE"  # "Counterfactual"  "NONE"  "BASE"
+AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
 AUGMENT_FACTOR: 3.0 # 1-5之间取3最好
 Feature_SMOOTHING: False  # 平滑无优势
 SELECTION:
@@ -15,5 +16,5 @@ SELECTION:
     M: 2
     THRESHOLD: 3.0
 EXPLAINER:
-  TYPE: "Logit;Delta;SS;IMD;MERLIN"
+  TYPE: "Logit;Delta" # "Logit;Delta;SS;IMD;MERLIN"
   MAX_DEPTH: 6
