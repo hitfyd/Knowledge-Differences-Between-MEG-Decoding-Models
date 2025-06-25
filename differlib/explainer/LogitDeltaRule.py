@@ -184,9 +184,9 @@ class LogitDeltaRule(DISExplainer):
 
         metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
         metrics[name + "-accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
-        metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target, average='weighted')
-        metrics[name + "-recall"] = sklearn.metrics.recall_score(delta_target, pred_target, average='weighted')
-        metrics[name + "-f1"] = sklearn.metrics.f1_score(delta_target, pred_target, average='weighted')
+        metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target)#, average='weighted')
+        metrics[name + "-recall"] = sklearn.metrics.recall_score(delta_target, pred_target)#, average='weighted')
+        metrics[name + "-f1"] = sklearn.metrics.f1_score(delta_target, pred_target)#, average='weighted')
 
         metrics["num-rules"] = len(self.diffrules)
 
