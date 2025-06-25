@@ -76,7 +76,7 @@ class DualMEGCounterfactualExplainer:
     def generate_counterfactual_batch(self, X_batch, modes, target_models,
                                       n_cf_per_sample=5, diversity_strategy='noise_init', optimizer_type='adam',  # 新增参数：'adam' 或 'lbfgs'
                                       patience=3, ideal_success_rate=0.99,
-                                      verbose=True, verbose_iter_idx=3):
+                                      verbose=True, verbose_iter_idx=5):
         """
         批量生成多个不同的MEG反事实解释
 
