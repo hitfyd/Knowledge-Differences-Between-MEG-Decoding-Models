@@ -16,5 +16,5 @@ SELECTION:
     M: 2
     THRESHOLD: 3.0
 EXPLAINER:
-  TYPE: "Logit;Delta" # "Logit;Delta;SS;IMD;MERLIN"
+  TYPE: "Logit;Delta;SS;IMD;MERLIN" # "Logit;Delta;SS;IMD;MERLIN"
   MAX_DEPTH: 6
