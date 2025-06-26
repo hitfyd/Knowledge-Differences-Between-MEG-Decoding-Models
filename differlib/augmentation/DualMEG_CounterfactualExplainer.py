@@ -579,7 +579,7 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1
             lambda_spatial=0.01,
             lambda_frequency=0.5,
             learning_rate=0.03, # DecMeg2014 0.01   CamCAN 0.003
-            max_iter=100,
+            max_iter=500,
             connectivity_matrix=connectivity_matrix,
             device=device
         )

@@ -3,10 +3,11 @@ EXPERIMENT:
   TAG: "Logit"
 DATASET: "CamCAN"
 NUM_SPLITS: 5
+TEST_SIZE: 0.25
 WINDOW_LENGTH: 10
 MODEL_A: "rf"
-MODEL_B: "mlp"
-AUGMENTATION: "NONE"  # "Counterfactual"  "NONE"  "BASE"
+MODEL_B: "varcnn"
+AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
 AUGMENT_FACTOR: 3.0
 Feature_SMOOTHING: False
 SELECTION:
@@ -15,5 +16,5 @@ SELECTION:
     M: 2
     THRESHOLD: 3.0
 EXPLAINER:
-  TYPE: "Logit;Delta;SS;IMD;MERLIN"
+  TYPE: "Logit;Delta"
   MAX_DEPTH: 6

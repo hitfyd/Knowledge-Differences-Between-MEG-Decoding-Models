@@ -1,7 +1,7 @@
 #!/bin/bash
 
 dataset='CamCAN'  # CamCAN or DecMeg2014
-models=('rf' 'mlp' 'lfcnn' 'varcnn' 'hgrn' 'atcnet' 'ctnet') # 'gnb' 'rf' 'lr' 'mlp' 'lfcnn' 'varcnn' 'hgrn' 'atcnet'
+models=('rf' 'mlp' 'varcnn' 'hgrn' 'atcnet') # 'gnb' 'rf' 'lr' 'mlp' 'lfcnn' 'varcnn' 'hgrn' 'atcnet' 'ctnet'
 AUGMENTATION=('Counterfactual' 'NONE')  # 'Counterfactual' 'NONE'
 
 N_M=${#models[@]}

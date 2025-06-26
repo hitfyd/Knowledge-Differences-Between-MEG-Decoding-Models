@@ -7,7 +7,7 @@ def str2num_list(s:str):
 
 dataset = 'BCIIV2a' # DecMeg2014    CamCAN  BCIIV2a
 models = ['eegnetv4', 'eegnetv1'] # 'eegnetv4', 'eegnetv1', 'rf', 'mlp', 'lfcnn', 'varcnn', 'hgrn', 'atcnet', 'ctnet'
-record_id, compared_id = 10, 10
+record_id, compared_id = 0, 0
 benchmarks = {record_id+1: 'DeltaXpainer',
               record_id+2: 'Separate Surrogates',
               record_id+3: 'IMD',
