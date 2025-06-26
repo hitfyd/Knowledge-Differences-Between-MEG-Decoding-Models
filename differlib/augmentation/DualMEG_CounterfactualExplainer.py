@@ -576,10 +576,10 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1
             model2,
             lambda_dist=0.5,
             lambda_temp=0.5,
-            lambda_spatial=0.001,
-            lambda_frequency=0.05,
-            learning_rate=0.01, # DecMeg2014 0.01   CamCAN 0.003
-            max_iter=500,
+            lambda_spatial=0.01,
+            lambda_frequency=0.5,
+            learning_rate=0.03, # DecMeg2014 0.01   CamCAN 0.003
+            max_iter=100,
             connectivity_matrix=connectivity_matrix,
             device=device
         )
@@ -600,7 +600,8 @@ def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=1
                 n_cf_per_sample=n_generate,
                 diversity_strategy='noise_init',
                 optimizer_type='adam',     # lbfgs adam
-                verbose=True
+                verbose=True,
+                verbose_iter_idx=10,
             )
             cf_samples[start_idx:end_idx] = batch_result['counterfactuals']
 

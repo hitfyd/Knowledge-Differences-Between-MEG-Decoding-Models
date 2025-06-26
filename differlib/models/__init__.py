@@ -116,15 +116,17 @@ def load_pretrained_model(model_type, dataset, channels, points, n_classes, devi
 def output_predict_targets(model_type, model, data: np.ndarray, num_classes=2, batch_size=512, softmax=True):
     output, predict_targets = None, None
     if model_type in scikit_models:
-        output, _ = torch_predict(model, torch.from_numpy(data), batch_size=batch_size)
-        output = output.detach().cpu().numpy()
+        output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
         predict_targets = np.argmax(output, axis=1)
-    elif model_type in torch_models:
-        # output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
+        # output, _ = torch_predict(model, torch.from_numpy(data), batch_size=batch_size)
+        # output = output.detach().cpu().numpy()
         # predict_targets = np.argmax(output, axis=1)
-        output, _ = torch_predict(model, torch.from_numpy(data), batch_size=batch_size)
-        output = output.detach().cpu().numpy()
+    elif model_type in torch_models:
+        output = predict(model, data, num_classes=num_classes, batch_size=batch_size, softmax=softmax, eval=True)
         predict_targets = np.argmax(output, axis=1)
+        # output, _ = torch_predict(model, torch.from_numpy(data), batch_size=batch_size)
+        # output = output.detach().cpu().numpy()
+        # predict_targets = np.argmax(output, axis=1)
     else:
         print(log_msg("No pretrain model {} found".format(model_type), "INFO"))
     assert output is not None

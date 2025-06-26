@@ -24,7 +24,7 @@ from differlib.models import model_dict, scikit_models, torch_models, load_pretr
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Benchmark.yaml")  # DecMeg2014    CamCAN
+    parser.add_argument("--cfg", type=str, default="../configs/BCIIV2a/Benchmark.yaml")  # DecMeg2014    CamCAN      BCIIV2a
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
