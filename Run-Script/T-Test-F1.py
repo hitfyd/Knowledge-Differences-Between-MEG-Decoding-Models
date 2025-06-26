@@ -5,8 +5,12 @@ def str2num_list(s:str):
     num_list = [float(x) for x in s[1:-1].split()]
     return num_list
 
-dataset = 'BCIIV2a' # DecMeg2014    CamCAN  BCIIV2a
-models = ['eegnetv4', 'eegnetv1'] # 'eegnetv4', 'eegnetv1', 'rf', 'mlp', 'lfcnn', 'varcnn', 'hgrn', 'atcnet', 'ctnet'
+# dataset = 'BCIIV2a' # DecMeg2014    CamCAN  BCIIV2a
+# models = ['eegnetv4', 'eegnetv1'] # 'eegnetv4', 'eegnetv1'
+
+dataset = 'DecMeg2014' # DecMeg2014    CamCAN  BCIIV2a
+models = ['rf', 'mlp', 'varcnn', 'hgrn', 'atcnet'] # 'rf', 'mlp', 'lfcnn', 'varcnn', 'hgrn', 'atcnet', 'ctnet'
+
 record_id, compared_id = 0, 0
 benchmarks = {record_id+1: 'DeltaXpainer',
               record_id+2: 'Separate Surrogates',
@@ -24,7 +28,7 @@ for i in range(len(models)-1):
         all_record_mean_std = pd.read_csv(record_file, encoding="utf_8_sig")
 
         for matrix in evaluation_matrix.keys():
-            print(matrix)
+            print(dataset, models[i], models[j], matrix)
             matrix_list = f'{matrix}-list'
             assert matrix_list in all_record_mean_std.columns.tolist()
             compared_results_list = str2num_list(all_record_mean_std[matrix_list][compared_id])
