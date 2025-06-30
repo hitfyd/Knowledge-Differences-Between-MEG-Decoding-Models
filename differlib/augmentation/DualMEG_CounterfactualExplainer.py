@@ -529,8 +529,11 @@ class DualMEGCounterfactualExplainer:
         return fig
 
 
-def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=128, cover=False, target_model=1, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
-    save_path = "./counterfactuals/"
+def counterfactual(model1, model2, dataset, meg_data, n_generate=5, batch_size=128, cover=False, target_model=1, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'), flag=None):
+    if flag is None:
+        save_path = "./counterfactuals/"
+    else:
+        save_path = f"./counterfactuals_{flag}/"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 

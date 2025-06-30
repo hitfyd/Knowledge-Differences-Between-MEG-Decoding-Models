@@ -13,8 +13,11 @@ from ..engine.utils import predict, save_checkpoint, load_checkpoint
 
 def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torch.nn, model2: torch.nn,
                                     n_classes, window_length, M,
-                                    *args, parallel=False, num_gpus=1, num_cpus=8, **kwargs):
-    save_path = "./feature_maps/"
+                                    *args, flag=None, device: torch.device = torch.device('cuda'), **kwargs):
+    if flag is None:
+        save_path = "./feature_maps/"
+    else:
+        save_path = f"./feature_maps_{flag}/"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
@@ -38,7 +41,7 @@ def compute_all_sample_feature_maps(dataset: str, data: np.ndarray, model1: torc
             model2 = torch.compile(model2, mode="max-autotune")
         if model2.__class__.__name__ in ["EEGNetv4"]:
             model2 = torch.compile(model2, mode="default")
-        all_sample_feature_maps = diff_shapley(data, model1, model2, window_length, M, n_classes, log_file=log_file)
+        all_sample_feature_maps = diff_shapley(data, model1, model2, window_length, M, n_classes, device=device, log_file=log_file)
         if not isinstance(all_sample_feature_maps, np.ndarray):
             all_sample_feature_maps = all_sample_feature_maps.detach().cpu().numpy()
         save_checkpoint(all_sample_feature_maps, save_file)
@@ -62,7 +65,7 @@ class DiffShapleyFS(FSMethod):
         self.threshold = 3  # 2/3
 
     def fit(self, x: np.ndarray, model1, model2, channels, points, n_classes, window_length, M, all_sample_feature_maps,
-            *args, threshold=3, **kwargs):
+            *args, threshold=3, device: torch.device = torch.device('cuda'), **kwargs):
 
         # db_path = './feature_maps/CamCAN_ShapleyValueExplainer_attribution'
         # db = shelve.open(db_path)
@@ -97,7 +100,7 @@ class DiffShapleyFS(FSMethod):
         n_samples, channels, points = x.shape
         # x = x.reshape((n_samples, channels, points))
         assert points % window_length == 0
-        self.logit_delta = predict(model1, x, n_classes, eval=True) - predict(model2, x, n_classes, eval=True)
+        self.logit_delta = predict(model1, x, n_classes, eval=True, device=device) - predict(model2, x, n_classes, eval=True, device=device)
         # self.logit_delta = self.logit_delta.cpu().detach().numpy()
         label_logit_delta = abs(self.logit_delta).sum(axis=0)
         if self.logit_delta.shape[1] == 2:
