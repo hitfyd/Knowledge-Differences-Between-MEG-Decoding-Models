@@ -11,11 +11,11 @@ from sklearn.manifold import TSNE
 from differlib.engine.utils import load_checkpoint, dataset_info_dict, save_figure
 from similarity.attribution.MEG_Shapley_Values import topomap_plot, time_curve_plot
 
-dataset = "DecMeg2014"  # "DecMeg2014"  "CamCAN"
+dataset = "CamCAN"  # "DecMeg2014"  "CamCAN"
 channels, points, num_classes = dataset_info_dict[dataset].values()
 explainer_type = "Logit"
 model_types = ["rf", "mlp", "varcnn", "hgrn", "atcnet"]
-skf_ids = 1
+skf_ids = 5
 
 # 读取通道可视化信息
 channel_db = shelve.open('../dataset/grad_info')

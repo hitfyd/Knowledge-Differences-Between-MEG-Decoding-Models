@@ -1,55 +1,62 @@
 import os
-import shelve
 
-import numpy as np
-import seaborn as sns
-from matplotlib import pyplot as plt
-import plotly.express as px
-from scipy.cluster import hierarchy
-from sklearn.manifold import TSNE
+import torch
 
-from differlib.engine.utils import load_checkpoint, dataset_info_dict, save_figure
-from similarity.attribution.MEG_Shapley_Values import topomap_plot, time_curve_plot
+from differlib.engine.utils import load_checkpoint, dataset_info_dict, get_data_labels_from_dataset
+from differlib.models import load_pretrained_model, output_predict_targets
 
 dataset = "DecMeg2014"  # "DecMeg2014"  "CamCAN"
 channels, points, num_classes = dataset_info_dict[dataset].values()
 explainer_type = "Logit"
 model_types = ["rf", "mlp", "varcnn", "hgrn", "atcnet"]
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')     # 'cuda:1'
+print(f"Using device: {device}")
 skf_ids = 1
 
-# 读取通道可视化信息
-channel_db = shelve.open('../dataset/grad_info')
-channels_info = channel_db['info']
-channel_db.close()
+data, labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
 
 for model_A_type in model_types[:-1]:
     for model_B_type in model_types[model_types.index(model_A_type) + 1:]:
         log_path = os.path.join('./output/', f"{dataset}/{explainer_type}MODEL_A:{model_A_type},MODEL_B:{model_B_type}")
+
+        model_A = load_pretrained_model(model_A_type, dataset, channels, points, num_classes, device)
+        model_B = load_pretrained_model(model_B_type, dataset, channels, points, num_classes, device)
+
         feature_importance = {}
         for skf_id in range(skf_ids):
             save_path = os.path.join(log_path, "{}_{}".format(explainer_type, skf_id))
-            rules = load_checkpoint(save_path)["diff_rules"]
+            save_dict = load_checkpoint(save_path)
+            rules = save_dict["diff_rules"]
+            test_index = save_dict["test_index"]
 
-            # 统计特征在规则中的出现频率和平均深度
-            for rule in rules:
-                depth = len(rule.predicates)
-                for cond in rule.predicates:
-                    feature = cond[0].strip()
-                    feature_importance[feature] = feature_importance.get(feature, 0) + 1/depth
+            test_data, test_labels = data[test_index], labels[test_index]
 
-        attribution_maps = np.zeros((channels, points))
-        for feature, importance in feature_importance.items():
-            c, t = feature.split("T")
-            c = int(c[1:])
-            t = int(t)
-            attribution_maps[c, t] = importance
-        # 规则重要性热力图
-        title = f"{model_A_type} vs. {model_B_type}"
-        fig, heatmap_channel, top_channels = topomap_plot(title, attribution_maps, channels_info, channels=channels, top_channel_num=0)
-        save_figure(fig, './images/', f"{dataset}_{model_A_type}_{model_B_type}_topomap")
+            output_A, pred_target_A = output_predict_targets(model_A_type, model_A, test_data, num_classes=num_classes, device=device)
+            output_B, pred_target_B = output_predict_targets(model_B_type, model_B, test_data, num_classes=num_classes, device=device)
 
-        # fig, heatmap_time =  time_curve_plot(title, attribution_maps, points=points)
-        # save_figure(fig, './images/', f"{dataset}_{model_A_type}_{model_B_type}_time_curve")
+            for sample_idx, sample in enumerate(test_data):
+                print(test_index[sample_idx], test_labels[sample_idx], pred_target_A[sample_idx], pred_target_B[sample_idx])
+
+                if pred_target_A[sample_idx] != test_labels[sample_idx] and  pred_target_B[sample_idx] != test_labels[sample_idx]:
+                    for rule in rules:
+                        depth = len(rule.predicates)
+                        ok_depth = 0
+                        for cond in rule.predicates:
+                            feature = cond[0].strip()
+                            op = cond[1].strip()    # '<=' '>'
+                            value = cond[2]
+                            c, t = feature.split("T")
+                            c = int(c[1:])
+                            t = int(t)
+                            if op == '<=' and sample[c, t] <= value:
+                                ok_depth += 1
+                            elif op == '>' and sample[c, t] > value:
+                                ok_depth += 1
+                            else:
+                                continue
+                        if ok_depth == depth:
+                            print(rule)
+                            continue
 
             # # 计算规则相似度矩阵
             # sim_matrix = np.zeros((len(rules), len(rules)))
