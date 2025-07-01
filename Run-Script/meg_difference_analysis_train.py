@@ -24,7 +24,7 @@ from differlib.models import model_dict, scikit_models, torch_models, load_pretr
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Logit.yaml")  # DecMeg2014    CamCAN      BCIIV2a
+    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Logit.yaml")  # DecMeg2014    CamCAN      BCIIV2a
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.EXPERIMENT.GPU_IDS
     num_gpus = torch.cuda.device_count()
     num_cpus = cfg.EXPERIMENT.CPU_COUNT
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')     # 'cuda:1'
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')     # 'cuda:1'
     print(f"Using device: {device}")
 
     # init dataset & models

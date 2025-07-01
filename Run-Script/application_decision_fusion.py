@@ -26,7 +26,7 @@ from differlib.models import model_dict, scikit_models, torch_models, load_pretr
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Logit.yaml")  # DecMeg2014    CamCAN      BCIIV2a
+    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Logit.yaml")  # DecMeg2014    CamCAN      BCIIV2a
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -119,20 +119,22 @@ if __name__ == "__main__":
         select_indices = np.array([np.nonzero(feature_names == i)[0].item() for i in explainer.delta_tree.feature_names_in_])
         data_ = data_[:, select_indices]
 
+        out_A, tag_A = output_predict_targets(model_A_type, model_A, data, num_classes=n_classes,
+                                              device=device)
+        out_B, tag_B = output_predict_targets(model_B_type, model_B, data, num_classes=n_classes,
+                                              device=device)
         logit_delta_proxy = explainer.delta_tree.predict(data_)
         logit_delta = logit_delta_proxy[:, :n_classes]
 
         fusion_output, fusion_target = np.zeros_like(logit_delta), np.zeros_like(logit_delta[:, 0])
         for idx, x in enumerate(data):
             weight = np.abs(logit_delta[idx]).max()  # 取最大概率差作权重
-            out_A, tag_A = output_predict_targets(model_A_type, model_A, x[np.newaxis, :], num_classes=n_classes, device=device)
-            out_B, tag_B = output_predict_targets(model_B_type, model_B, x[np.newaxis, :], num_classes=n_classes, device=device)
 
-            # fusion_output[idx] = (out_A + out_B) / 2
+            # fusion_output[idx] = (out_A[idx] + out_B[idx]) / 2
 
-            weight = 0.5 + logit_delta[idx, 0] / 2
-            # weight = 0.5 + logit_delta[idx, np.abs(logit_delta[idx]).argmax()] / 2
-            fusion_output[idx] = weight * out_A + (1 - weight) * out_B
+            # weight = 0.5 + logit_delta[idx, 0] / 2
+            weight = 0.5 + logit_delta[idx, np.abs(logit_delta[idx]).argmax()] / 2
+            fusion_output[idx] = weight * out_A[idx] + (1 - weight) * out_B[idx]
             # if weight > 0.05:
             #     if logit_delta[idx, 0] > 0:
             #         fusion_output[idx] = weight * out_A + (1 - weight) * out_B
@@ -163,33 +165,33 @@ if __name__ == "__main__":
     for explainer_type in explainer_types:
         explainer = explainer_dict[explainer_type]()
 
-        log_path = os.path.join(log_prefix, f"{dataset}/{explainer_type}_train")
+        log_path = os.path.join(log_prefix, f"{dataset}/{explainer_type}MODEL_A:{model_A_type},MODEL_B:{model_B_type}")
         # if not os.path.exists(log_path):
         #     os.makedirs(log_path)
 
         skf_id = 0
         # record metrics of i-th Fold
         acc_A_test_, acc_B_test_, fusion_acc_test_ = [], [], []
-        # for train_index, test_index in skf.split(data, delta_target):
-        x_train = train_data
-        x_test, y_test = data, labels
+        for train_index, test_index in skf.split(data, delta_target):
+            x_train = data[train_index]
+            x_test, y_test = data[test_index], labels[test_index]
 
-        save_path = os.path.join(log_path, "{}".format(explainer_type))
-        explainer = load_checkpoint(save_path)["explainer"]
+            save_path = os.path.join(log_path, "{}_{}".format(explainer_type, skf_id))
+            explainer = load_checkpoint(save_path)["explainer"]
 
-        pred_target_A_test, pred_target_B_test = pred_target_A, pred_target_B
-        acc_A_test = sklearn.metrics.accuracy_score(y_test, pred_target_A_test)
-        acc_B_test = sklearn.metrics.accuracy_score(y_test, pred_target_B_test)
+            pred_target_A_test, pred_target_B_test = pred_target_A[test_index], pred_target_B[test_index]
+            acc_A_test = sklearn.metrics.accuracy_score(y_test, pred_target_A_test)
+            acc_B_test = sklearn.metrics.accuracy_score(y_test, pred_target_B_test)
 
-        fusion_output_test, fusion_target_test = dynamic_fusion(x_test, model_A, model_B, explainer)
-        fusion_acc_test = sklearn.metrics.accuracy_score(y_test, fusion_target_test)
+            fusion_output_test, fusion_target_test = dynamic_fusion(x_test, model_A, model_B, explainer)
+            fusion_acc_test = sklearn.metrics.accuracy_score(y_test, fusion_target_test)
 
-        print(f"skf_id", skf_id, "Explainer", explainer_type, acc_A_test, acc_B_test, fusion_acc_test)
-        acc_A_test_.append(acc_A_test)
-        acc_B_test_.append(acc_B_test)
-        fusion_acc_test_.append(fusion_acc_test)
+            print(f"skf_id", skf_id, "Explainer", explainer_type, acc_A_test, acc_B_test, fusion_acc_test)
+            acc_A_test_.append(acc_A_test)
+            acc_B_test_.append(acc_B_test)
+            fusion_acc_test_.append(fusion_acc_test)
 
-        skf_id += 1
+            skf_id += 1
 
         acc_A_test_, acc_B_test_, fusion_acc_test_ = np.array(acc_A_test_), np.array(acc_B_test_), np.array(fusion_acc_test_)
         print(f"acc_A_test: {acc_A_test_.mean()} {acc_A_test_.std()}")

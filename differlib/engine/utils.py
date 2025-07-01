@@ -147,7 +147,7 @@ def predict(model, data, num_classes=2, batch_size=512, eval=False, softmax=True
             start += len(batch_data)
             del batch_data
     if softmax:
-        if model.__class__.__name__ in ["LFCNN", "VARCNN"]:
+        if model.__class__.__name__ in ["LFCNN", "VARCNN", "CTNet"]:
             output = torch.exp(output) / torch.sum(torch.exp(output), dim=-1, keepdim=True)
         if model.__class__.__name__ in ["HGRN", "ATCNet"]:  #, "EEGNetv4", "NewEEGNetv1"
             output = torch.exp(output)

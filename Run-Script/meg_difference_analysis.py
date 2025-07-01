@@ -8,6 +8,7 @@ import pandas as pd
 import sklearn
 import torch
 from mne.time_frequency import psd_array_multitaper
+from scipy.stats import ttest_ind
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
 
@@ -22,9 +23,37 @@ from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature
 from differlib.models import model_dict, scikit_models, torch_models, load_pretrained_model, output_predict_targets
 
 
+def dynamic_fusion(data, model_A, model_B, explainer, device: torch.device = torch.device("cpu")):
+    data_ = data.reshape((len(data), -1))
+    select_indices = np.array([np.nonzero(feature_names == i)[0].item() for i in explainer.delta_tree.feature_names_in_])
+    data_ = data_[:, select_indices]
+
+    out_A, tag_A = output_predict_targets(model_A_type, model_A, data, num_classes=n_classes, device=device)
+    out_B, tag_B = output_predict_targets(model_B_type, model_B, data, num_classes=n_classes, device=device)
+    logit_delta_proxy = explainer.delta_tree.predict(data_)
+    logit_delta = logit_delta_proxy[:, :n_classes]
+
+    fusion_output, fusion_target = np.zeros_like(logit_delta), np.zeros_like(logit_delta[:, 0])
+    for idx, x in enumerate(data):
+        weight = np.abs(logit_delta[idx]).max()  # 取最大概率差作权重
+
+        # weight = 0.5 + logit_delta[idx, 0] / 2
+        weight = 0.5 + logit_delta[idx, np.abs(logit_delta[idx]).argmax()] / 2
+        fusion_output[idx] = weight * out_A[idx] + (1 - weight) * out_B[idx]
+
+        fusion_target = np.argmax(fusion_output, axis=1)
+
+        # if logit_delta[idx, 0] > 0:
+        #     fusion_output[idx], fusion_target[idx] = output_predict_targets(model_A_type, model_A,  x[np.newaxis, :], num_classes=n_classes, device=device)
+        # else:
+        #     fusion_output[idx], fusion_target[idx] = output_predict_targets(model_B_type, model_B,  x[np.newaxis, :], num_classes=n_classes, device=device)
+
+    return fusion_output, fusion_target
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Benchmark.yaml")  # DecMeg2014    CamCAN      BCIIV2a
+    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Logit.yaml")  # DecMeg2014    CamCAN      BCIIV2a
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -59,7 +88,7 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.EXPERIMENT.GPU_IDS
     num_gpus = torch.cuda.device_count()
     num_cpus = cfg.EXPERIMENT.CPU_COUNT
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')     # 'cuda:1'
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')     # 'cuda:1'
     print(f"Using device: {device}")
 
     # init dataset & models
@@ -115,8 +144,8 @@ if __name__ == "__main__":
         writer.write("CONFIG:\n{}".format(cfg.dump()))
 
     # models predict differences
-    output_A, pred_target_A = output_predict_targets(model_A_type, model_A, data, num_classes=n_classes)
-    output_B, pred_target_B = output_predict_targets(model_B_type, model_B, data, num_classes=n_classes)
+    output_A, pred_target_A = output_predict_targets(model_A_type, model_A, data, num_classes=n_classes, device=device)
+    output_B, pred_target_B = output_predict_targets(model_B_type, model_B, data, num_classes=n_classes, device=device)
     delta_target = (pred_target_A != pred_target_B).astype(int)
     delta_weights = np.abs(output_A - output_B).mean(axis=1)
 
@@ -130,12 +159,13 @@ if __name__ == "__main__":
         skf_id = 0
         # record metrics of i-th Fold
         pd_test_metrics, pd_train_metrics = None, None
+        acc_A_test_, acc_B_test_, fusion_acc_test_ = [], [], []
         for train_index, test_index in skf.split(data, delta_target):
             x_train = data[train_index]
             x_test = data[test_index]
 
-            # output_A_test, pred_target_A_test = output_predict_targets(model_A_type, model_A, x_test, num_classes=n_classes)
-            # output_B_test, pred_target_B_test = output_predict_targets(model_B_type, model_B, x_test, num_classes=n_classes)
+            # output_A_test, pred_target_A_test = output_predict_targets(model_A_type, model_A, x_test, num_classes=n_classes, device=device)
+            # output_B_test, pred_target_B_test = output_predict_targets(model_B_type, model_B, x_test, num_classes=n_classes, device=device)
 
             x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor, )
             if augmentation_type == "Counterfactual":
@@ -147,8 +177,8 @@ if __name__ == "__main__":
                 else:
                     print(aug.shape, "is not a valid augmentation type")
 
-            output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug, num_classes=n_classes)
-            output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug, num_classes=n_classes)
+            output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug, num_classes=n_classes, device=device)
+            output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug, num_classes=n_classes, device=device)
 
             ydiff = (pred_target_A_train != pred_target_B_train).astype(int)
             print(f"diffs in X_train = {ydiff.sum()} / {len(ydiff)} = {(ydiff.sum() / len(ydiff) * 100):.4f}%")
@@ -161,7 +191,7 @@ if __name__ == "__main__":
                 # all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B, n_classes, window_length, selection_M)
                 selection_method.fit(x_train, model_A, model_B, channels, points, n_classes,
                                      window_length, selection_M, all_sample_feature_maps[train_index],
-                                     threshold=selection_threshold, num_gpus=num_gpus, num_cpus=num_cpus)
+                                     threshold=selection_threshold, device=device)
             else:
                 selection_method.fit(x_train_aug, output_A_train, output_B_train)
 
@@ -228,6 +258,21 @@ if __name__ == "__main__":
                 pd_test_metrics = pd.DataFrame(columns=test_metrics.keys())
             pd_test_metrics.loc[len(pd_test_metrics)] = test_metrics.values()
 
+            # 决策融合
+            if explainer_type in ["Logit"]:
+                x_test, y_test = data[test_index], labels[test_index]
+                pred_target_A_test, pred_target_B_test = pred_target_A[test_index], pred_target_B[test_index]
+                acc_A_test = sklearn.metrics.accuracy_score(y_test, pred_target_A_test)
+                acc_B_test = sklearn.metrics.accuracy_score(y_test, pred_target_B_test)
+
+                fusion_output_test, fusion_target_test = dynamic_fusion(x_test, model_A, model_B, explainer, device=device)
+                fusion_acc_test = sklearn.metrics.accuracy_score(y_test, fusion_target_test)
+
+                print(f"skf_id", skf_id, "Explainer", explainer_type, acc_A_test, acc_B_test, fusion_acc_test)
+                acc_A_test_.append(acc_A_test)
+                acc_B_test_.append(acc_B_test)
+                fusion_acc_test_.append(fusion_acc_test)
+
             # 打印单次实验结果
             print("skf_id", skf_id, "Explainer", explainer_type)
             print(pd_train_metrics.to_string())
@@ -244,6 +289,16 @@ if __name__ == "__main__":
             save_checkpoint(save_dict, save_path)
 
             skf_id += 1
+
+        if explainer_type in ["Logit"]:
+            acc_A_test_, acc_B_test_, fusion_acc_test_ = np.array(acc_A_test_), np.array(acc_B_test_), np.array(fusion_acc_test_)
+            print(f"acc_A_test: {acc_A_test_.mean()} {acc_A_test_.std()}")
+            print(f"acc_B_test: {acc_B_test_.mean()} {acc_B_test_.std()}")
+            print(f"fusion_acc_test: {fusion_acc_test_.mean()} {fusion_acc_test_.std()}")
+            p_value = ttest_ind(acc_A_test_, fusion_acc_test_).pvalue
+            print(f"p_value: {p_value}")
+            p_value = ttest_ind(acc_B_test_, fusion_acc_test_).pvalue
+            print(f"p_value: {p_value}")
 
         # 计算测试集上各个指标的均值和标准差
         assert len(pd_test_metrics.columns.tolist()) == 10
@@ -264,17 +319,17 @@ if __name__ == "__main__":
                 writer.write(f"{index}:\t{np.array2string(partial_pd_metrics[index].values, separator=', ')}" + os.linesep)
             writer.write(os.linesep + "-" * 25 + os.linesep)
 
-        # 根据模型A、B，记录不同解释器配置下的测试集实验结果用于对比
-        record_file = os.path.join(record_path, f"{model_A_type}_{model_B_type}_record.csv")
-        record_mean_std['model_A'] = model_A_type
-        record_mean_std['model_B'] = model_B_type
-        record_mean_std['explainer'] = explainer_type
-        for index in ["test-precision", "test-recall", "test-f1", "num-rules", "num-unique-preds"]:
-            record_mean_std[f"{index}-list"] = partial_pd_metrics[index].values
-        if os.path.exists(record_file):
-            all_record_mean_std = pd.read_csv(record_file, encoding="utf_8_sig")
-            assert all_record_mean_std.columns.tolist() == record_mean_std.index.tolist()
-        else:
-            all_record_mean_std = pd.DataFrame(columns=record_mean_std.index)
-        all_record_mean_std.loc[len(all_record_mean_std)] = record_mean_std.values
-        all_record_mean_std.to_csv(record_file, index=False, encoding="utf_8_sig")
+        # # 根据模型A、B，记录不同解释器配置下的测试集实验结果用于对比
+        # record_file = os.path.join(record_path, f"{model_A_type}_{model_B_type}_record.csv")
+        # record_mean_std['model_A'] = model_A_type
+        # record_mean_std['model_B'] = model_B_type
+        # record_mean_std['explainer'] = explainer_type
+        # for index in ["test-precision", "test-recall", "test-f1", "num-rules", "num-unique-preds"]:
+        #     record_mean_std[f"{index}-list"] = partial_pd_metrics[index].values
+        # if os.path.exists(record_file):
+        #     all_record_mean_std = pd.read_csv(record_file, encoding="utf_8_sig")
+        #     assert all_record_mean_std.columns.tolist() == record_mean_std.index.tolist()
+        # else:
+        #     all_record_mean_std = pd.DataFrame(columns=record_mean_std.index)
+        # all_record_mean_std.loc[len(all_record_mean_std)] = record_mean_std.values
+        # all_record_mean_std.to_csv(record_file, index=False, encoding="utf_8_sig")
