@@ -9,14 +9,14 @@ def str2num_list(s:str):
 # models = ['eegnetv4', 'eegnetv1'] # 'eegnetv4', 'eegnetv1'
 
 dataset = 'DecMeg2014' # DecMeg2014    CamCAN  BCIIV2a
-models = ['rf', 'mlp', 'varcnn', 'hgrn', 'atcnet'] # 'rf', 'mlp', 'lfcnn', 'varcnn', 'hgrn', 'atcnet', 'ctnet'
+models = ['rf', 'varcnn', 'hgrn', 'atcnet'] # 'rf', 'mlp', 'lfcnn', 'varcnn', 'hgrn', 'atcnet', 'ctnet'
 
 record_id, compared_id = 0, 0
 benchmarks = {record_id+1: 'DeltaXpainer',
               record_id+2: 'Separate Surrogates',
               record_id+3: 'IMD',
               record_id+4: 'MERLIN',
-              record_id: 'RPPD',
+              record_id: 'BO-RPPD',
               }
 evaluation_matrix = {'test-f1': {},
                      'num-rules': {}

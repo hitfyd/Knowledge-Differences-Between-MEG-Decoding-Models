@@ -53,7 +53,7 @@ def dynamic_fusion(data, model_A, model_B, explainer, device: torch.device = tor
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Logit.yaml")  # DecMeg2014    CamCAN      BCIIV2a
+    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Benchmark.yaml")  # DecMeg2014    CamCAN      BCIIV2a
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     selection_threshold = cfg.SELECTION.Diff.THRESHOLD
     # 预先计算所有样本的特征归因图，训练时只使用训练集样本的特征归因图
     if selection_type in ["DiffShapley"]:
-        all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B, n_classes, window_length, selection_M)
+        all_sample_feature_maps = compute_all_sample_feature_maps(dataset, data, model_A, model_B, n_classes, window_length, selection_M, device=device)
 
     if augmentation_type in ["Counterfactual"]:
         aug = counterfactual(model_A, model_B, dataset, data, cover=False, device=device, target_model=1)# if model_A_type != 'rf' else 2)
@@ -160,22 +160,23 @@ if __name__ == "__main__":
         # record metrics of i-th Fold
         pd_test_metrics, pd_train_metrics = None, None
         acc_A_test_, acc_B_test_, fusion_acc_test_ = [], [], []
-        for train_index, test_index in skf.split(data, delta_target):
+        for train_index, test_index in skf.split(data, labels):#delta_target):
             x_train = data[train_index]
             x_test = data[test_index]
 
             # output_A_test, pred_target_A_test = output_predict_targets(model_A_type, model_A, x_test, num_classes=n_classes, device=device)
             # output_B_test, pred_target_B_test = output_predict_targets(model_B_type, model_B, x_test, num_classes=n_classes, device=device)
 
-            x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor, )
             if augmentation_type == "Counterfactual":
                 if len(aug.shape) == 3:
-                    x_train_aug = np.concatenate((x_train_aug, aug[train_index]), axis=0)
+                    x_train_aug = np.concatenate((x_train, aug[train_index]), axis=0)
                 elif len(aug.shape) == 4:
-                    x_train_aug = np.concatenate((x_train_aug, aug[train_index, :int(augment_factor)].reshape(-1, channels, points)), axis=0)
+                    x_train_aug = np.concatenate((x_train, aug[train_index, :int(augment_factor)].reshape(-1, channels, points)), axis=0)
                     # x_train_aug = aug[train_index, :int(augment_factor)].reshape(-1, channels, points)
                 else:
                     print(aug.shape, "is not a valid augmentation type")
+            else:
+                x_train_aug, delta_target_aug = augmentation_method.augment(x_train, delta_target[train_index], augment_factor=augment_factor, )
 
             output_A_train, pred_target_A_train = output_predict_targets(model_A_type, model_A, x_train_aug, num_classes=n_classes, device=device)
             output_B_train, pred_target_B_train = output_predict_targets(model_B_type, model_B, x_train_aug, num_classes=n_classes, device=device)
@@ -319,17 +320,25 @@ if __name__ == "__main__":
                 writer.write(f"{index}:\t{np.array2string(partial_pd_metrics[index].values, separator=', ')}" + os.linesep)
             writer.write(os.linesep + "-" * 25 + os.linesep)
 
-        # # 根据模型A、B，记录不同解释器配置下的测试集实验结果用于对比
-        # record_file = os.path.join(record_path, f"{model_A_type}_{model_B_type}_record.csv")
-        # record_mean_std['model_A'] = model_A_type
-        # record_mean_std['model_B'] = model_B_type
-        # record_mean_std['explainer'] = explainer_type
-        # for index in ["test-precision", "test-recall", "test-f1", "num-rules", "num-unique-preds"]:
-        #     record_mean_std[f"{index}-list"] = partial_pd_metrics[index].values
-        # if os.path.exists(record_file):
-        #     all_record_mean_std = pd.read_csv(record_file, encoding="utf_8_sig")
-        #     assert all_record_mean_std.columns.tolist() == record_mean_std.index.tolist()
-        # else:
-        #     all_record_mean_std = pd.DataFrame(columns=record_mean_std.index)
-        # all_record_mean_std.loc[len(all_record_mean_std)] = record_mean_std.values
-        # all_record_mean_std.to_csv(record_file, index=False, encoding="utf_8_sig")
+        # 根据模型A、B，记录不同解释器配置下的测试集实验结果用于对比
+        record_file = os.path.join(record_path, f"{cfg.EXPERIMENT.TAG}_{model_A_type}_{model_B_type}_record.csv")
+        record_mean_std['model_A'] = model_A_type
+        record_mean_std['model_B'] = model_B_type
+        record_mean_std['window_length'] = window_length
+        record_mean_std['explainer'] = explainer_type
+        record_mean_std['max_depth'] = max_depth
+        record_mean_std['augmentation_type'] = augmentation_type
+        record_mean_std['augment_factor'] = augment_factor
+        record_mean_std['selection_type'] = selection_type
+        record_mean_std['selection_M'] = selection_M
+        record_mean_std['selection_threshold'] = selection_threshold
+
+        for index in ["test-precision", "test-recall", "test-f1", "num-rules", "num-unique-preds"]:
+            record_mean_std[f"{index}-list"] = partial_pd_metrics[index].values
+        if os.path.exists(record_file):
+            all_record_mean_std = pd.read_csv(record_file, encoding="utf_8_sig")
+            assert all_record_mean_std.columns.tolist() == record_mean_std.index.tolist()
+        else:
+            all_record_mean_std = pd.DataFrame(columns=record_mean_std.index)
+        all_record_mean_std.loc[len(all_record_mean_std)] = record_mean_std.values
+        all_record_mean_std.to_csv(record_file, index=False, encoding="utf_8_sig")

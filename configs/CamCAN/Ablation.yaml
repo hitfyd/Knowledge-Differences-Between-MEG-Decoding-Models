@@ -1,12 +1,12 @@
 EXPERIMENT:
   PROJECT: "CamCAN"
-  TAG: "Benchmark"
+  TAG: "Ablation"
 DATASET: "CamCAN"
 NUM_SPLITS: 5
 TEST_SIZE: 0.25
 WINDOW_LENGTH: 10
 MODEL_A: "rf"
-MODEL_B: "varcnn"
+MODEL_B: "atcnet"
 AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
 AUGMENT_FACTOR: 3.0
 Feature_SMOOTHING: False
@@ -16,5 +16,5 @@ SELECTION:
     M: 2
     THRESHOLD: 3.0
 EXPLAINER:
-  TYPE: "Logit;Delta;SS;IMD;MERLIN" # "Logit;Delta;SS;IMD;MERLIN"
+  TYPE: "Logit;Delta;SS;IMD" # "Logit;Delta;SS;IMD"
   MAX_DEPTH: 6
