@@ -1,11 +1,11 @@
 EXPERIMENT:
-  PROJECT: "DecMeg2014"
+  PROJECT: "CamCAN"
   TAG: "Search"
-DATASET: "DecMeg2014"
+DATASET: "CamCAN"
 NUM_SPLITS: 5
 TEST_SIZE: 0.25
-WINDOW_LENGTH: 25  # 25 10 5 1  10最好
-MODEL_A: "rf" # "hgrn"
+WINDOW_LENGTH: 10
+MODEL_A: "rf"
 MODEL_B: "atcnet"
 AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
 AUGMENT_FACTOR: [0, 1.0, 3.0, 5.0]
@@ -14,7 +14,7 @@ SELECTION:
   TYPE: "DiffShapley"
   Diff:
     M: 2
-    THRESHOLD: [0, 1.0, 2.0, 3.0, 4.0, 5.0]
+    THRESHOLD: [1.0, 3.0, 5.0]
 EXPLAINER:
-  TYPE: "Logit;Delta" # "Logit;Delta;SS;IMD"
+  TYPE: "SS;IMD" # "Logit;Delta;SS;IMD"
   MAX_DEPTH: [4, 5, 6, 7]

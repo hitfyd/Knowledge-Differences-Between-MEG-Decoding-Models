@@ -182,18 +182,18 @@ class LogitDeltaRule(DISExplainer):
         print("Proxy Model1", "Acc:", sklearn.metrics.accuracy_score(pred_target_1, logit_proxy_y1.argmax(axis=1)), "MSE:", sklearn.metrics.mean_squared_error(y_test1, logit_proxy_y1))
         print("Proxy Model2", "Acc:", sklearn.metrics.accuracy_score(pred_target_2, logit_proxy_y2.argmax(axis=1)), "MSE:", sklearn.metrics.mean_squared_error(y_test2, logit_proxy_y2))
 
-        metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
-        metrics[name + "-accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
-        metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target)#, average='weighted')
-        metrics[name + "-recall"] = sklearn.metrics.recall_score(delta_target, pred_target)#, average='weighted')
-        metrics[name + "-f1"] = sklearn.metrics.f1_score(delta_target, pred_target)#, average='weighted')
+        metrics[name + "_confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
+        metrics[name + "_accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
+        metrics[name + "_precision"] = sklearn.metrics.precision_score(delta_target, pred_target)#, average='weighted')
+        metrics[name + "_recall"] = sklearn.metrics.recall_score(delta_target, pred_target)#, average='weighted')
+        metrics[name + "_f1"] = sklearn.metrics.f1_score(delta_target, pred_target)#, average='weighted')
 
-        metrics["num-rules"] = len(self.diffrules)
+        metrics["num_rules"] = len(self.diffrules)
 
         preds = []
         for rule in self.diffrules:
             preds += rule.predicates
-        metrics["average-num-rule-preds"] = 0 if metrics["num-rules"] == 0 else float(len(preds)) / metrics["num-rules"]
+        metrics["average_num_rule_preds"] = 0 if metrics["num_rules"] == 0 else float(len(preds)) / metrics["num_rules"]
         preds = set(preds)
-        metrics["num-unique-preds"] = len(preds)
+        metrics["num_unique_preds"] = len(preds)
         return metrics

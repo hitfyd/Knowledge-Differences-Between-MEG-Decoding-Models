@@ -53,7 +53,7 @@ def dynamic_fusion(data, model_A, model_B, explainer, device: torch.device = tor
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Ablation.yaml")  # DecMeg2014    CamCAN      BCIIV2a
+    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Search.yaml")  # DecMeg2014    CamCAN      BCIIV2a
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -253,12 +253,12 @@ if __name__ == "__main__":
                             test_metrics = explainer.metrics(x_test, pred_target_A[test_index], pred_target_B[test_index])
 
                         # 记录单次实验的训练和测试结果
-                        train_metrics['train-confusion_matrix'] = np.array2string(train_metrics['train-confusion_matrix'])
+                        train_metrics['train_confusion_matrix'] = np.array2string(train_metrics['train_confusion_matrix'])
                         if pd_train_metrics is None:
                             pd_train_metrics = pd.DataFrame(columns=train_metrics.keys())
                         pd_train_metrics.loc[len(pd_train_metrics)] = train_metrics.values()
 
-                        test_metrics['test-confusion_matrix'] = np.array2string(test_metrics['test-confusion_matrix'])
+                        test_metrics['test_confusion_matrix'] = np.array2string(test_metrics['test_confusion_matrix'])
                         if pd_test_metrics is None:
                             pd_test_metrics = pd.DataFrame(columns=test_metrics.keys())
                         pd_test_metrics.loc[len(pd_test_metrics)] = test_metrics.values()
@@ -323,7 +323,7 @@ if __name__ == "__main__":
                         writer.write(record_mean_std.to_string() + os.linesep)
                         writer.write(partial_pd_metrics_mean.to_string() + os.linesep)
                         writer.write(partial_pd_metrics_std.to_string() + os.linesep)
-                        for index in ["test-precision", "test-recall", "test-f1", "num-rules", "num-unique-preds"]:
+                        for index in ["test_precision", "test_recall", "test_f1", "num_rules", "num_unique_preds"]:
                             writer.write(f"{index}:\t{np.array2string(partial_pd_metrics[index].values, separator=', ')}" + os.linesep)
                         writer.write(os.linesep + "-" * 25 + os.linesep)
 
@@ -340,8 +340,8 @@ if __name__ == "__main__":
                     record_mean_std['selection_M'] = selection_M
                     record_mean_std['selection_threshold'] = selection_threshold
 
-                    for index in ["test-precision", "test-recall", "test-f1", "num-rules", "num-unique-preds"]:
-                        record_mean_std[f"{index}-list"] = partial_pd_metrics[index].values
+                    for index in ["test_precision", "test_recall", "test_f1", "num_rules", "num_unique_preds"]:
+                        record_mean_std[f"{index}_list"] = partial_pd_metrics[index].values
                     if os.path.exists(record_file):
                         all_record_mean_std = pd.read_csv(record_file, encoding="utf_8_sig")
                         assert all_record_mean_std.columns.tolist() == record_mean_std.index.tolist()

@@ -147,19 +147,19 @@ class DeltaExplainer_Official(DISExplainer):
 
         delta_target = (y_test1 != y_test2).astype(int)
         pred_target = self.delta_tree.predict(x_test)
-        metrics[name + "-confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
-        metrics[name + "-accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
-        metrics[name + "-precision"] = sklearn.metrics.precision_score(delta_target, pred_target)
-        metrics[name + "-recall"] = sklearn.metrics.recall_score(delta_target, pred_target)
-        metrics[name + "-f1"] = sklearn.metrics.f1_score(delta_target, pred_target)
+        metrics[name + "_confusion_matrix"] = sklearn.metrics.confusion_matrix(delta_target, pred_target)
+        metrics[name + "_accuracy"] = sklearn.metrics.accuracy_score(delta_target, pred_target)
+        metrics[name + "_precision"] = sklearn.metrics.precision_score(delta_target, pred_target)
+        metrics[name + "_recall"] = sklearn.metrics.recall_score(delta_target, pred_target)
+        metrics[name + "_f1"] = sklearn.metrics.f1_score(delta_target, pred_target)
 
-        metrics["num-rules"] = len(self.diffrules)
+        metrics["num_rules"] = len(self.diffrules)
 
         preds = []
         for rule in self.diffrules:
             preds += rule.predicates
-        metrics["average-num-rule-preds"] = float(len(preds)) / metrics["num-rules"]
+        metrics["average_num_rule_preds"] = float(len(preds)) / metrics["num_rules"]
         preds = set(preds)
-        metrics["num-unique-preds"] = len(preds)
+        metrics["num_unique_preds"] = len(preds)
         return metrics
 

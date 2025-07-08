@@ -94,18 +94,18 @@ class MERLINXAI(DISExplainer):
         metrics["diffs"] = total_number_diff_samples
         metrics["samples"] = len(x_test)
 
-        metrics[name + "-confusion_matrix"] = np.zeros((2, 2))
-        metrics[name + "-accuracy"] = 0
-        metrics[name + "-precision"] = 0
-        metrics[name + "-recall"] = 0
-        metrics[name + "-f1"] = 0
+        metrics[name + "_confusion_matrix"] = np.zeros((2, 2))
+        metrics[name + "_accuracy"] = 0
+        metrics[name + "_precision"] = 0
+        metrics[name + "_recall"] = 0
+        metrics[name + "_f1"] = 0
 
-        metrics["num-rules"] = len(self.diffrules)
+        metrics["num_rules"] = len(self.diffrules)
 
         preds = []
         for rule in self.diffrules:
             preds += rule.predicates
-        metrics["average-num-rule-preds"] = float(len(preds)) / metrics["num-rules"]
+        metrics["average_num_rule_preds"] = float(len(preds)) / metrics["num_rules"]
         preds = set(preds)
-        metrics["num-unique-preds"] = len(preds)
+        metrics["num_unique_preds"] = len(preds)
         return metrics

@@ -244,7 +244,7 @@ def save_figure(fig, save_dir, figure_name, save_dpi=400, format_list=None):
     # SVG format for Web
     # JPG format for display
     if format_list is None:
-        format_list = ["eps", "pdf", "svg"]
+        format_list = ["pdf", "svg"]     # "eps", "pdf", "svg"
     plt.rcParams['savefig.dpi'] = save_dpi  # 图片保存像素
     os.makedirs(os.path.dirname(save_dir), exist_ok=True)  # 确保路径存在
     for save_format in format_list:

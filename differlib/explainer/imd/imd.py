@@ -240,24 +240,24 @@ class IMDExplainer(DISExplainer):
         fn = total_number_diff_samples - tp
         fp = samples_in_region - tp
         tn = len(x_test) - tp - fn - fp
-        metrics[name + "-confusion_matrix"] = np.array([[tn, fp], [fn, tp]])
-        metrics[name + "-accuracy"] = np.nan_to_num((tp+tn)/(tp+tn+fp+fn))
+        metrics[name + "_confusion_matrix"] = np.array([[tn, fp], [fn, tp]])
+        metrics[name + "_accuracy"] = np.nan_to_num((tp+tn)/(tp+tn+fp+fn))
 
-        metrics[name + "-precision"] = np.nan_to_num(diff_samples_inside_diff_region / samples_in_region)
-        metrics[name + "-recall"] = np.nan_to_num(diff_samples_inside_diff_region / total_number_diff_samples)
-        metrics[name + "-f1"] = np.nan_to_num(2 * metrics[name + "-precision"] * metrics[name + "-recall"] /
-                                              (metrics[name + "-precision"] + metrics[name + "-recall"]))
-        metrics["num-rules"] = len(self.diffregions)
+        metrics[name + "_precision"] = np.nan_to_num(diff_samples_inside_diff_region / samples_in_region)
+        metrics[name + "_recall"] = np.nan_to_num(diff_samples_inside_diff_region / total_number_diff_samples)
+        metrics[name + "_f1"] = np.nan_to_num(2 * metrics[name + "_precision"] * metrics[name + "_recall"] /
+                                              (metrics[name + "_precision"] + metrics[name + "_recall"]))
+        metrics["num_rules"] = len(self.diffregions)
 
         preds = []
         for rule in self.diffrules:
             preds += rule.predicates
-        if metrics["num-rules"] > 0:
-            metrics["average-num-rule-preds"] = float(len(preds)) / metrics["num-rules"]
+        if metrics["num_rules"] > 0:
+            metrics["average_num_rule_preds"] = float(len(preds)) / metrics["num_rules"]
         else:
-            metrics["average-num-rule-preds"] = metrics["num-rules"]
+            metrics["average_num_rule_preds"] = metrics["num_rules"]
         preds = set(preds)
-        metrics["num-unique-preds"] = len(preds)
+        metrics["num_unique_preds"] = len(preds)
         return metrics
 
 
