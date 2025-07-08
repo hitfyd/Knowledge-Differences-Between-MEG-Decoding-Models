@@ -290,7 +290,7 @@ if __name__ == "__main__":
                                      "train_metrics": train_metrics,
                                      "test_metrics": test_metrics,
                                      }
-                        save_path = os.path.join(log_path, "{}_{}".format(explainer_type, skf_id))
+                        save_path = os.path.join(log_path, "{}_{}_{}_{}_{}_{}_{}".format(explainer_type, model_A_type, model_B_type, max_depth, augment_factor, selection_threshold, skf_id))
                         save_checkpoint(save_dict, save_path)
 
                         skf_id += 1

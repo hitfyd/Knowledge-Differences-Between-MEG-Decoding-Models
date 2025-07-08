@@ -5,12 +5,14 @@ import torch
 from cuml import LogisticRegression
 from cuml.ensemble import RandomForestClassifier
 from cuml.metrics import accuracy_score
+from numba import cuda
 
 from differlib.engine.utils import save_checkpoint, load_checkpoint, get_data_labels_from_dataset, setup_seed
 
 random_state = 1234
 setup_seed(random_state)
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+cuda.select_device(1)
 # datasets
 datasets = [
     "CamCAN",

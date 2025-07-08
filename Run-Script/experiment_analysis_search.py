@@ -74,11 +74,11 @@ for i in range(len(models)-1):
 
         for explainer, explainer_name in explainer_dict.items():
             for matrix in evaluation_matrix.keys():
-                for max_depth in max_depth_list:
-                    for augment_factor in augment_factor_list:
-                        for selection_threshold in selection_threshold_list:
-                            key_id = f"{explainer}_{max_depth}_{augment_factor}_{selection_threshold}"
-                            result = evaluation_matrix[matrix][key_id]
+                # for max_depth in max_depth_list:
+                #     for augment_factor in augment_factor_list:
+                #         for selection_threshold in selection_threshold_list:
+                #             key_id = f"{explainer}_{max_depth}_{augment_factor}_{selection_threshold}"
+                #             result = evaluation_matrix[matrix][key_id]
 
                 # 设置绘图风格
                 # plt.style.use('seaborn-v0_8-whitegrid')
@@ -110,12 +110,12 @@ for i in range(len(models)-1):
                                        marker='o', markersize=6, linewidth=2,
                                        label=f'$g$={augment_factor}')
 
-                        # # 添加误差带（透明）
-                        # color = line[0].get_color()
-                        # ax.fill_between(selection_threshold_list,
-                        #                 np.array(y_values) - np.array(y_errors),
-                        #                 np.array(y_values) + np.array(y_errors),
-                        #                 alpha=0.2, color=color)
+                        # 添加误差带（透明）
+                        color = line[0].get_color()
+                        ax.fill_between(selection_threshold_list,
+                                        np.array(y_values) - np.array(y_errors),
+                                        np.array(y_values) + np.array(y_errors),
+                                        alpha=0.2, color=color)
 
                     # 设置子图标题和标签
                     ax.set_title('Max Depth $d_{max}$ = ' + str(max_depth), fontsize=14, pad=10)
