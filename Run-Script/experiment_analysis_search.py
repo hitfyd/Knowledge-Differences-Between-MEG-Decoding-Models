@@ -33,9 +33,10 @@ def str2num_list(s:str):
 
 dataset = 'DecMeg2014' # DecMeg2014    CamCAN  BCIIV2a
 tags = "Search"
-models = ['rf', 'atcnet'] # 'rf', 'mlp', 'lfcnn', 'varcnn', 'hgrn', 'atcnet', 'ctnet'
+models = ['hgrn', 'atcnet'] # 'rf', 'mlp', 'lfcnn', 'varcnn', 'hgrn', 'atcnet', 'ctnet'
 model_names= {
     'rf': 'Random Forest',
+    'hgrn': "HGRN",
     'atcnet': 'ATCNet',
 }
 evaluation_matrix = {'test_f1': {},
