@@ -159,6 +159,7 @@ if __name__ == "__main__":
         for max_depth in max_depth_list:
             for augment_factor in augment_factor_list:
                 for selection_threshold in selection_threshold_list:
+                    setup_seed(cfg.EXPERIMENT.SEED) # 重新固定随机数
                     print(f"{explainer_type} {model_A_type} {model_B_type} max_depth:{max_depth} augment_factor:{augment_factor} selection_threshold:{selection_threshold}")
                     skf_id = 0
                     # record metrics of i-th Fold
