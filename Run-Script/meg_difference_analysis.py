@@ -1,26 +1,25 @@
 import argparse
 import os
-import shelve
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
+# from sklearnex import patch_sklearn
+# patch_sklearn()
 import sklearn
 import torch
-from mne.time_frequency import psd_array_multitaper
 from scipy.stats import ttest_ind
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
+from sklearn.model_selection import StratifiedShuffleSplit
 
 from differlib.augmentation import am_dict
 from differlib.augmentation.DualMEG_CounterfactualExplainer import counterfactual
 from differlib.engine.cfg import CFG as cfg
-from differlib.engine.utils import (log_msg, setup_seed, load_checkpoint, get_data_labels_from_dataset, get_data_loader,
-                                    save_checkpoint, dataset_info_dict, predict)
+from differlib.engine.utils import (setup_seed, get_data_labels_from_dataset, get_data_loader,
+                                    save_checkpoint)
 from differlib.explainer import explainer_dict
 from differlib.feature_selection import fsm_dict
 from differlib.feature_selection.DiffShapleyFS import compute_all_sample_feature_maps
-from differlib.models import model_dict, scikit_models, torch_models, load_pretrained_model, output_predict_targets
+from differlib.models import load_pretrained_model, output_predict_targets
 
 
 def dynamic_fusion(data, model_A, model_B, explainer, device: torch.device = torch.device("cpu")):
@@ -53,7 +52,7 @@ def dynamic_fusion(data, model_A, model_B, explainer, device: torch.device = tor
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/CamCAN/Search.yaml")  # DecMeg2014    CamCAN      BCIIV2a
+    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Logit.yaml")  # DecMeg2014    CamCAN      BCIIV2a
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()

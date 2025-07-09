@@ -36,7 +36,8 @@ tags = "Search"
 models = ['hgrn', 'atcnet'] # 'rf', 'mlp', 'lfcnn', 'varcnn', 'hgrn', 'atcnet', 'ctnet'
 model_names= {
     'rf': 'Random Forest',
-    'hgrn': "HGRN",
+    'varcnn': 'VARCNN',
+    'hgrn': 'HGRN',
     'atcnet': 'ATCNet',
 }
 evaluation_matrix = {'test_f1': {},

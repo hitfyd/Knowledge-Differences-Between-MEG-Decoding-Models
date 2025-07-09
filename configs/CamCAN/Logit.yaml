@@ -7,14 +7,14 @@ TEST_SIZE: 0.25
 WINDOW_LENGTH: 10
 MODEL_A: "varcnn"
 MODEL_B: "atcnet"
-AUGMENTATION: "NONE"  # "Counterfactual"  "NONE"  "BASE"
-AUGMENT_FACTOR: 3.0
-Feature_SMOOTHING: False
+AUGMENTATION: "Counterfactual"  # "Counterfactual"  "NONE"  "BASE"
+AUGMENT_FACTOR: [3.0] # 1-5之间取3最好
+Feature_SMOOTHING: False  # 平滑无优势
 SELECTION:
-  TYPE: "DiffShapley"
+  TYPE: "DiffShapley" # "DiffShapley" "NONE"
   Diff:
-    M: 2
-    THRESHOLD: 3.0
+    M: 2  # 2 4 8中4最好
+    THRESHOLD: [3.0]  # 3.0和6.0具有竞争力
 EXPLAINER:
   TYPE: "Logit"
-  MAX_DEPTH: 6
+  MAX_DEPTH: [5]
