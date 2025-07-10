@@ -31,9 +31,9 @@ def str2num_list(s:str):
 # dataset = 'BCIIV2a' # DecMeg2014    CamCAN  BCIIV2a
 # models = ['eegnetv4', 'eegnetv1'] # 'eegnetv4', 'eegnetv1'
 
-dataset = 'DecMeg2014' # DecMeg2014    CamCAN  BCIIV2a
+dataset = 'CamCAN' # DecMeg2014    CamCAN  BCIIV2a
 tags = "Search"
-models = ['hgrn', 'atcnet'] # 'rf', 'mlp', 'lfcnn', 'varcnn', 'hgrn', 'atcnet', 'ctnet'
+models = ['varcnn', 'atcnet'] # 'rf', 'mlp', 'lfcnn', 'varcnn', 'hgrn', 'atcnet', 'ctnet'
 model_names= {
     'rf': 'Random Forest',
     'varcnn': 'VARCNN',
@@ -83,6 +83,7 @@ for i in range(len(models)-1):
                 #             result = evaluation_matrix[matrix][key_id]
 
             # 设置绘图风格
+            sns.set_style("whitegrid")
             sns.set_palette("tab10", n_colors=len(augment_factor_list))
             # 设置全局字体大小
             plt.rcParams['font.size'] = 13
@@ -120,7 +121,7 @@ for i in range(len(models)-1):
 
                         # 绘制折线图和误差带
                         line = ax.plot(selection_threshold_list, y_values,
-                                       marker='*', markersize=6, linewidth=3,
+                                       marker='*', markersize=9, linewidth=3,
                                        label=f'$g$={augment_factor}')
 
                         # 添加误差带（透明）

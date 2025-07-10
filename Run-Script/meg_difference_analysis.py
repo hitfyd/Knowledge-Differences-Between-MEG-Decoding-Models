@@ -52,7 +52,7 @@ def dynamic_fusion(data, model_A, model_B, explainer, device: torch.device = tor
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Logit.yaml")  # DecMeg2014    CamCAN      BCIIV2a
+    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Search_SS.yaml")  # DecMeg2014    CamCAN      BCIIV2a
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
