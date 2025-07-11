@@ -813,9 +813,9 @@ def topomap_plot(title, attribution_maps, channels_info, channels=204, top_chann
     # 有浅变深：'summer' 'YlGn' 'YlOrRd'
     # 'Oranges'
     cmap = 'Oranges'
-    fontsize = 18
+    fontsize = 16
     plt.rcParams['font.size'] = fontsize  # 设置字体大小
-    fig.suptitle(title, y=0.9, fontdict={'size': fontsize+2})
+    fig.suptitle(title, y=0.9, fontdict={'fontsize': fontsize+2})
 
     # 绘制地形图
     # 地形图中TOP通道的显示参数

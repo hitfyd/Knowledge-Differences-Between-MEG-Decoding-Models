@@ -31,9 +31,9 @@ def str2num_list(s:str):
 # dataset = 'BCIIV2a' # DecMeg2014    CamCAN  BCIIV2a
 # models = ['eegnetv4', 'eegnetv1'] # 'eegnetv4', 'eegnetv1'
 
-dataset = 'CamCAN' # DecMeg2014    CamCAN  BCIIV2a
+dataset = 'DecMeg2014' # DecMeg2014    CamCAN  BCIIV2a
 tags = "Search"
-models = ['varcnn', 'atcnet'] # 'rf', 'mlp', 'lfcnn', 'varcnn', 'hgrn', 'atcnet', 'ctnet'
+models = ['rf', 'atcnet'] # 'rf', 'mlp', 'lfcnn', 'varcnn', 'hgrn', 'atcnet', 'ctnet'
 model_names= {
     'rf': 'Random Forest',
     'varcnn': 'VARCNN',
@@ -46,12 +46,15 @@ evaluation_matrix = {'test_f1': {},
 evaluation_matrix_name = {'test_f1': 'F1 Score',
                           'num_rules': 'Number of Rules',
                           }
-explainer_dict = {'Logit': 'BO-RPPD',
-                  'Delta': 'DeltaXpainer',
-                  }
+explainer_dict = {
+    # 'Logit': 'BO-RPPD',
+    # 'Delta': 'DeltaXpainer',
+    'SS': 'Separate Surrogates',
+    'IMD': 'IMD',
+}
 max_depth_list = [4, 5, 6, 7]
 augment_factor_list = [0.0, 1.0, 3.0, 5.0]
-selection_threshold_list = [0.0, 1.0, 3.0, 5.0]   # [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+selection_threshold_list = [1.0, 3.0, 5.0]   # [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
 
 for i in range(len(models)-1):
     for j in range(i+1, len(models)):
