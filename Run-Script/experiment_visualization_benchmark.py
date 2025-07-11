@@ -12,7 +12,7 @@ from sklearn.manifold import TSNE
 from differlib.engine.utils import load_checkpoint, dataset_info_dict, save_figure
 from similarity.attribution.MEG_Shapley_Values import topomap_plot, time_curve_plot
 
-dataset = "CamCAN"  # "DecMeg2014"  "CamCAN"
+dataset = "DecMeg2014"  # "DecMeg2014"  "CamCAN"
 label_names = ['Audio', 'Visual']
 if dataset == 'DecMeg2014':
     label_names = ['Scramble', 'Face']
@@ -83,7 +83,7 @@ for model_A_type in models[:-1]:
                         t = int(t)
                         attribution_maps[c, t] = values['importance']
                     # 规则重要性热力图
-                    title = f'{explainer_name}: {model_names[model_A_type]} vs {model_names[model_B_type]}'
+                    title = f'{model_names[model_A_type]} vs {model_names[model_B_type]}'
                     figure_name = f"{dataset}_{explainer}_{model_A_type}_{model_B_type}_{max_depth}_{augment_factor}_{selection_threshold}"
                     fig, heatmap_channel, top_channels = topomap_plot(title, attribution_maps, channels_info, channels=channels, top_channel_num=0)
                     save_figure(fig, './images/', f"{figure_name}_topomap")

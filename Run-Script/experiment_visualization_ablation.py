@@ -27,9 +27,9 @@ augment_factor_list = [0, 3.0]
 selection_threshold_list = [0, 3.0]
 tags = "Search"
 explainer_dict = {'Logit': 'BO-RPPD',
-                  'Delta': 'DeltaXpainer',
+                  # 'Delta': 'DeltaXpainer',
                   'SS': 'Separate Surrogates',
-                  'IMD': 'IMD',
+                  # 'IMD': 'IMD',
                   # 'MERLIN': 'MERLIN',
                   }
 
@@ -55,21 +55,43 @@ for model_A_type in models[:-1]:
                             depth = len(rule.predicates)
                             for cond in rule.predicates:
                                 feature = cond[0].strip()
-                                feature_importance[feature] = feature_importance.get(feature, 0) + 1/depth
+                                operator = cond[1]  # 提取运算符 > 或 <
+                                value = cond[2]  # 提取阈值
+
+                                # 更新重要性（按深度加权）
+                                weight = 1 / depth
+                                # 初始化特征记录
+                                if feature not in feature_importance:
+                                    feature_importance[feature] = {
+                                        'importance': 0,
+                                        'thresholds': [],
+                                        'directions': []  # 记录方向（大于/小于）
+                                    }
+                                feature_importance[feature]['importance'] += weight
+                                feature_importance[feature]['thresholds'].append(value)
+                                feature_importance[feature]['directions'].append(1 if operator == '>' else -1)
 
                     attribution_maps = np.zeros((channels, points))
-                    for feature, importance in feature_importance.items():
+                    for feature, values in feature_importance.items():
                         c, t = feature.split("T")
                         c = int(c[1:])
                         t = int(t)
-                        attribution_maps[c, t] = importance
+                        attribution_maps[c, t] = values['importance']
                     # 规则重要性热力图
-                    title = f'{explainer_name}: {model_names[model_A_type]} vs {model_names[model_B_type]}'
+                    if augment_factor == 0.0 and selection_threshold == 0.0:
+                        title = f'{explainer_name} (initial)'
+                    elif augment_factor != 0.0 and selection_threshold == 0.0:
+                        title = f'{explainer_name} ($+@cf$)'
+                    elif augment_factor == 0.0 and selection_threshold != 0.0:
+                        title = f'{explainer_name} ($+@red$)'
+                    else:
+                        title = f'{explainer_name} ($+@cf$ & $+@red$)'
+                    figure_name = f"{dataset}_{explainer}_{model_A_type}_{model_B_type}_{max_depth}_{augment_factor}_{selection_threshold}"
                     fig, heatmap_channel, top_channels = topomap_plot(title, attribution_maps, channels_info, channels=channels, top_channel_num=0)
-                    save_figure(fig, './images/', f"{dataset}_{explainer}_{model_A_type}_{model_B_type}_{max_depth}_{augment_factor}_{selection_threshold}_topomap")
+                    save_figure(fig, './images/', f"{figure_name}_topomap")
 
-                    fig, heatmap_time =  time_curve_plot(title, attribution_maps, points=points)
-                    save_figure(fig, './images/', f"{dataset}_{model_A_type}_{model_B_type}_time_curve")
+                    # fig, heatmap_time =  time_curve_plot(title, attribution_maps, points=points)
+                    # save_figure(fig, './images/', f"{figure_name}_time_curve")
 
             # # 计算规则相似度矩阵
             # sim_matrix = np.zeros((len(rules), len(rules)))

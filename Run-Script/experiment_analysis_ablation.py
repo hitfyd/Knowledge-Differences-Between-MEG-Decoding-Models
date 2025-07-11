@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
-from scipy.stats import ttest_ind
+from scipy.stats import ttest_ind, pearsonr, spearmanr, kendalltau
 
 
 @dataclass
@@ -45,6 +46,12 @@ max_depth_list = [5]
 augment_factor_list = [0.0, 3.0]
 selection_threshold_list = [0.0, 3.0]   # [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
 compared_id = [5, 0.0, 0.0]
+
+# 计算皮尔逊相关性系数
+x = [0.46, 0.51, 0.5, 0.56]
+y = [17.4, 25.4, 19.2, 25.8]
+corr, p_value = kendalltau(x, y)
+print(corr, p_value)
 
 for i in range(len(models)-1):
     for j in range(i+1, len(models)):
