@@ -52,7 +52,7 @@ dataset = "DecMeg2014"  # "DecMeg2014"  "CamCAN"
 tags = "Search"
 channels, points, num_classes = dataset_info_dict[dataset].values()
 explainer_type = "Logit"
-model_types = ["rf", "atcnet"]
+model_types = ["hgrn", "atcnet"]
 device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')     # 'cuda:1'
 print(f"Using device: {device}")
 skf_ids = [0]

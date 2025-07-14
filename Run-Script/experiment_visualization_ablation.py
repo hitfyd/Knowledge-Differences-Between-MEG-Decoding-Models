@@ -23,15 +23,15 @@ model_names= {
 skf_ids = 5
 
 max_depth = 5
-augment_factor_list = [0, 3.0]
-selection_threshold_list = [0, 3.0]
+augment_factor_list = [0, 3.0]  # [0, 3.0]
+selection_threshold_list = [3.0] # [3.0]
 tags = "Search"
-explainer_dict = {'Logit': 'BO-RPPD',
-                  # 'Delta': 'DeltaXpainer',
-                  'SS': 'Separate Surrogates',
-                  # 'IMD': 'IMD',
-                  # 'MERLIN': 'MERLIN',
-                  }
+explainer_dict = {
+    # 'Logit': 'BO-RPPD',
+    # 'Delta': 'DeltaXpainer',
+    'SS': 'Separate Surrogates',
+    'IMD': 'IMD',
+}
 
 # 读取通道可视化信息
 channel_db = shelve.open('../dataset/grad_info')
@@ -92,35 +92,3 @@ for model_A_type in models[:-1]:
 
                     # fig, heatmap_time =  time_curve_plot(title, attribution_maps, points=points)
                     # save_figure(fig, './images/', f"{figure_name}_time_curve")
-
-            # # 计算规则相似度矩阵
-            # sim_matrix = np.zeros((len(rules), len(rules)))
-            # for i, r1 in enumerate(rules):
-            #     for j, r2 in enumerate(rules):
-            #         shared_conds = len(set(r1.predicates) & set(r2.predicates))
-            #         sim_matrix[i,j] = shared_conds / max(len(r1.predicates), len(r2.predicates))
-            #
-            # # 聚类可视化
-            # plt.figure(figsize=(15,8))
-            # dn = hierarchy.dendrogram(hierarchy.linkage(sim_matrix, method='ward'),
-            #                           labels=[f"Rule{i}" for i in range(len(rules))],
-            #                           leaf_rotation=90)
-            # plt.title("Rule Clustering by Condition Similarity")
-            # plt.show()
-            #
-            # # 提取规则核心特征
-            # rule_vectors = []
-            # for rule in rules:
-            #     vec = [rule.class_label[0], rule.class_label[1], len(rule.predicates), max(abs(rule.class_label[:num_classes]))]
-            #     rule_vectors.append(vec)
-            #
-            # # t-SNE降维
-            # tsne = TSNE(n_components=2, perplexity=5)
-            # embedding = tsne.fit_transform(np.array(rule_vectors))
-            #
-            # # 交互式3D散点图
-            # fig = px.scatter_3d(x=embedding[:,0], y=embedding[:,1], z=embedding[:,2],
-            #                     color=[f"Cluster{dn['leaves_color_list'][i]}" for i in range(len(rules))],
-            #                     hover_name=[f"Rule{i}" for i in range(len(rules))],
-            #                     size=[10*max(abs(r.class_label[:num_classes])) for r in rules])
-            # fig.show()
