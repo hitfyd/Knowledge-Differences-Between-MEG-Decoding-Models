@@ -31,7 +31,7 @@ augment_factor_list = [3.0]
 selection_threshold_list = [3.0]
 tags = "Logit"
 explainer_dict = {'Logit': 'BO-RPPD',
-                  # 'Delta': 'DeltaXpainer',
+                  # 'Delta': 'DeltaXplainer',
                   # 'SS': 'Separate Surrogates',
                   # 'IMD': 'IMD',
                   # 'MERLIN': 'MERLIN',

@@ -43,7 +43,7 @@ evaluation_matrix_name = {'test_f1': 'F1 Score',
                           'num_rules': 'Number of Rules',
                           }
 explainer_dict = {
-    'Delta': 'DeltaXpainer',
+    'Delta': 'DeltaXplainer',
     'SS': 'Separate Surrogates',
     'IMD': 'IMD',
     'MERLIN': 'MERLIN',

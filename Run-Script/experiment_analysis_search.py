@@ -47,14 +47,14 @@ evaluation_matrix_name = {'test_f1': 'F1 Score',
                           'num_rules': 'Number of Rules',
                           }
 explainer_dict = {
-    # 'Logit': 'BO-RPPD',
-    # 'Delta': 'DeltaXpainer',
-    'SS': 'Separate Surrogates',
-    'IMD': 'IMD',
+    'Logit': 'BO-RPPD',
+    'Delta': 'DeltaXplainer',
+    # 'SS': 'Separate Surrogates',
+    # 'IMD': 'IMD',
 }
 max_depth_list = [4, 5, 6, 7]
 augment_factor_list = [0.0, 1.0, 3.0, 5.0]
-selection_threshold_list = [1.0, 3.0, 5.0]   # [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+selection_threshold_list = [0.0, 1.0, 3.0, 5.0]   # [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
 
 for i in range(len(models)-1):
     for j in range(i+1, len(models)):

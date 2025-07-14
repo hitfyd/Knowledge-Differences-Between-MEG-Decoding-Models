@@ -28,7 +28,7 @@ selection_threshold_list = [3.0] # [3.0]
 tags = "Search"
 explainer_dict = {
     # 'Logit': 'BO-RPPD',
-    # 'Delta': 'DeltaXpainer',
+    # 'Delta': 'DeltaXplainer',
     'SS': 'Separate Surrogates',
     'IMD': 'IMD',
 }
