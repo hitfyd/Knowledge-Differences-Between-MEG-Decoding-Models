@@ -26,6 +26,16 @@ fig, axes = plt.subplots(
 fig.suptitle(f'Accuracy and Confusion Matrix of Models', fontsize=18, fontweight='bold', y=0.98)
 fig.subplots_adjust(top=0.9, bottom=0.1)
 
+# 创建子图编号标签
+subplot_labels = []
+label_counter = 0
+for i in range(len(dataset_list)):
+    row_labels = []
+    for j in range(len(model_types)):
+        row_labels.append(f'({chr(97 + label_counter)})')  # 97是'a'的ASCII码
+        label_counter += 1
+    subplot_labels.append(row_labels)
+
 for idx, dataset in enumerate(dataset_list):
     data, labels = get_data_labels_from_dataset('../dataset/{}_test.npz'.format(dataset))
     label_names = ['Audio', 'Visual']
@@ -50,6 +60,13 @@ for idx, dataset in enumerate(dataset_list):
         # 设置子图标题和标签
         if jdx == 0:
             ax.set_ylabel(dataset, fontsize=16, fontweight='bold', labelpad=12, x=0.05)
+
+        # 在子图下角添加编号
+        ax.text(0.5, -0.1, subplot_labels[idx][jdx],
+                transform=ax.transAxes,
+                fontsize=14,
+                fontweight='bold',
+                verticalalignment='top')
 
 figure_name = f"All_ConfusionMatrix"
 save_figure(fig, './images/', figure_name)
