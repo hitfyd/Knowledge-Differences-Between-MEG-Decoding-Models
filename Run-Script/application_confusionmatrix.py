@@ -19,12 +19,13 @@ device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')     # 'c
 print(f"Using device: {device}")
 
 # 设置全局字体大小
-plt.rcParams['font.size'] = 12
+plt.rcParams['font.size'] = 16
+# plt.rcParams['font.weight'] = 'bold'
 fig, axes = plt.subplots(
-    len(dataset_list), len(model_types), figsize=(4 * len(model_types), 4 * len(dataset_list)), gridspec_kw={'hspace': 0.2, 'wspace': 0.2}  # 增加行间距，减少列间距
+    len(dataset_list), len(model_types), figsize=(4 * len(model_types), 4 * len(dataset_list)), gridspec_kw={'hspace': 0.32, 'wspace': 0.15}  # 增加行间距，减少列间距
 )
-fig.suptitle(f'Accuracy and Confusion Matrix of Models', fontsize=18, fontweight='bold', y=0.98)
-fig.subplots_adjust(top=0.9, bottom=0.1)
+fig.suptitle(f'Accuracy and Confusion Matrix of Models', fontsize=20, fontweight='bold', y=0.98)
+fig.subplots_adjust(top=0.88, bottom=0.1)
 
 # 创建子图编号标签
 subplot_labels = []
@@ -50,21 +51,21 @@ for idx, dataset in enumerate(dataset_list):
         print(dataset, model_type, cm, acc)
         ax = axes[idx, jdx]
         disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=label_names)
-        disp.plot(include_values=True, cmap='Oranges', colorbar=False, ax=ax)
+        disp.plot(include_values=True, cmap='Oranges',  colorbar=False, ax=ax, text_kw={"fontsize": 18, "fontweight": "bold"})
         disp.ax_.set_xlabel('')
         disp.ax_.set_ylabel('')
-        disp.ax_.set_title(f'{model_names[model_type]} (Acc={acc*100:.2f}%)', fontsize=14, pad=12)
+        disp.ax_.set_title(f'{model_names[model_type]} (Acc={acc*100:.2f}%)', fontsize=16, pad=12)
         if jdx != 0:
             disp.ax_.set_yticks([])
 
         # 设置子图标题和标签
         if jdx == 0:
-            ax.set_ylabel(dataset, fontsize=16, fontweight='bold', labelpad=12, x=0.05)
+            ax.set_ylabel(dataset, fontsize=18, fontweight='bold', labelpad=14, x=0.05)
 
         # 在子图下角添加编号
         ax.text(0.5, -0.1, subplot_labels[idx][jdx],
                 transform=ax.transAxes,
-                fontsize=14,
+                fontsize=16,
                 fontweight='bold',
                 verticalalignment='top')
 

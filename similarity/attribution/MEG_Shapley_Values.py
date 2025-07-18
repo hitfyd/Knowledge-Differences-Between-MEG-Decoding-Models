@@ -850,6 +850,83 @@ def topomap_plot(title, attribution_maps, channels_info, channels=204, top_chann
     return fig, heatmap_channel, top_channels
 
 
+def topomap_plot_axis(axis, axis_colorbar, attribution_maps, channels_info, channels=204, top_channel_num=10,
+                 z_score=True, minmax_scaler=False):
+
+    heatmap = attribution_maps
+    heatmap_channel = heatmap.sum(axis=1)
+    heatmap_time = heatmap.sum(axis=0)
+    if z_score:
+        heatmap = (heatmap - np.mean(heatmap)) / (np.std(heatmap))
+        heatmap_channel = (heatmap_channel - np.mean(heatmap_channel)) / (np.std(heatmap_channel))
+        heatmap_time = (heatmap_time - np.mean(heatmap_time)) / (np.std(heatmap_time))
+    if minmax_scaler:
+        heatmap = (heatmap - np.min(heatmap)) / (np.max(heatmap) - np.min(heatmap))
+        heatmap_channel = (heatmap_channel - np.min(heatmap_channel)) / (np.max(heatmap_channel) - np.min(heatmap_channel))
+        heatmap_time = (heatmap_time - np.min(heatmap_time)) / (np.max(heatmap_time) - np.min(heatmap_time))
+
+    # 计算地形图中需要突出显示的通道及名称，注意：由于在绘制地形图时两两合并为一个位置，需要保证TOP通道的名称一定显示，其余通道对显示第一个通道的名称
+    mask_list = np.zeros(channels//2, dtype=bool)   # 由于通道类型为Grad，在绘制地形图时两两合并为一个位置
+    top_channel_index = np.argsort(-heatmap_channel)[:top_channel_num]
+    names_list = []     # 两两合并后对应的通道名称
+    for channel_index in range(channels//2):
+        if 2*channel_index in top_channel_index:
+            mask_list[channel_index] = True
+            names_list.append(channels_info.ch_names[2 * channel_index] + '\n')     # 避免显示标记遮挡通道名称
+            if 2 * channel_index + 1 in top_channel_index:
+                names_list[channel_index] += channels_info.ch_names[2 * channel_index+1] + '\n\n'
+        elif 2*channel_index+1 in top_channel_index:
+            mask_list[channel_index] = True
+            names_list.append(channels_info.ch_names[2 * channel_index+1] + '\n')
+        else:
+            names_list.append(channels_info.ch_names[2*channel_index])
+
+    # 打印TOP通道及其名称、贡献值
+    print("index\tchannel name\tcontribution value")
+    top_channels = {}
+    for index in top_channel_index:
+        print(index, channels_info.ch_names[index], heatmap_channel[index])
+        top_channels[index] = (channels_info.ch_names[index], heatmap_channel[index])
+
+    # 配色方案
+    # 贡献由大到小颜色由深变浅：'plasma' 'viridis'
+    # 有浅变深：'summer' 'YlGn' 'YlOrRd'
+    # 'Oranges'
+    cmap = 'Oranges'
+    fontsize = 16
+    plt.rcParams['font.size'] = fontsize  # 设置字体大小
+
+    # 绘制地形图
+    # 地形图中TOP通道的显示参数
+    mask_params = dict(marker='o', markerfacecolor='w', markeredgecolor='k', linewidth=0, markersize=4)
+    mne.viz.plot_topomap(heatmap_channel, channels_info, ch_type='grad', cmap=cmap, axes=axis, outlines='head', contours=3,
+                         show=False, names=names_list, mask=mask_list, mask_params=mask_params)
+    for text in axis.texts:  # 遍历所有文本对象
+        text.set_fontsize(fontsize)  # 单独设置字体大小
+        pos = text.get_position()
+        # 调整部分通道名称位置，避免重叠
+        if "1913" in text._text or "2322" in text._text:
+            text.set_position((pos[0]-0.04, pos[1]))  # 微调位置
+        if "2333" in text._text:
+            text.set_position((pos[0]-0.02, pos[1]))  # 微调位置
+        if "2523" in text._text:
+            text.set_position((pos[0]+0.03, pos[1]))  # 微调位置
+        if ("2123" in text._text  or "2033" in text._text or "0242" in text._text or "1813" in text._text or
+                "2643" in text._text or "2543" in text._text):  # DecMeg2014下，“2643”不需要调整位置
+            text.set_position((pos[0], pos[1]-0.03))  # 微调位置
+
+
+    # 设置颜色条带
+    norm = colors.Normalize(vmin=heatmap_channel.min(), vmax=heatmap_channel.max())
+    cbar = colorbar.ColorbarBase(axis_colorbar, cmap=cmap, norm=norm)
+    # 设置刻度标签字体
+    cbar.ax.tick_params(
+        labelsize=fontsize,  # 刻度字体大小
+    )
+
+    return axis, axis_colorbar, heatmap_channel, top_channels
+
+
 def time_curve_plot(title, attribution_maps, points=100, z_score=True, minmax_scaler=False):
     heatmap = attribution_maps
     heatmap_channel = heatmap.sum(axis=1)
