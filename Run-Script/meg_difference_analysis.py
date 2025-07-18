@@ -1,6 +1,7 @@
 import argparse
 import os
 from datetime import datetime
+import time
 
 import numpy as np
 import pandas as pd
@@ -52,7 +53,7 @@ def dynamic_fusion(data, model_A, model_B, explainer, device: torch.device = tor
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("analysis for knowledge differences.")
-    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Logit.yaml")  # DecMeg2014    CamCAN      BCIIV2a
+    parser.add_argument("--cfg", type=str, default="../configs/DecMeg2014/Ablation.yaml")  # DecMeg2014    CamCAN      BCIIV2a
     parser.add_argument("opts", default=None, nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
@@ -164,7 +165,9 @@ if __name__ == "__main__":
                     # record metrics of i-th Fold
                     pd_test_metrics, pd_train_metrics = None, None
                     acc_A_test_, acc_B_test_, fusion_acc_test_ = [], [], []
+                    runtime_list = np.zeros(n_splits)
                     for train_index, test_index in skf.split(data, labels):#delta_target):
+                        time_start = time.perf_counter()
                         x_train = data[train_index]
                         x_test = data[test_index]
 
@@ -278,10 +281,14 @@ if __name__ == "__main__":
                             acc_B_test_.append(acc_B_test)
                             fusion_acc_test_.append(fusion_acc_test)
 
+                        time_end = time.perf_counter()  # 记录结束时间
+                        runtime = time_end - time_start  # 计算的时间差为程序的执行时间，单位为秒/s
+
                         # 打印单次实验结果
                         print("skf_id", skf_id, "Explainer", explainer_type)
                         print(pd_train_metrics.to_string())
                         print(pd_test_metrics.to_string())
+                        print(runtime)
 
                         # 保存单次实验中的中间结果
                         save_dict = {"explainer": explainer if explainer_type not in ["MERLIN"] else [],
@@ -289,10 +296,12 @@ if __name__ == "__main__":
                                      "test_index": test_index,
                                      "train_metrics": train_metrics,
                                      "test_metrics": test_metrics,
+                                     "runtime": runtime,
                                      }
                         save_path = os.path.join(log_path, "{}_{}_{}_{}_{}_{}_{}".format(explainer_type, model_A_type, model_B_type, max_depth, augment_factor, selection_threshold, skf_id))
                         save_checkpoint(save_dict, save_path)
 
+                        runtime_list[skf_id] = runtime
                         skf_id += 1
 
                     if explainer_type in ["Logit"]:
@@ -315,6 +324,8 @@ if __name__ == "__main__":
                     for i in range(len(partial_pd_metrics_mean.values)):
                         record_mean_std.iloc[i] = f"{partial_pd_metrics_mean.iloc[i]:.2f} ± {partial_pd_metrics_std.iloc[i]:.2f}"
                     print(record_mean_std.to_string())
+                    runtime_mean, runtime_std = runtime_list.mean(), runtime_list.std()
+                    print("Runtime: {:.2f} \pm {:.2f}".format(runtime_mean, runtime_std))
                     with open(os.path.join(log_path, "worklog.txt"), "a") as writer:
                         writer.write(os.linesep + "-" * 25 + os.linesep)
                         writer.write(f"{explainer_type} {model_A_type} {model_B_type} max_depth:{max_depth} augment_factor:{augment_factor} selection_threshold:{selection_threshold}" + os.linesep)
@@ -325,6 +336,7 @@ if __name__ == "__main__":
                         writer.write(partial_pd_metrics_std.to_string() + os.linesep)
                         for index in ["test_precision", "test_recall", "test_f1", "num_rules", "num_unique_preds"]:
                             writer.write(f"{index}:\t{np.array2string(partial_pd_metrics[index].values, separator=', ')}" + os.linesep)
+                        writer.write(f"{runtime_mean} {runtime_std} {runtime_list}" + os.linesep)
                         writer.write(os.linesep + "-" * 25 + os.linesep)
 
                     # 根据模型A、B，记录不同解释器配置下的测试集实验结果用于对比
