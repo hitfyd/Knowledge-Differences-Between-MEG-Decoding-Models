@@ -41,10 +41,10 @@ python DecMeg2Dataset.py
 
 ### Performance of the Pre-trained Models
 
-| Dataset    | RF    | MLP   | VARCNN | HGRN  | ATCNet |
-| ---------- | ----- | ----- | ------ | ----- | ------ |
-| CamCAN     | 90.29 | 94.36 | 95.66  | 95.17 | 96.16  |
-| DecMeg2014 | 64.48 | 75.76 | 79.29  | 80.47 | 83.00  |
+| Dataset    | RF    | VARCNN | HGRN  | ATCNet |
+| ---------- | ----- | ------ | ----- | ------ |
+| CamCAN     | 90.29 | 95.66  | 95.17 | 96.16  |
+| DecMeg2014 | 64.48 | 79.29  | 80.47 | 83.00  |
 
 ## Experimental Running
 
@@ -53,7 +53,7 @@ python DecMeg2Dataset.py
 ```angular2html
 cd ./Run-Script
 export PYTHONPATH=$PYTHONPATH:../
-bash run.sh
+bash run_benchmark.sh
 ```
 
 ### Hyperparameters Selection
@@ -62,14 +62,6 @@ bash run.sh
 cd ./Run-Script
 export PYTHONPATH=$PYTHONPATH:../
 bash run_search.sh
-```
-
-### Ablation
-
-```angular2html
-cd ./Run-Script
-export PYTHONPATH=$PYTHONPATH:../
-bash run_ablation.sh
 ```
 
 ### TABULAR DATASETS
@@ -87,12 +79,12 @@ cd ./Run-Script
 export PYTHONPATH=$PYTHONPATH:../
 
 # for our proposed approach
-python difference_analysis.py --cfg ../configs/CamCAN/Logit.yaml
-python difference_analysis.py --cfg ../configs/DecMeg2014/Logit.yaml
+python meg_difference_analysis.py --cfg ../configs/CamCAN/Logit.yaml
+python meg_difference_analysis.py --cfg ../configs/DecMeg2014/Logit.yaml
 
 # you can also change settings at command line
-python difference_analysis.py --cfg ../configs/CamCAN/Logit.yaml  MODEL_A mlp
-python difference_analysis.py --cfg ../configs/DecMeg2014/Logit.yaml  EXPLAINER.MAX_DEPTH 3
+python meg_difference_analysis.py --cfg ../configs/CamCAN/Logit.yaml  MODEL_A rf
+python meg_difference_analysis.py --cfg ../configs/DecMeg2014/Logit.yaml  EXPLAINER.MAX_DEPTH 3
 ```
 
 ## Acknowledgement
